@@ -1,6 +1,6 @@
 # Issue tracker: Local Markdown
 
-> _지금은 로컬 마크다운. GitHub 원격을 연결하면 `/setup-matt-pocock-skills` 를 다시 돌려 GitHub 템플릿으로 교체한다._
+> _GitHub 원격(`CaesiumY/party-games`, 공개)은 연결되어 있지만 이슈는 아직 로컬 마크다운으로 관리한다. GitHub Issues 로 옮기려면 `/setup-matt-pocock-skills` 를 다시 돌린다._
 
 Issues and specs for this repo live as markdown files in `.scratch/`.
 
