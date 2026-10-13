@@ -2,7 +2,11 @@
 
 ### Issue tracker
 
-이슈는 로컬 마크다운(`.scratch/<feature>/`)으로 관리한다. 추후 GitHub Issues 로 전환 예정. See `docs/agents/issue-tracker.md`.
+이슈는 로컬 마크다운(`.scratch/<feature>/`)으로 관리한다. See `docs/agents/issue-tracker.md`.
+
+### PR review bot
+
+PR 을 Codex 가 검토한다. 머지 전 "봇 통과" 여부를 판단할 때: See `docs/agents/pr-review.md`.
 
 ### Triage labels
 
