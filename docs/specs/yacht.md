@@ -1,6 +1,6 @@
 # 요트 웹 게임 MVP 스펙
 
-**Status:** ready-for-agent
+**상위 이슈:** #3 (진행 상태는 이슈 라벨이 원본이다)
 
 > 용어는 루트의 `GLOSSARY.md` 를 따른다. 관련 결정: `docs/adr/0001-roll-outcome-decided-by-logic.md`.
 >

@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues for this repo live as GitHub issues in `CaesiumY/party-games`. Use the `gh` CLI for all operations.
+Issues for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 ## Specs live in the repo
 
