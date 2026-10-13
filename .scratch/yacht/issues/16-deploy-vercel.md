@@ -2,7 +2,7 @@
 
 **What to build:** 완성된 MVP를 Vercel 정적 호스팅에 올려, 링크 하나로 누구나 휴대폰 브라우저에서 바로 플레이할 수 있게 한다.
 
-**Blocked by:** 11, 14
+**Blocked by:** 11, 14, 15
 
 **Status:** ready-for-human
 
