@@ -2,7 +2,7 @@
 
 ### Issue tracker
 
-이슈는 로컬 마크다운(`.scratch/<feature>/`)으로 관리한다. See `docs/agents/issue-tracker.md`.
+이슈는 GitHub Issues(`CaesiumY/party-games`)에서 관리한다. 스펙은 `docs/specs/` 의 파일이 원본이다. See `docs/agents/issue-tracker.md`.
 
 ### PR review bot
 
