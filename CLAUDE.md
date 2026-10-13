@@ -6,7 +6,7 @@
 
 ### PR review bot
 
-Codex 는 PR 을 열 때와 `@codex review` 댓글에만 검토한다. 새 커밋을 올린 뒤 "봇이 통과시켰다"고 판단하려면 `@codex review` 로 재검토를 받고, 검토한 커밋 해시가 최신인지 확인한다.
+PR 을 Codex 가 검토한다. 머지 전 "봇 통과" 여부를 판단할 때: See `docs/agents/pr-review.md`.
 
 ### Triage labels
 
