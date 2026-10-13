@@ -4,7 +4,9 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent — 중간에 사용자가 시안을 고르는 관문이 있다.
+**Status:** ready-for-agent
+
+> 중간에 사용자가 시안을 고르는 관문이 있다.
 
 - [ ] 작업 시작 시 요청이 없어도 `/mattpocock-skills:prototype` 으로 3D 장면 시안 2~3개를 만들어 나란히 비교해 보여 준다.
 - [ ] 사용자의 선택과 그 이유를 기록한다. 시제품은 프로토타입 브랜치에 남기고 이 티켓에서 가리킨다.
