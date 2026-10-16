@@ -69,6 +69,16 @@
   :root[data-variant="C"] .sheet-handle { display: flex; justify-content: space-between; align-items: center; width: 100%; font: inherit; background: none; border: 0; color: var(--fg); padding: 10px 16px 12px; cursor: pointer; }
   :root[data-variant="C"] .sheet-handle::before { content: ""; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; border-radius: 2px; background: var(--line); transform: translateX(-50%); }
 
+  /* 홀드 말풍선: 원작의 커서 + 「홀드」 말풍선을 터치용으로 옮긴 것. 탭 가능한 주사위마다 하나씩 뜬다. */
+  #bubbles { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+  .bubble { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -100%); font: 700 12px/1 var(--body); letter-spacing: .04em; padding: 6px 9px; border-radius: 8px; border: 2px solid #ffd21f; background: rgba(18, 12, 8, .88); color: #ffe27a; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.45); transition: opacity .15s ease; }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: inherit; border-right: 2px solid #ffd21f; border-bottom: 2px solid #ffd21f; transform: translateX(-50%) rotate(45deg); }
+  .bubble.release { border-color: #f3e7d3; color: #f3e7d3; }
+  .bubble.release::after { border-color: #f3e7d3; }
+  .bubble[hidden] { display: none !important; }
+  .bubble:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }
+
   /* 시안 전환 바 (프로토타입 전용, 디자인의 일부가 아님) */
   #switcher { position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 4px; background: #111; color: #fff; border: 2px solid #ffd400; border-radius: 999px; padding: 4px; font: 600 13px/1 system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
   #switcher button { font: inherit; color: inherit; background: #333; border: 0; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; }
@@ -82,6 +92,7 @@
     <span class="meta" id="meta">턴 1/12 · 앞으로 3번</span>
   </header>
   <div id="stage" aria-label="주사위 판">
+    <div id="bubbles"></div>
     <div class="actions"><button id="roll" type="button">굴리기</button></div>
   </div>
   <section class="card sheet" id="sheet" aria-label="점수표">
@@ -320,7 +331,29 @@ stageEl.addEventListener("pointerup", e => {
   if (hit) toggleHold(hit.object.userData.index);
 });
 
-function loop(now) { for (let i = anims.length - 1; i >= 0; i--) if (!anims[i].step(now)) anims.splice(i, 1); if (renderer && camera) renderer.render(scene, camera); requestAnimationFrame(loop); }
+// 홀드 말풍선: 정렬이 끝난 뒤, 더 굴릴 수 있을 때만 뜬다. 주사위 위치를 매 프레임 화면 좌표로 옮겨 따라다닌다.
+const bubbleLayer = document.getElementById("bubbles");
+const bubbles = [0, 1, 2, 3, 4].map(i => {
+  const b = document.createElement("button"); b.type = "button"; b.className = "bubble"; b.hidden = true;
+  b.addEventListener("click", e => { e.stopPropagation(); toggleHold(i); });
+  bubbleLayer.append(b); return b;
+});
+const tmp = new THREE.Vector3();
+function placeBubbles() {
+  const can = S.rolled && !S.animating && S.rollsLeft > 0;
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  dice.forEach((m, i) => {
+    const b = bubbles[i];
+    if (!can) { b.hidden = true; return; }
+    b.hidden = false;
+    const label = S.held[i] ? "해제" : "홀드";
+    if (b.textContent !== label) { b.textContent = label; b.classList.toggle("release", S.held[i]); b.setAttribute("aria-label", `주사위 ${S.values[i]} ${label}`); }
+    tmp.copy(m.position); tmp.y += DIE * .75; tmp.project(camera);
+    b.style.transform = `translate(${(tmp.x * .5 + .5) * w}px, ${(-tmp.y * .5 + .5) * h - 6}px) translate(-50%, -100%)`;
+  });
+}
+
+function loop(now) { for (let i = anims.length - 1; i >= 0; i--) if (!anims[i].step(now)) anims.splice(i, 1); if (renderer && camera) { renderer.render(scene, camera); placeBubbles(); } requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
 // ---------- 2D UI ----------
