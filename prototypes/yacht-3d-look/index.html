@@ -50,9 +50,10 @@
   .state { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
 
   .actions { position: absolute; z-index: 2; left: 50%; bottom: 12px; transform: translateX(-50%); }
-  /* A: 위 3D(크게) · 아래 점수표 2열 · 굴림 버튼은 판 아래 가운데 */
-  :root[data-variant="A"] #app { grid-template-rows: auto minmax(0, 1.3fr) minmax(0, 1fr) auto; }
-  :root[data-variant="A"] #stage { box-shadow: inset 0 0 0 1px var(--line); }
+  /* A: 판 비율(3:4)에 맞춘 3D · 바로 아래 굴림 버튼 · 내용 높이만큼의 점수표 */
+  :root[data-variant="A"] #app { grid-template-rows: auto auto auto auto auto; align-content: start; }
+  :root[data-variant="A"] #stage { box-shadow: inset 0 0 0 1px var(--line); aspect-ratio: 3 / 4; width: 100%; max-height: 58vh; }
+  :root[data-variant="A"] .actions { position: static; transform: none; display: flex; justify-content: center; }
   :root[data-variant="A"] #roll { box-shadow: 0 4px 0 #6d0618; }
   /* B: 위 점수표 · 아래 3D · 굴림 버튼이 판 모서리에 겹침 */
   :root[data-variant="B"] #app { grid-template-rows: auto auto minmax(0, 1fr) auto; }
@@ -154,6 +155,15 @@ function faceTex(v, bg, pip, oneColor, mask) {
     for (const [x, y] of PIPS[v]) { ctx.beginPath(); ctx.arc(x * w, y * w, v === 1 ? 30 : 22, 0, Math.PI * 2); ctx.fillStyle = mask ? "#fff" : (v === 1 && oneColor ? oneColor : pip); ctx.fill(); }
   });
 }
+// 홀드 자리 칸: 어두운 바탕에 실선 테두리와 HOLD 각인
+function slotMat(fill, stroke, glow) {
+  const map = canvasTex(256, 256, (c, w) => {
+    c.fillStyle = fill; c.fillRect(0, 0, w, w);
+    c.strokeStyle = stroke; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, w - 28);
+    c.fillStyle = stroke; c.globalAlpha = .75; c.font = "700 44px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("HOLD", w / 2, w / 2);
+  });
+  return new THREE.MeshStandardMaterial(glow ? { map, roughness: .5, emissive: glow, emissiveMap: map, emissiveIntensity: .6 } : { map, roughness: .9 });
+}
 // BoxGeometry 면 순서 [+x, -x, +y, -y, +z, -z] 에 놓는 눈. 마주 보는 면의 합은 7.
 const FACE_VALUES = [2, 5, 1, 6, 3, 4];
 // 값 v 가 위(+y)를 보게 하는 회전
@@ -165,7 +175,8 @@ const LOOKS = {
     clear: 0x1b120d,
     floor: new THREE.MeshStandardMaterial({ map: canvasTex(512, 512, (c, w, h) => noise(c, w, h, "#8e0f1f", .22, 26000)), roughness: 1 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x141012, roughness: .45, metalness: .1 }),
-    slot: new THREE.MeshStandardMaterial({ color: 0x5e0914, roughness: 1 }),
+    slot: slotMat("#5e0914", "#c9a24a"),
+    cupRim: 0xb08850, target: new THREE.Vector3(0, 0, .45),
     dice: FACE_VALUES.map(v => new THREE.MeshPhysicalMaterial({ map: faceTex(v, "#f6efe1", "#111", "#c8102e"), roughness: .28, clearcoat: .6, clearcoatRoughness: .25 })),
     cup: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => noise(c, w, h, "#4a2a18", .3, 9000)), roughness: .7, side: THREE.DoubleSide }),
     cupInner: 0x7a0c19,
@@ -177,7 +188,8 @@ const LOOKS = {
     clear: 0xefe5d2,
     floor: new THREE.MeshStandardMaterial({ map: canvasTex(512, 512, (c, w, h) => grain(c, w, h, "#6b4426", "40,20,8")), roughness: .65 }),
     rim: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => grain(c, w, h, "#4a2c16", "20,10,4")), roughness: .55 }),
-    slot: new THREE.MeshStandardMaterial({ color: 0x3a2312, roughness: .9 }),
+    slot: slotMat("#3a2312", "#c9a46a"),
+    cupRim: 0xd9a96a, target: new THREE.Vector3(0, 0, 0),
     dice: FACE_VALUES.map(v => new THREE.MeshStandardMaterial({ map: faceTex(v, (c, w, h) => grain(c, w, h, "#e9cf9c", "120,80,30"), "#3b2412", null), roughness: .55 })),
     cup: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => grain(c, w, h, "#b07a43", "60,30,10")), roughness: .6, side: THREE.DoubleSide }),
     cupInner: 0x5a361a,
@@ -189,7 +201,8 @@ const LOOKS = {
     clear: 0x06060c,
     floor: new THREE.MeshPhysicalMaterial({ color: 0x0b0c18, roughness: .18, metalness: .6, clearcoat: 1 }),
     rim: new THREE.MeshStandardMaterial({ color: 0x101226, emissive: 0x39f3ff, emissiveIntensity: .9, roughness: .3 }),
-    slot: new THREE.MeshStandardMaterial({ color: 0x14163a, emissive: 0xff3fd8, emissiveIntensity: .35, roughness: .4 }),
+    slot: slotMat("#14163a", "#ff3fd8", 0xff3fd8),
+    cupRim: 0x39f3ff, target: new THREE.Vector3(0, 0, -.2),
     dice: FACE_VALUES.map(v => new THREE.MeshPhysicalMaterial({ color: 0xff5fd8, transmission: .65, thickness: .8, roughness: .12, ior: 1.45, emissive: 0x39f3ff, emissiveIntensity: 2.2, emissiveMap: faceTex(v, null, null, null, true), transparent: true })),
     cup: new THREE.MeshPhysicalMaterial({ color: 0x8be9ff, transmission: .8, thickness: .3, roughness: .05, side: THREE.DoubleSide, transparent: true, opacity: .9 }),
     cupInner: 0x1a1c40,
@@ -228,8 +241,9 @@ function build(variant) {
   const pts = []; for (let i = 0; i <= 10; i++) pts.push(new THREE.Vector2(.62 + i * .025, i * .14));
   cup = new THREE.Group();
   const outer = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), look.cup); outer.castShadow = true; cup.add(outer);
-  const base = new THREE.Mesh(new THREE.CircleGeometry(.62, 32), new THREE.MeshStandardMaterial({ color: look.cupInner })); base.rotation.x = -Math.PI / 2; base.position.y = .01; cup.add(base);
-  cup.position.copy(CUP_POS); cup.rotation.z = .35; scene.add(cup);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(.62, 32), new THREE.MeshStandardMaterial({ color: look.cupInner })); base.rotation.x = -Math.PI / 2; base.position.y = .03; cup.add(base);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(.87, .06, 10, 40), new THREE.MeshStandardMaterial({ color: look.cupRim, roughness: .35, metalness: .4 })); lip.rotation.x = Math.PI / 2; lip.position.y = 1.4; cup.add(lip);
+  cup.position.copy(CUP_POS); scene.add(cup);
   // 주사위
   const geo = new RoundedBoxGeometry(DIE, DIE, DIE, 4, .12);
   dice = S.values.map((v, i) => {
@@ -252,25 +266,28 @@ function fitBoard() {
   const corners = [];
   for (const x of [-W / 2 - m, W / 2 + m]) for (const z of [-D / 2 - m, D / 2 + m]) for (const h of [0, y + .4]) corners.push(new THREE.Vector3(x, h, z));
   corners.push(CUP_POS.clone().add(new THREE.Vector3(.8, 1.4, .8)));
-  const target = new THREE.Vector3(0, 0, 0);
+  const target = look.target;
   const inside = () => { camera.updateMatrixWorld(); camera.updateProjectionMatrix(); return corners.every(c => { const p = c.clone().project(camera); return Math.abs(p.x) <= .96 && Math.abs(p.y) <= .96; }); };
-  for (let i = 0; i < 60 && !inside(); i++) {
-    if (camera.isOrthographicCamera) camera.zoom *= .95;
-    else camera.position.sub(target).multiplyScalar(1.05).add(target);
-  }
+  const scale = k => { if (camera.isOrthographicCamera) camera.zoom /= k; else camera.position.sub(target).multiplyScalar(k).add(target); };
+  // 판이 화면을 꽉 채우도록: 들어오는 동안 당기고, 넘치면 조금씩 물린다.
+  for (let i = 0; i < 60 && inside(); i++) scale(.96);
+  for (let i = 0; i < 80 && !inside(); i++) scale(1.015);
 }
 new ResizeObserver(() => renderer && resize()).observe(stageEl);
 
-// 화면 배치: 홀드한 것은 홀드 자리, 나머지는 정렬 줄. 각각 오름차순.
-function targets() {
-  const idx = [0, 1, 2, 3, 4];
+// 화면 배치: 주사위마다 세로 칸(col)이 하나 있다. 홀드하면 같은 칸의 홀드 자리로 곧게 올라가고,
+// 풀면 같은 칸의 정렬 줄로 내려온다. 그래서 고르는 동안 다른 주사위는 움직이지 않는다.
+// 다시 정렬(홀드 자리 왼쪽부터 오름차순, 정렬 줄은 그 오른쪽에 오름차순)은 굴림이 끝날 때만 한다.
+const col = [0, 1, 2, 3, 4];
+function settle() {
+  const idx = [0, 1, 2, 3, 4], by = (a, b) => S.values[a] - S.values[b];
   const allUp = S.rolled && S.rollsLeft === 0;
-  const held = idx.filter(i => S.held[i] || allUp).sort((a, b) => S.values[a] - S.values[b]);
-  const free = idx.filter(i => !(S.held[i] || allUp)).sort((a, b) => S.values[a] - S.values[b]);
-  const out = [];
-  held.forEach((i, k) => out[i] = new THREE.Vector3(slotX(k), DIE / 2, HOLD_Z));
-  free.forEach((i, k) => out[i] = new THREE.Vector3((k - (free.length - 1) / 2) * 1.05, DIE / 2, LINE_Z));
-  return out;
+  const held = idx.filter(i => S.held[i] || allUp).sort(by), free = idx.filter(i => !(S.held[i] || allUp)).sort(by);
+  held.forEach((i, k) => col[i] = k); free.forEach((i, k) => col[i] = held.length + k);
+}
+function targets() {
+  const allUp = S.rolled && S.rollsLeft === 0;
+  return [0, 1, 2, 3, 4].map(i => new THREE.Vector3(slotX(col[i]), DIE / 2, (S.held[i] || allUp) ? HOLD_Z : LINE_Z));
 }
 function layout(instant, only) {
   const tg = targets();
@@ -297,12 +314,12 @@ async function roll() {
   if (S.animating || S.rollsLeft === 0 || S.held.every(Boolean)) return;
   const free = [0, 1, 2, 3, 4].filter(i => !S.held[i]);
   free.forEach(i => S.values[i] = 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 * 6)); // 결과가 먼저 정해진다
-  S.rollsLeft--; S.rolled = true; S.animating = true; render();
+  S.rollsLeft--; S.rolled = true; S.animating = true; settle(); render();
   if (!reduceMotion) {
     // 1) 컵 흔들기
     const shake = performance.now();
     free.forEach(i => { dice[i].position.copy(CUP_POS).setY(.6); });
-    await new Promise(r => anims.push({ step(now) { const t = (now - shake) / 520; cup.rotation.z = .35 + Math.sin(t * 28) * .18 * (1 - t); cup.position.x = CUP_POS.x + Math.sin(t * 22) * .08; if (t >= 1) { cup.rotation.z = .35; cup.position.copy(CUP_POS); r(); return false; } return true; } }));
+    await new Promise(r => anims.push({ step(now) { const t = (now - shake) / 520; cup.rotation.z = Math.sin(t * 28) * .22 * (1 - t); cup.position.x = CUP_POS.x + Math.sin(t * 22) * .08; if (t >= 1) { cup.rotation.z = 0; cup.position.copy(CUP_POS); r(); return false; } return true; } }));
     // 2) 쏟아져 굴러감 → 결과 눈이 위로 멈춤
     const spots = free.map((_, k) => new THREE.Vector3(-2.2 + Math.random() * 4.2, DIE / 2, -1.3 + (k % 3) * 1.15 + Math.random() * .5));
     await Promise.all(free.map((i, k) => { const a = tween(dice[i], spots[k], upQuat(S.values[i], Math.random() * Math.PI * 2), 900 + k * 70, 1.4, Math.PI * (5 + Math.random() * 3)); anims.push(a); return a.done; }));
@@ -348,8 +365,9 @@ function placeBubbles() {
     b.hidden = false;
     const label = S.held[i] ? "해제" : "홀드";
     if (b.textContent !== label) { b.textContent = label; b.classList.toggle("release", S.held[i]); b.setAttribute("aria-label", `주사위 ${S.values[i]} ${label}`); }
-    tmp.copy(m.position); tmp.y += DIE * .75; tmp.project(camera);
-    b.style.transform = `translate(${(tmp.x * .5 + .5) * w}px, ${(-tmp.y * .5 + .5) * h - 6}px) translate(-50%, -100%)`;
+    // 주사위 윗면의 뒤쪽 모서리 위에 띄워 눈을 가리지 않는다.
+    tmp.copy(m.position); tmp.y += DIE * .5; tmp.z -= DIE * .6; tmp.project(camera);
+    b.style.transform = `translate(${(tmp.x * .5 + .5) * w}px, ${(-tmp.y * .5 + .5) * h - 4}px) translate(-50%, -100%)`;
   });
 }
 
@@ -385,6 +403,9 @@ function setVariant(v) {
   const app = document.getElementById("app"), sheet = document.getElementById("sheet"), stage = stageEl;
   // 시안마다 DOM 순서가 다르다: A 3D→점수표, B 점수표→3D, C 3D 위에 시트
   if (v === "B") app.insertBefore(sheet, stage); else app.insertBefore(stage, sheet);
+  // A는 굴림 버튼을 판 바로 아래 줄로 꺼내고, 나머지는 판 위에 겹친다.
+  const actions = document.querySelector(".actions");
+  if (v === "A") app.insertBefore(actions, sheet); else stage.append(actions);
   sheet.classList.remove("open");
   try { history.replaceState(null, "", `${location.pathname}?variant=${v}#${v}`); } catch {}
   requestAnimationFrame(() => { build(v); render(); });
