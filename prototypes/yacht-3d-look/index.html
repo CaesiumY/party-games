@@ -1,112 +1,129 @@
-<title>요트 3D 시안</title>
+<title>요트 화면 배치 시안</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <!--
-  PROTOTYPE — 버리는 코드. 질문: "요트의 3D 장면은 어떤 모습이어야 하나?"
-  세 시안을 한 페이지에서 ?variant=A|B|C (또는 #A #B #C, 하단 바, ← → 키)로 바꿔 본다.
-  A 카지노 펠트(원작 충실, 비스듬한 시점, 위 3D·아래 점수표)
-  B 원목 보드게임(위에서 내려다보는 시점, 위 점수표·아래 3D)
-  C 네온 레진(낮은 시점 몰입형, 전체 화면 3D + 끌어올리는 점수표)
-  굴림은 물리 엔진 없이 트윈으로 흉내 낸다(룩 비교용). 결과는 로직이 먼저 정한다(ADR-0001).
+  PROTOTYPE — 버리는 코드. 질문: "휴대폰 가로·데스크톱에서 요트 화면은 어떻게 놓여야 하나?"
+  v1(태그 prototype-yacht-3d-look-v1)에서 고른 3D 룩(카지노 펠트)은 그대로 두고, 화면 배치만 시안으로 바꿔 본다.
+  스펙 docs/specs/yacht.md 「화면 배치」: 세로가 가로보다 길거나 같으면 세로 배치, 가로가 더 길면 가로 배치.
+  가로 배치 시안은 ?layout=A|B|C 로 바꾼다(하단 바).
+    A 원작형      점수표 왼쪽, 판 오른쪽, 버튼은 판 바로 아래
+    B 판 최대형    점수표 왼쪽, 판 가운데, 버튼은 판 오른쪽에 세로로
+    C 점수표 강조형 점수표를 넓고 크게, 판 오른쪽, 버튼은 판 아래
+  세로 배치는 셋 다 같다(턴 표시 / 판 / 버튼 / 점수표, 판은 남은 자리만 쓴다).
+  ?players=1..4 로 인원을 바꾼다. ?bar=0 이면 시안 바를 숨긴다(캡처용).
+  굴림은 물리 엔진 없이 트윈으로 흉내 낸다. 결과는 로직이 먼저 정한다(ADR-0001).
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=Gowun+Dodum&family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
 <style>
-  /* Layout: 한 화면 게임(100% 높이). 시안마다 3D 판과 점수표의 배치 자체가 다르다. */
   :root {
     --bg: #1b120d; --fg: #f3e7d3; --panel: #2a1b13; --line: #4a3022; --accent: #c8102e; --muted: #b59f86;
     --display: "Hahmlet", "Nanum Myeongjo", serif; --body: "IBM Plex Sans KR", system-ui, sans-serif;
+    --row: 24px; --sheet-font: clamp(13px, 1.7vh, 17px);
     color-scheme: dark;
   }
-  :root[data-variant="B"] {
-    --bg: #efe5d2; --fg: #2d2219; --panel: #f8f1e3; --line: #cbb894; --accent: #7a4a1e; --muted: #7c6a52;
-    --display: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif; --body: "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
-    color-scheme: light;
-  }
-  :root[data-variant="C"] {
-    --bg: #06060c; --fg: #e8ecff; --panel: rgba(16,18,34,.82); --line: #2a2f55; --accent: #39f3ff; --muted: #8f96c4;
-    --display: "Do Hyeon", "IBM Plex Sans KR", sans-serif; --body: "IBM Plex Sans KR", system-ui, sans-serif;
-    color-scheme: dark;
-  }
-  html, body { height: 100%; }
+  html, body { height: 100%; margin: 0; }
   body { background: var(--bg); color: var(--fg); font-family: var(--body); overflow: hidden; }
-  #app { height: 100%; display: grid; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 8px 64px; box-sizing: border-box; gap: 8px; max-width: 520px; margin: 0 auto; }
-  #stage { position: relative; min-height: 0; border-radius: 14px; overflow: hidden; touch-action: manipulation; }
-  #stage canvas { display: block; width: 100%; height: 100%; }
-  header.hud { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-  header.hud h1 { font-family: var(--display); font-size: 1.25rem; margin: 0; letter-spacing: .02em; }
+  #app { height: 100vh; height: 100dvh; box-sizing: border-box; display: grid; gap: 8px; margin: 0 auto;
+    padding: max(8px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+  :root[data-bar="1"] #app { padding-bottom: 52px; }
+
+  /* 세로 배치: 턴 표시 / 판(남은 자리) / 버튼 / 점수표(내용 높이) */
+  :root[data-orient="portrait"] #app { max-width: 560px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: "hud" "stage" "actions" "sheet"; }
+  :root[data-orient="portrait"] #rolls { display: none; }
+  :root[data-orient="portrait"][data-layout="B"] #app { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage" "sheet"; }
+  :root[data-orient="portrait"][data-layout="B"] .hud { display: none; }
+  :root[data-orient="portrait"][data-layout="B"] #rolls { display: block; }
+  :root[data-orient="portrait"][data-layout="B"] .actions { grid-area: stage; align-self: end; z-index: 3; padding-bottom: 10px; pointer-events: none; }
+  :root[data-orient="portrait"][data-layout="B"] .actions button { pointer-events: auto; }
+
+  /* 가로 배치: 점수표 왼쪽, 판 오른쪽 (원작과 같음) */
+  :root[data-orient="landscape"] #app { gap: 8px 12px; grid-template-rows: minmax(0, 1fr) auto; }
+  :root[data-orient="landscape"] .hud { display: none; }
+  :root[data-orient="landscape"] #sheet { align-self: stretch; }
+  :root[data-orient="landscape"] table.sc { height: 100%; }
+  :root[data-orient="landscape"][data-bar="1"] #app { padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+  /* A 원작형 */
+  :root[data-orient="landscape"][data-layout="A"] #app { max-width: 1280px; grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); grid-template-areas: "sheet stage" "sheet actions"; }
+  /* B 판 최대형: 버튼을 판 오른쪽에 세로로 */
+  :root[data-orient="landscape"][data-layout="B"] #app { max-width: 1280px; grid-template-columns: minmax(250px, 30%) minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); grid-template-areas: "sheet stage actions"; }
+  :root[data-orient="landscape"][data-layout="B"] .actions { flex-direction: column; justify-content: center; }
+  :root[data-orient="landscape"][data-layout="B"] #proto { left: auto; right: 12px; transform: none; }
+  /* C 점수표 강조형: 점수표를 넓게, 글자를 크게 */
+  :root[data-orient="landscape"][data-layout="C"] #app { max-width: 1400px; grid-template-columns: minmax(280px, 47%) minmax(0, 1fr); grid-template-areas: "sheet stage" "sheet actions"; }
+  :root[data-orient="landscape"][data-layout="C"] { --sheet-font: clamp(12px, 2.6vh, 22px); }
+  :root[data-orient="landscape"] { --sheet-font: clamp(11px, 2.2vh, 17px); }
+
+  .hud { grid-area: hud; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .hud h1 { font-family: var(--display); font-size: 1.2rem; margin: 0; }
   .meta { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; white-space: nowrap; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; min-height: 0; overflow: auto; }
-  table.sc { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .88rem; }
-  table.sc td { padding: 5px 10px; border-bottom: 1px solid var(--line); }
-  table.sc td.v { text-align: right; width: 3.5em; }
-  table.sc td.v.pre { color: var(--muted); }
-  table.sc tr.sum td { font-weight: 600; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; }
-  .cols > table + table { border-left: 1px solid var(--line); }
-  #roll { font: inherit; font-family: var(--display); font-size: 1.1rem; border: 0; border-radius: 999px; padding: 12px 22px; background: var(--accent); color: #fff; cursor: pointer; }
-  #roll:disabled { opacity: .45; cursor: default; }
-  #roll:focus-visible, button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
-  .state { font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
 
-  .actions { position: absolute; z-index: 2; left: 50%; bottom: 12px; transform: translateX(-50%); }
-  /* A: 판 비율(3:4)에 맞춘 3D · 바로 아래 굴림 버튼 · 내용 높이만큼의 점수표 */
-  :root[data-variant="A"] #app { grid-template-rows: auto auto auto auto auto; align-content: start; }
-  :root[data-variant="A"] #stage { box-shadow: inset 0 0 0 1px var(--line); aspect-ratio: 3 / 4; width: 100%; max-height: 58vh; }
-  :root[data-variant="A"] .actions { position: static; transform: none; display: flex; justify-content: center; }
-  :root[data-variant="A"] #roll { box-shadow: 0 4px 0 #6d0618; }
-  /* B: 위 점수표 · 아래 3D · 굴림 버튼이 판 모서리에 겹침 */
-  :root[data-variant="B"] #app { grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  :root[data-variant="B"] .actions { left: auto; right: 12px; transform: none; }
-  :root[data-variant="B"] #roll { width: 84px; height: 84px; padding: 0; border-radius: 50%; box-shadow: 0 6px 0 #4b2c10; }
-  /* C: 전체 화면 3D, 점수표는 아래에서 끌어올리는 시트 */
-  :root[data-variant="C"] #app { grid-template-rows: auto minmax(0, 1fr) auto; padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
-  :root[data-variant="C"] #stage { border-radius: 0; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); }
-  :root[data-variant="C"] .actions { bottom: 18px; }
-  :root[data-variant="C"] #roll { background: transparent; color: var(--accent); border: 2px solid var(--accent); box-shadow: 0 0 18px rgba(57,243,255,.45), inset 0 0 12px rgba(57,243,255,.25); letter-spacing: .1em; }
-  :root[data-variant="C"] .sheet { position: fixed; left: 0; right: 0; bottom: 0; padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); z-index: 3; transform: translateY(calc(100% - 104px - env(safe-area-inset-bottom, 0px))); transition: transform .3s ease; backdrop-filter: blur(10px); border-radius: 18px 18px 0 0; max-width: 520px; margin: 0 auto; }
-  :root[data-variant="C"] .sheet.open { transform: translateY(0); }
-  .sheet-handle { display: none; }
-  :root[data-variant="C"] .sheet-handle { display: flex; justify-content: space-between; align-items: center; width: 100%; font: inherit; background: none; border: 0; color: var(--fg); padding: 10px 16px 12px; cursor: pointer; }
-  :root[data-variant="C"] .sheet-handle::before { content: ""; position: absolute; left: 50%; top: 6px; width: 40px; height: 4px; border-radius: 2px; background: var(--line); transform: translateX(-50%); }
+  #stage { grid-area: stage; position: relative; min-height: 0; min-width: 0; border-radius: 14px; overflow: hidden; touch-action: manipulation; box-shadow: inset 0 0 0 1px var(--line); }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  #rolls { position: absolute; right: 12px; top: 10px; z-index: 2; font: 700 clamp(13px, 3vh, 22px)/1 var(--display); color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; }
 
-  /* 홀드 말풍선: 원작의 커서 + 「홀드」 말풍선을 터치용으로 옮긴 것. 탭 가능한 주사위마다 하나씩 뜬다. */
+  .actions { grid-area: actions; display: flex; justify-content: center; align-items: center; gap: 10px; }
+  .actions button { font: inherit; font-family: var(--display); font-size: clamp(15px, 2.4vh, 21px); min-height: clamp(40px, 6vh, 58px); min-width: clamp(96px, 13vh, 150px); border: 0; border-radius: 999px; padding: 8px 20px; cursor: pointer; }
+  #roll { background: var(--accent); color: #fff; box-shadow: 0 4px 0 #6d0618; }
+  #rec { background: #e9c46a; color: #2a1b13; box-shadow: 0 4px 0 #8a6a1e; }
+  .actions button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+
+  /* 점수표: 표 하나, 카테고리마다 가로줄, 플레이어마다 세로줄 */
+  #sheet { grid-area: sheet; min-height: 0; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table.sc { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--sheet-font); font-variant-numeric: tabular-nums; }
+  table.sc th, table.sc td { border-bottom: 1px solid var(--line); padding: 0 6px; height: var(--row); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  table.sc th { font-weight: 600; font-size: .9em; text-align: center; }
+  table.sc th.turn { text-align: left; color: var(--muted); font-variant-numeric: tabular-nums; }
+  table.sc td.name { text-align: left; }
+  table.sc td.v { text-align: center; }
+  table.sc col.namecol { width: 42%; }
+  :root[data-orient="landscape"] table.sc col.namecol { width: 36%; }
+  :root[data-orient="landscape"] table.sc th { padding: 0 2px; font-size: .8em; }
+  table.sc tr.cat { cursor: pointer; }
+  table.sc tr.cat.sel td { background: rgba(233, 196, 106, .28); }
+  table.sc tr.cat.sel td.name { box-shadow: inset 3px 0 0 #e9c46a; }
+  table.sc td.pre { color: var(--muted); }
+  table.sc td.done { font-weight: 700; }
+  table.sc td.now { background: color-mix(in srgb, var(--pc) 18%, transparent); }
+  table.sc th.now { background: var(--pc); color: #140c08; }
+  table.sc thead th { height: 18px; }
+  table.sc tr.sub td { height: 14px; font-size: .74em; color: var(--muted); }
+  table.sc tr.total td { height: 20px; font-weight: 700; }
+  .dot { display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--pc); margin-right: .3em; vertical-align: .05em; }
+  th.now .dot { background: #140c08; }
+
+  /* 홀드 말풍선 */
   #bubbles { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
-  .bubble { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -100%); font: 700 12px/1 var(--body); letter-spacing: .04em; padding: 6px 9px; border-radius: 8px; border: 2px solid #ffd21f; background: rgba(18, 12, 8, .88); color: #ffe27a; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.45); transition: opacity .15s ease; }
+  .bubble { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -100%); font: 700 12px/1 var(--body); letter-spacing: .04em; min-height: 24px; min-width: 28px; box-sizing: border-box; padding: 4px 4px; font-size: 11px; border-radius: 8px; border: 2px solid #ffd21f; background: rgba(18, 12, 8, .88); color: #ffe27a; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
   .bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 10px; height: 10px; background: inherit; border-right: 2px solid #ffd21f; border-bottom: 2px solid #ffd21f; transform: translateX(-50%) rotate(45deg); }
+  .bubble.below { transform: translate(-50%, 0); }
+  .bubble.below::after { bottom: auto; top: -7px; transform: translateX(-50%) rotate(-135deg); }
   .bubble.release { border-color: #f3e7d3; color: #f3e7d3; }
   .bubble.release::after { border-color: #f3e7d3; }
   .bubble[hidden] { display: none !important; }
-  .bubble:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { .bubble { transition: none; } }
 
-  /* 시안 전환 바 (프로토타입 전용, 디자인의 일부가 아님) */
-  #switcher { position: fixed; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 4px; background: #111; color: #fff; border: 2px solid #ffd400; border-radius: 999px; padding: 4px; font: 600 13px/1 system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
-  #switcher button { font: inherit; color: inherit; background: #333; border: 0; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; }
-  #switcher span { padding: 0 10px; white-space: nowrap; }
-  @media (prefers-reduced-motion: reduce) { .sheet { transition: none !important; } }
+  /* 시안 바 (프로토타입 전용, 디자인의 일부가 아님) */
+  #proto { position: fixed; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 4px; background: #111; color: #fff; border: 2px solid #ffd400; border-radius: 999px; padding: 3px; font: 600 12px/1 system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  #proto button { font: inherit; color: inherit; background: #333; border: 0; border-radius: 999px; min-width: 30px; height: 30px; padding: 0 8px; cursor: pointer; }
+  #proto span { padding: 0 6px; white-space: nowrap; }
+  :root[data-bar="0"] #proto { display: none; }
+  :root[data-orient="landscape"] #proto { left: 12px; transform: none; bottom: 8px; opacity: .92; }
 </style>
 
 <div id="app">
-  <header class="hud">
-    <h1 id="title">요트</h1>
-    <span class="meta" id="meta">턴 1/12 · 앞으로 3번</span>
-  </header>
-  <div id="stage" aria-label="주사위 판">
-    <div id="bubbles"></div>
-    <div class="actions"><button id="roll" type="button">굴리기</button></div>
-  </div>
-  <section class="card sheet" id="sheet" aria-label="점수표">
-    <button class="sheet-handle" id="handle" type="button"><span>점수표</span><span class="meta" id="sheet-total">총합 득점 0</span></button>
-    <div class="cols" id="score"></div>
-  </section>
-  <div class="state" id="state"></div>
+  <header class="hud"><h1>요트</h1><span class="meta" id="meta">턴 1/12 · 앞으로 3번</span></header>
+  <section id="sheet" aria-label="점수표"><table class="sc" id="score"></table></section>
+  <div id="stage" aria-label="주사위 판"><div id="bubbles"></div><div id="rolls">앞으로 3번</div></div>
+  <div class="actions"><button id="roll" type="button">굴리기</button><button id="rec" type="button" disabled>기록</button></div>
 </div>
 
-<div id="switcher" role="group" aria-label="시안 전환">
-  <button type="button" id="prev" aria-label="이전 시안">←</button>
+<div id="proto" role="group" aria-label="시안 전환">
+  <button type="button" id="prev" aria-label="이전 배치 시안">←</button>
   <span id="vlabel">A</span>
-  <button type="button" id="next" aria-label="다음 시안">→</button>
+  <button type="button" id="next" aria-label="다음 배치 시안">→</button>
+  <button type="button" id="pc" aria-label="인원 바꾸기">2명</button>
 </div>
 
 <script type="importmap">
@@ -119,16 +136,20 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-const VARIANTS = {
-  A: { name: "카지노 펠트", note: "원작처럼 빨간 펠트와 가죽 컵, 비스듬한 시점" },
-  B: { name: "원목 보드게임", note: "호두나무 판과 단풍나무 주사위, 위에서 내려다봄" },
-  C: { name: "네온 레진", note: "어두운 유리 판과 투명 레진 주사위, 낮은 시점" },
-};
-const KEYS = Object.keys(VARIANTS);
+const LAYOUTS = { A: "원작형", B: "판 최대형", C: "점수표 강조형" };
+const KEYS = Object.keys(LAYOUTS);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const params = new URLSearchParams(location.search);
+document.documentElement.dataset.bar = params.get("bar") === "0" ? "0" : "1";
 
 // ---------- 게임 상태 (로직이 먼저 정한다) ----------
-const S = { values: [1, 2, 3, 4, 5], held: [false, false, false, false, false], rollsLeft: 3, rolled: false, animating: false };
+const S = { values: [1, 2, 3, 4, 5], held: [false, false, false, false, false], rollsLeft: 3, rolled: false, animating: false, sel: null };
+const NAMES = ["하나", "두리", "세나", "네모"], COLORS = ["#ffcf3f", "#5ad1ff", "#ff7aa8", "#8be37a"];
+let players = [], cur = 0, turn = 1;
+function setPlayers(n) {
+  players = Array.from({ length: n }, (_, i) => ({ name: NAMES[i], color: COLORS[i], scores: Array(12).fill(null) }));
+  cur = 0; turn = 1; newTurn();
+}
 
 const CATS = [
   ["에이스", d => sumOf(d, 1)], ["듀스", d => sumOf(d, 2)], ["트레이", d => sumOf(d, 3)],
@@ -142,112 +163,57 @@ function counts(d) { const c = [0, 0, 0, 0, 0, 0, 0]; d.forEach(v => c[v]++); re
 function sumOf(d, n) { return d.filter(v => v === n).length * n; }
 function total(d) { return d.reduce((a, b) => a + b, 0); }
 function maxCount(d) { return Math.max(...counts(d)); }
-function run(d) { const s = new Set(d); let best = 0, cur = 0; for (let i = 1; i <= 6; i++) { cur = s.has(i) ? cur + 1 : 0; best = Math.max(best, cur); } return best; }
+function run(d) { const s = new Set(d); let best = 0, c = 0; for (let i = 1; i <= 6; i++) { c = s.has(i) ? c + 1 : 0; best = Math.max(best, c); } return best; }
+const upper = p => p.scores.slice(0, 6).reduce((a, b) => a + (b ?? 0), 0);
+const grand = p => p.scores.reduce((a, b) => a + (b ?? 0), 0) + (upper(p) >= 63 ? 35 : 0);
 
-// ---------- 시안별 3D 재료 ----------
+// ---------- 3D 재료 (v1에서 고른 카지노 펠트) ----------
 function canvasTex(w, h, draw) { const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
 function noise(ctx, w, h, base, amp, count) { ctx.fillStyle = base; ctx.fillRect(0, 0, w, h); for (let i = 0; i < count; i++) { const a = Math.random() * amp; ctx.fillStyle = Math.random() < .5 ? `rgba(0,0,0,${a})` : `rgba(255,255,255,${a * .6})`; ctx.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2); } }
-function grain(ctx, w, h, base, dark) { ctx.fillStyle = base; ctx.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 2) { const k = Math.sin(y * .045 + Math.sin(y * .011) * 4) * .5 + .5; ctx.fillStyle = `rgba(${dark},${.05 + k * .18})`; ctx.fillRect(0, y, w, 1 + (k > .8 ? 1 : 0)); } }
 const PIPS = { 1: [[.5, .5]], 2: [[.27, .27], [.73, .73]], 3: [[.27, .27], [.5, .5], [.73, .73]], 4: [[.27, .27], [.73, .27], [.27, .73], [.73, .73]], 5: [[.27, .27], [.73, .27], [.5, .5], [.27, .73], [.73, .73]], 6: [[.27, .25], [.73, .25], [.27, .5], [.73, .5], [.27, .75], [.73, .75]] };
-function faceTex(v, bg, pip, oneColor, mask) {
-  return canvasTex(256, 256, (ctx, w) => {
-    if (mask) { ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, w); } else if (bg instanceof Function) bg(ctx, w, w); else { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, w); }
-    for (const [x, y] of PIPS[v]) { ctx.beginPath(); ctx.arc(x * w, y * w, v === 1 ? 30 : 22, 0, Math.PI * 2); ctx.fillStyle = mask ? "#fff" : (v === 1 && oneColor ? oneColor : pip); ctx.fill(); }
-  });
+function faceTex(v) { return canvasTex(256, 256, (ctx, w) => { ctx.fillStyle = "#f6efe1"; ctx.fillRect(0, 0, w, w); for (const [x, y] of PIPS[v]) { ctx.beginPath(); ctx.arc(x * w, y * w, v === 1 ? 30 : 22, 0, Math.PI * 2); ctx.fillStyle = v === 1 ? "#c8102e" : "#111"; ctx.fill(); } }); }
+function slotMat() {
+  const map = canvasTex(256, 256, (c, w) => { c.fillStyle = "#5e0914"; c.fillRect(0, 0, w, w); c.strokeStyle = "#c9a24a"; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, w - 28); c.fillStyle = "#c9a24a"; c.globalAlpha = .75; c.font = "700 56px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("홀드", w / 2, w / 2); });
+  return new THREE.MeshStandardMaterial({ map, roughness: .9 });
 }
-// 홀드 자리 칸: 어두운 바탕에 실선 테두리와 HOLD 각인
-function slotMat(fill, stroke, glow) {
-  const map = canvasTex(256, 256, (c, w) => {
-    c.fillStyle = fill; c.fillRect(0, 0, w, w);
-    c.strokeStyle = stroke; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, w - 28);
-    c.fillStyle = stroke; c.globalAlpha = .75; c.font = "700 44px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("HOLD", w / 2, w / 2);
-  });
-  return new THREE.MeshStandardMaterial(glow ? { map, roughness: .5, emissive: glow, emissiveMap: map, emissiveIntensity: .6 } : { map, roughness: .9 });
-}
-// BoxGeometry 면 순서 [+x, -x, +y, -y, +z, -z] 에 놓는 눈. 마주 보는 면의 합은 7.
 const FACE_VALUES = [2, 5, 1, 6, 3, 4];
-// 값 v 가 위(+y)를 보게 하는 회전
 const UP = { 1: [0, 0, 0], 6: [Math.PI, 0, 0], 2: [0, 0, Math.PI / 2], 5: [0, 0, -Math.PI / 2], 3: [-Math.PI / 2, 0, 0], 4: [Math.PI / 2, 0, 0] };
 function upQuat(v, yaw = 0) { const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...UP[v])); return new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw).multiply(q); }
 
-const LOOKS = {
-  A: () => ({
-    clear: 0x1b120d,
-    floor: new THREE.MeshStandardMaterial({ map: canvasTex(512, 512, (c, w, h) => noise(c, w, h, "#8e0f1f", .22, 26000)), roughness: 1 }),
-    rim: new THREE.MeshStandardMaterial({ color: 0x141012, roughness: .45, metalness: .1 }),
-    slot: slotMat("#5e0914", "#c9a24a"),
-    cupRim: 0xb08850, target: new THREE.Vector3(0, 0, .45),
-    dice: FACE_VALUES.map(v => new THREE.MeshPhysicalMaterial({ map: faceTex(v, "#f6efe1", "#111", "#c8102e"), roughness: .28, clearcoat: .6, clearcoatRoughness: .25 })),
-    cup: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => noise(c, w, h, "#4a2a18", .3, 9000)), roughness: .7, side: THREE.DoubleSide }),
-    cupInner: 0x7a0c19,
-    lights(scene) { scene.add(new THREE.HemisphereLight(0xffe7c4, 0x2a0d08, .55)); const s = new THREE.SpotLight(0xfff1d8, 220, 30, .62, .55, 1.6); s.position.set(-1.5, 11, 3); s.castShadow = true; s.shadow.mapSize.set(1024, 1024); s.shadow.bias = -.0004; scene.add(s, s.target); },
-    camera: a => { const c = new THREE.PerspectiveCamera(36, a, .1, 100); c.position.set(0, 11.5, 8.2); c.lookAt(0, 0, .45); return c; },
-    rimH: .55,
-  }),
-  B: () => ({
-    clear: 0xefe5d2,
-    floor: new THREE.MeshStandardMaterial({ map: canvasTex(512, 512, (c, w, h) => grain(c, w, h, "#6b4426", "40,20,8")), roughness: .65 }),
-    rim: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => grain(c, w, h, "#4a2c16", "20,10,4")), roughness: .55 }),
-    slot: slotMat("#3a2312", "#c9a46a"),
-    cupRim: 0xd9a96a, target: new THREE.Vector3(0, 0, 0),
-    dice: FACE_VALUES.map(v => new THREE.MeshStandardMaterial({ map: faceTex(v, (c, w, h) => grain(c, w, h, "#e9cf9c", "120,80,30"), "#3b2412", null), roughness: .55 })),
-    cup: new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => grain(c, w, h, "#b07a43", "60,30,10")), roughness: .6, side: THREE.DoubleSide }),
-    cupInner: 0x5a361a,
-    lights(scene) { scene.add(new THREE.HemisphereLight(0xffffff, 0xd9c7a5, 1.1)); const d = new THREE.DirectionalLight(0xfff6e6, 2.2); d.position.set(-4, 12, -3); d.castShadow = true; d.shadow.mapSize.set(1024, 1024); Object.assign(d.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); scene.add(d); },
-    camera: a => { const h = 9.4, w = h * a; const half = Math.max(w, 7.2) / 2, hh = half / a; const c = new THREE.OrthographicCamera(-half, half, hh, -hh, .1, 100); c.position.set(0, 20, .01); c.lookAt(0, 0, 0); return c; },
-    rimH: .35,
-  }),
-  C: () => ({
-    clear: 0x06060c,
-    floor: new THREE.MeshPhysicalMaterial({ color: 0x0b0c18, roughness: .18, metalness: .6, clearcoat: 1 }),
-    rim: new THREE.MeshStandardMaterial({ color: 0x101226, emissive: 0x39f3ff, emissiveIntensity: .9, roughness: .3 }),
-    slot: slotMat("#14163a", "#ff3fd8", 0xff3fd8),
-    cupRim: 0x39f3ff, target: new THREE.Vector3(0, 0, -.2),
-    dice: FACE_VALUES.map(v => new THREE.MeshPhysicalMaterial({ color: 0xff5fd8, transmission: .65, thickness: .8, roughness: .12, ior: 1.45, emissive: 0x39f3ff, emissiveIntensity: 2.2, emissiveMap: faceTex(v, null, null, null, true), transparent: true })),
-    cup: new THREE.MeshPhysicalMaterial({ color: 0x8be9ff, transmission: .8, thickness: .3, roughness: .05, side: THREE.DoubleSide, transparent: true, opacity: .9 }),
-    cupInner: 0x1a1c40,
-    lights(scene) { scene.fog = new THREE.Fog(0x06060c, 9, 22); scene.add(new THREE.AmbientLight(0x6670ff, .35)); const p1 = new THREE.PointLight(0x39f3ff, 60, 18); p1.position.set(-4, 4, 2); const p2 = new THREE.PointLight(0xff3fd8, 60, 18); p2.position.set(4, 4, -2); const d = new THREE.DirectionalLight(0xffffff, .9); d.position.set(0, 10, 4); d.castShadow = true; Object.assign(d.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); scene.add(p1, p2, d); },
-    camera: a => { const c = new THREE.PerspectiveCamera(46, a, .1, 100); c.position.set(0, 7.2, 9.2); c.lookAt(0, 0, -.2); return c; },
-    rimH: .25,
-  }),
-};
-
-// ---------- 판 배치 (스펙: 위쪽 테두리 홀드 자리 5칸, 가운데 정렬 줄, 가장자리 컵) ----------
-const W = 6.2, D = 8.4, DIE = .78;
-const HOLD_Z = -D / 2 + .85, LINE_Z = .2, CUP_POS = new THREE.Vector3(2.15, 0, 3.15);
+const W = 6.2, D = 8.4, DIE = .78, RIM_H = .55;
+const HOLD_Z = -D / 2 + .85, LINE_Z = .2, CUP_POS = new THREE.Vector3(2.15, 0, 3.15), TARGET = new THREE.Vector3(0, 0, .45);
 const slotX = i => (i - 2) * 1.05;
 
-let renderer, scene, camera, look, dice = [], cup, stageEl = document.getElementById("stage");
-const anims = [];
+let renderer, scene, camera, dice = [], cup;
+const stageEl = document.getElementById("stage"), anims = [];
 
-function build(variant) {
-  if (renderer) { renderer.dispose(); renderer.domElement.remove(); }
-  look = LOOKS[variant]();
+function build() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(look.clear);
+  renderer.setClearColor(0x1b120d);
   stageEl.prepend(renderer.domElement);
   scene = new THREE.Scene();
-  look.lights(scene);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), look.floor); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-  const t = .35, h = look.rimH;
+  scene.add(new THREE.HemisphereLight(0xffe7c4, 0x2a0d08, .55));
+  const s = new THREE.SpotLight(0xfff1d8, 220, 30, .62, .55, 1.6); s.position.set(-1.5, 11, 3); s.castShadow = true; s.shadow.mapSize.set(1024, 1024); s.shadow.bias = -.0004; scene.add(s, s.target);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: canvasTex(512, 512, (c, w, h) => noise(c, w, h, "#8e0f1f", .22, 26000)), roughness: 1 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const rim = new THREE.MeshStandardMaterial({ color: 0x141012, roughness: .45, metalness: .1 }), t = .35;
   for (const [x, z, w, d] of [[0, -D / 2 - t / 2, W + t * 2, t], [0, D / 2 + t / 2, W + t * 2, t], [-W / 2 - t / 2, 0, t, D], [W / 2 + t / 2, 0, t, D]]) {
-    const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, .06), look.rim); m.position.set(x, h / 2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+    const m = new THREE.Mesh(new RoundedBoxGeometry(w, RIM_H, d, 2, .06), rim); m.position.set(x, RIM_H / 2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
   }
-  for (let i = 0; i < 5; i++) { const s = new THREE.Mesh(new THREE.PlaneGeometry(.98, .98), look.slot); s.rotation.x = -Math.PI / 2; s.position.set(slotX(i), .005, HOLD_Z); s.receiveShadow = true; scene.add(s); }
-  // 컵
+  const slot = slotMat();
+  for (let i = 0; i < 5; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(.98, .98), slot); m.rotation.x = -Math.PI / 2; m.position.set(slotX(i), .005, HOLD_Z); m.receiveShadow = true; scene.add(m); }
   const pts = []; for (let i = 0; i <= 10; i++) pts.push(new THREE.Vector2(.62 + i * .025, i * .14));
   cup = new THREE.Group();
-  const outer = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), look.cup); outer.castShadow = true; cup.add(outer);
-  const base = new THREE.Mesh(new THREE.CircleGeometry(.62, 32), new THREE.MeshStandardMaterial({ color: look.cupInner })); base.rotation.x = -Math.PI / 2; base.position.y = .03; cup.add(base);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(.87, .06, 10, 40), new THREE.MeshStandardMaterial({ color: look.cupRim, roughness: .35, metalness: .4 })); lip.rotation.x = Math.PI / 2; lip.position.y = 1.4; cup.add(lip);
+  const outer = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (c, w, h) => noise(c, w, h, "#4a2a18", .3, 9000)), roughness: .7, side: THREE.DoubleSide })); outer.castShadow = true; cup.add(outer);
+  const base = new THREE.Mesh(new THREE.CircleGeometry(.62, 32), new THREE.MeshStandardMaterial({ color: 0x7a0c19 })); base.rotation.x = -Math.PI / 2; base.position.y = .03; cup.add(base);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(.87, .06, 10, 40), new THREE.MeshStandardMaterial({ color: 0xb08850, roughness: .35, metalness: .4 })); lip.rotation.x = Math.PI / 2; lip.position.y = 1.4; cup.add(lip);
   cup.position.copy(CUP_POS); scene.add(cup);
-  // 주사위
-  const geo = new RoundedBoxGeometry(DIE, DIE, DIE, 4, .12);
+  const geo = new RoundedBoxGeometry(DIE, DIE, DIE, 4, .12), mats = FACE_VALUES.map(v => new THREE.MeshPhysicalMaterial({ map: faceTex(v), roughness: .28, clearcoat: .6, clearcoatRoughness: .25 }));
   dice = S.values.map((v, i) => {
-    const m = new THREE.Mesh(geo, look.dice); m.castShadow = true; m.userData.index = i;
+    const m = new THREE.Mesh(geo, mats); m.castShadow = true; m.userData.index = i;
     const hit = new THREE.Mesh(new THREE.BoxGeometry(DIE * 1.5, DIE * 1.5, DIE * 1.5), new THREE.MeshBasicMaterial({ visible: false })); hit.userData.index = i; m.add(hit);
     scene.add(m); return m;
   });
@@ -255,48 +221,37 @@ function build(variant) {
 }
 
 function resize() {
-  const r = stageEl.getBoundingClientRect(); if (!r.width || !r.height) return;
+  const r = stageEl.getBoundingClientRect(); if (!r.width || !r.height || !renderer) return;
   renderer.setSize(r.width, r.height, false);
-  camera = look.camera(r.width / r.height);
+  camera = new THREE.PerspectiveCamera(36, r.width / r.height, .1, 100); camera.position.set(0, 11.5, 8.2); camera.lookAt(TARGET);
   fitBoard();
 }
-// 화면 비율과 상관없이 판(테두리·컵 포함) 전체가 화면 안에 들어오도록 카메라를 물린다.
+// 스펙 「화면 배치」의 카메라 맞춤: 판 영역 비율이 어떻든 판(테두리·컵 포함) 전체가 들어오도록 거리를 맞춘다.
+const CORNERS = [];
+for (const x of [-W / 2 - .45, W / 2 + .45]) for (const z of [-D / 2 - .45, D / 2 + .45]) for (const h of [0, RIM_H + .4]) CORNERS.push(new THREE.Vector3(x, h, z));
+CORNERS.push(CUP_POS.clone().add(new THREE.Vector3(.8, 1.4, .8)));
+function boardInside() { camera.updateMatrixWorld(); camera.updateProjectionMatrix(); return CORNERS.every(c => { const p = c.clone().project(camera); return Math.abs(p.x) <= .96 && Math.abs(p.y) <= .96; }); }
 function fitBoard() {
-  const m = .45, y = look.rimH;
-  const corners = [];
-  for (const x of [-W / 2 - m, W / 2 + m]) for (const z of [-D / 2 - m, D / 2 + m]) for (const h of [0, y + .4]) corners.push(new THREE.Vector3(x, h, z));
-  corners.push(CUP_POS.clone().add(new THREE.Vector3(.8, 1.4, .8)));
-  const target = look.target;
-  const inside = () => { camera.updateMatrixWorld(); camera.updateProjectionMatrix(); return corners.every(c => { const p = c.clone().project(camera); return Math.abs(p.x) <= .96 && Math.abs(p.y) <= .96; }); };
-  const scale = k => { if (camera.isOrthographicCamera) camera.zoom /= k; else camera.position.sub(target).multiplyScalar(k).add(target); };
-  // 판이 화면을 꽉 채우도록: 들어오는 동안 당기고, 넘치면 조금씩 물린다.
-  for (let i = 0; i < 60 && inside(); i++) scale(.96);
-  for (let i = 0; i < 80 && !inside(); i++) scale(1.015);
+  const scale = k => camera.position.sub(TARGET).multiplyScalar(k).add(TARGET);
+  for (let i = 0; i < 60 && boardInside(); i++) scale(.96);
+  for (let i = 0; i < 80 && !boardInside(); i++) scale(1.015);
 }
-new ResizeObserver(() => renderer && resize()).observe(stageEl);
+new ResizeObserver(() => resize()).observe(stageEl);
+window.__boardInside = () => !!camera && boardInside(); // 캡처 검사용
 
-// 화면 배치: 주사위마다 세로 칸(col)이 하나 있다. 홀드하면 같은 칸의 홀드 자리로 곧게 올라가고,
-// 풀면 같은 칸의 정렬 줄로 내려온다. 그래서 고르는 동안 다른 주사위는 움직이지 않는다.
-// 다시 정렬(홀드 자리 왼쪽부터 오름차순, 정렬 줄은 그 오른쪽에 오름차순)은 굴림이 끝날 때만 한다.
+// 열 규칙(스펙): 홀드·해제는 같은 열 안에서만 움직이고, 다시 정렬은 굴림이 끝날 때만 한다.
 const col = [0, 1, 2, 3, 4];
+const allUp = () => S.rolled && S.rollsLeft === 0;
 function settle() {
   const idx = [0, 1, 2, 3, 4], by = (a, b) => S.values[a] - S.values[b];
-  const allUp = S.rolled && S.rollsLeft === 0;
-  const held = idx.filter(i => S.held[i] || allUp).sort(by), free = idx.filter(i => !(S.held[i] || allUp)).sort(by);
+  const up = i => S.held[i] || allUp();
+  const held = idx.filter(up).sort(by), free = idx.filter(i => !up(i)).sort(by);
   held.forEach((i, k) => col[i] = k); free.forEach((i, k) => col[i] = held.length + k);
 }
-function targets() {
-  const allUp = S.rolled && S.rollsLeft === 0;
-  return [0, 1, 2, 3, 4].map(i => new THREE.Vector3(slotX(col[i]), DIE / 2, (S.held[i] || allUp) ? HOLD_Z : LINE_Z));
-}
-function layout(instant, only) {
+const targets = () => [0, 1, 2, 3, 4].map(i => new THREE.Vector3(slotX(col[i]), DIE / 2, (S.held[i] || allUp()) ? HOLD_Z : LINE_Z));
+function layout(instant) {
   const tg = targets();
-  dice.forEach((m, i) => {
-    if (only && !only.includes(i)) return;
-    const q = upQuat(S.values[i]);
-    if (instant || reduceMotion) { m.position.copy(tg[i]); m.quaternion.copy(q); }
-    else anims.push(tween(m, tg[i], q, 420, .6));
-  });
+  dice.forEach((m, i) => { const q = upQuat(S.values[i]); if (instant || reduceMotion) { m.position.copy(tg[i]); m.quaternion.copy(q); } else anims.push(tween(m, tg[i], q, 420, .6)); });
 }
 function tween(m, to, q, ms, arc, spin) {
   const from = m.position.clone(), q0 = m.quaternion.clone(), t0 = performance.now(), axis = new THREE.Vector3(Math.random() - .5, 1, Math.random() - .5).normalize();
@@ -313,34 +268,34 @@ function tween(m, to, q, ms, arc, spin) {
 async function roll() {
   if (S.animating || S.rollsLeft === 0 || S.held.every(Boolean)) return;
   const free = [0, 1, 2, 3, 4].filter(i => !S.held[i]);
-  free.forEach(i => S.values[i] = 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 * 6)); // 결과가 먼저 정해진다
-  S.rollsLeft--; S.rolled = true; S.animating = true; settle(); render();
+  free.forEach(i => S.values[i] = 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 * 6));
+  S.rollsLeft--; S.rolled = true; S.animating = true; S.sel = null; settle(); render();
   if (!reduceMotion) {
-    // 1) 컵 흔들기
     const shake = performance.now();
-    free.forEach(i => { dice[i].position.copy(CUP_POS).setY(.6); });
+    free.forEach(i => dice[i].position.copy(CUP_POS).setY(.6));
     await new Promise(r => anims.push({ step(now) { const t = (now - shake) / 520; cup.rotation.z = Math.sin(t * 28) * .22 * (1 - t); cup.position.x = CUP_POS.x + Math.sin(t * 22) * .08; if (t >= 1) { cup.rotation.z = 0; cup.position.copy(CUP_POS); r(); return false; } return true; } }));
-    // 2) 쏟아져 굴러감 → 결과 눈이 위로 멈춤
     const spots = free.map((_, k) => new THREE.Vector3(-2.2 + Math.random() * 4.2, DIE / 2, -1.3 + (k % 3) * 1.15 + Math.random() * .5));
     await Promise.all(free.map((i, k) => { const a = tween(dice[i], spots[k], upQuat(S.values[i], Math.random() * Math.PI * 2), 900 + k * 70, 1.4, Math.PI * (5 + Math.random() * 3)); anims.push(a); return a.done; }));
-    render(true); // 멈춤: 점수 미리보기
+    render(true);
     await new Promise(r => setTimeout(r, 260));
-    // 3) 정렬 줄로 떠오르기
     const tg = targets();
     await Promise.all([0, 1, 2, 3, 4].map(i => { const a = tween(dice[i], tg[i], upQuat(S.values[i]), 480, .9); anims.push(a); return a.done; }));
   } else layout(true);
   S.animating = false; render();
 }
-
-function toggleHold(i) {
-  if (S.animating || !S.rolled || S.rollsLeft === 0) return;
-  S.held[i] = !S.held[i]; layout(false); render();
+function toggleHold(i) { if (S.animating || !S.rolled || S.rollsLeft === 0) return; S.held[i] = !S.held[i]; layout(false); render(); }
+function selectCat(k) { if (S.animating || !S.rolled || players[cur].scores[k] !== null) return; S.sel = S.sel === k ? null : k; render(); }
+function record() {
+  if (S.animating || !S.rolled || S.sel === null) return;
+  players[cur].scores[S.sel] = CATS[S.sel][1](S.values);
+  cur = (cur + 1) % players.length; if (cur === 0) turn = Math.min(12, turn + 1);
+  newTurn();
 }
+function newTurn() { S.held.fill(false); S.rollsLeft = 3; S.rolled = false; S.sel = null; [0, 1, 2, 3, 4].forEach(i => col[i] = i); if (dice.length) layout(false); render(); }
 
-// 탭 → 주사위 찾기(판정 영역을 주사위보다 넉넉하게)
 const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
 stageEl.addEventListener("pointerup", e => {
-  if (e.target.closest("button")) return;
+  if (e.target.closest("button") || !camera) return;
   const r = renderer.domElement.getBoundingClientRect();
   ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ptr, camera);
@@ -348,73 +303,83 @@ stageEl.addEventListener("pointerup", e => {
   if (hit) toggleHold(hit.object.userData.index);
 });
 
-// 홀드 말풍선: 정렬이 끝난 뒤, 더 굴릴 수 있을 때만 뜬다. 주사위 위치를 매 프레임 화면 좌표로 옮겨 따라다닌다.
 const bubbleLayer = document.getElementById("bubbles");
-const bubbles = [0, 1, 2, 3, 4].map(i => {
-  const b = document.createElement("button"); b.type = "button"; b.className = "bubble"; b.hidden = true;
-  b.addEventListener("click", e => { e.stopPropagation(); toggleHold(i); });
-  bubbleLayer.append(b); return b;
-});
+const bubbles = [0, 1, 2, 3, 4].map(i => { const b = document.createElement("button"); b.type = "button"; b.className = "bubble"; b.hidden = true; b.dataset.die = i; b.addEventListener("click", e => { e.stopPropagation(); toggleHold(i); }); bubbleLayer.append(b); return b; });
 const tmp = new THREE.Vector3();
 function placeBubbles() {
   const can = S.rolled && !S.animating && S.rollsLeft > 0;
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  const a = new THREE.Vector3(slotX(0), DIE, LINE_Z).project(camera), z = new THREE.Vector3(slotX(1), DIE, LINE_Z).project(camera);
+  const stagger = Math.abs(z.x - a.x) * .5 * w < 40;
   dice.forEach((m, i) => {
     const b = bubbles[i];
     if (!can) { b.hidden = true; return; }
     b.hidden = false;
     const label = S.held[i] ? "해제" : "홀드";
     if (b.textContent !== label) { b.textContent = label; b.classList.toggle("release", S.held[i]); b.setAttribute("aria-label", `주사위 ${S.values[i]} ${label}`); }
-    // 주사위 윗면의 뒤쪽 모서리 위에 띄워 눈을 가리지 않는다.
-    tmp.copy(m.position); tmp.y += DIE * .5; tmp.z -= DIE * .6; tmp.project(camera);
-    b.style.transform = `translate(${(tmp.x * .5 + .5) * w}px, ${(-tmp.y * .5 + .5) * h - 4}px) translate(-50%, -100%)`;
+    // 열 사이가 말풍선보다 좁으면 홀수 열의 말풍선은 주사위 아래(앞쪽)에 놓아 서로 겹치지 않게 한다.
+    const below = stagger && col[i] % 2 === 1;
+    b.classList.toggle("below", below);
+    tmp.copy(m.position); tmp.y += DIE * .5; tmp.z += below ? DIE * .7 : -DIE * .6; tmp.project(camera);
+    b.style.transform = `translate(${(tmp.x * .5 + .5) * w}px, ${(-tmp.y * .5 + .5) * h + (below ? 6 : -4)}px) translate(-50%, ${below ? "0" : "-100%"})`;
   });
 }
-
 function loop(now) { for (let i = anims.length - 1; i >= 0; i--) if (!anims[i].step(now)) anims.splice(i, 1); if (renderer && camera) { renderer.render(scene, camera); placeBubbles(); } requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 
 // ---------- 2D UI ----------
-const rollBtn = document.getElementById("roll");
+const rollBtn = document.getElementById("roll"), recBtn = document.getElementById("rec");
 rollBtn.addEventListener("click", roll);
-document.getElementById("handle").addEventListener("click", () => document.getElementById("sheet").classList.toggle("open"));
+recBtn.addEventListener("click", record);
+document.getElementById("score").addEventListener("click", e => { const tr = e.target.closest("tr[data-cat]"); if (tr) selectCat(+tr.dataset.cat); });
 
 function render(stopped) {
   const showPreview = S.rolled && (!S.animating || stopped);
   const pv = CATS.map(([, f]) => f(S.values));
-  const row = (k) => `<tr><td>${CATS[k][0]}</td><td class="v pre">${showPreview ? pv[k] : ""}</td></tr>`;
-  const upperSub = 0;
+  const landscape = document.documentElement.dataset.orient === "landscape" || document.documentElement.dataset.layout === "B";
+  const pc = i => `style="--pc:${players[i].color}"`;
+  const cell = (i, k) => {
+    const v = players[i].scores[k], now = i === cur;
+    if (v !== null) return `<td class="v done${now ? " now" : ""}" ${pc(i)}>${v}</td>`;
+    return `<td class="v${now ? " now" : ""}${now && showPreview ? " pre" : ""}" ${pc(i)}>${now && showPreview ? pv[k] : ""}</td>`;
+  };
+  const catRow = k => `<tr class="cat${S.sel === k ? " sel" : ""}" data-cat="${k}"><td class="name">${CATS[k][0]}</td>${players.map((_, i) => cell(i, k)).join("")}</tr>`;
+  const line = (cls, label, f) => `<tr class="${cls}"><td class="name">${label}</td>${players.map((p, i) => `<td class="v${i === cur ? " now" : ""}" ${pc(i)}>${f(p)}</td>`).join("")}</tr>`;
   document.getElementById("score").innerHTML =
-    `<table class="sc"><tbody>${[0, 1, 2, 3, 4, 5].map(row).join("")}<tr class="sum"><td>소계</td><td class="v">${upperSub}/63</td></tr><tr><td>보너스+35</td><td class="v"></td></tr></tbody></table>` +
-    `<table class="sc"><tbody>${[6, 7, 8, 9, 10, 11].map(row).join("")}<tr class="sum"><td>총합 득점</td><td class="v">0</td></tr></tbody></table>`;
-  document.getElementById("meta").textContent = `턴 1/12 · 앞으로 ${S.rollsLeft}번`;
+    `<colgroup><col class="namecol">${players.map(() => "<col>").join("")}</colgroup>` +
+    `<thead><tr><th class="turn">${landscape ? `턴 ${turn}/12` : ""}</th>${players.map((p, i) => `<th class="${i === cur ? "now" : ""}" ${pc(i)}><span class="dot"></span>${p.name}</th>`).join("")}</tr></thead><tbody>` +
+    [0, 1, 2, 3, 4, 5].map(catRow).join("") +
+    line("sub", "소계", p => `${upper(p)}/63`) + line("sub", "보너스+35", p => upper(p) >= 63 ? "+35" : "") +
+    [6, 7, 8, 9, 10, 11].map(catRow).join("") +
+    line("total", "총합 득점", grand) + `</tbody>`;
+  document.getElementById("meta").textContent = `턴 ${turn}/12 · 앞으로 ${S.rollsLeft}번`;
+  document.getElementById("rolls").textContent = `앞으로 ${S.rollsLeft}번`;
   rollBtn.disabled = S.animating || S.rollsLeft === 0 || (S.rolled && S.held.every(Boolean));
-  rollBtn.textContent = S.rollsLeft === 0 ? "기록할 차례" : "굴리기";
-  document.getElementById("state").textContent = `눈 [${S.values.join(", ")}] · 홀드 [${S.held.map(h => h ? "●" : "○").join("")}] · 남은 굴림 ${S.rollsLeft}${S.animating ? " · 연출 중" : ""}`;
+  recBtn.disabled = S.animating || S.sel === null;
+  recBtn.textContent = S.sel !== null && pv[S.sel] === 0 ? "0점으로 기록" : "기록";
+  window.__yacht = { values: [...S.values], held: [...S.held], rollsLeft: S.rollsLeft, animating: S.animating, cur, turn, sel: S.sel };
 }
 
-// ---------- 시안 전환 ----------
+// ---------- 화면 방향과 시안 전환 ----------
+const landscapeMQ = matchMedia("(orientation: landscape)"); // 정사각형은 portrait 로 잡힌다(스펙: 세로 배치)
+function applyOrient() { document.documentElement.dataset.orient = landscapeMQ.matches ? "landscape" : "portrait"; render(); }
+landscapeMQ.addEventListener("change", applyOrient);
 let current = "A";
-function setVariant(v) {
-  current = v;
-  document.documentElement.dataset.variant = v;
-  document.getElementById("vlabel").textContent = `${v} · ${VARIANTS[v].name}`;
-  document.getElementById("title").textContent = v === "C" ? "YACHT" : "요트";
-  const app = document.getElementById("app"), sheet = document.getElementById("sheet"), stage = stageEl;
-  // 시안마다 DOM 순서가 다르다: A 3D→점수표, B 점수표→3D, C 3D 위에 시트
-  if (v === "B") app.insertBefore(sheet, stage); else app.insertBefore(stage, sheet);
-  // A는 굴림 버튼을 판 바로 아래 줄로 꺼내고, 나머지는 판 위에 겹친다.
-  const actions = document.querySelector(".actions");
-  if (v === "A") app.insertBefore(actions, sheet); else stage.append(actions);
-  sheet.classList.remove("open");
-  try { history.replaceState(null, "", `${location.pathname}?variant=${v}#${v}`); } catch {}
-  requestAnimationFrame(() => { build(v); render(); });
+function setLayout(v) {
+  current = v; document.documentElement.dataset.layout = v;
+  document.getElementById("vlabel").textContent = `${v} · ${LAYOUTS[v]}`;
+  syncUrl(); render();
 }
-const step = d => setVariant(KEYS[(KEYS.indexOf(current) + d + KEYS.length) % KEYS.length]);
+function syncUrl() { try { const p = new URLSearchParams(location.search); p.set("layout", current); p.set("players", players.length); history.replaceState(null, "", `${location.pathname}?${p}`); } catch {} }
+const step = d => setLayout(KEYS[(KEYS.indexOf(current) + d + KEYS.length) % KEYS.length]);
 document.getElementById("prev").addEventListener("click", () => step(-1));
 document.getElementById("next").addEventListener("click", () => step(1));
-addEventListener("keydown", e => { if (e.target.closest("input,textarea,[contenteditable]")) return; if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1); if (e.key === " " || e.key === "Enter") { if (document.activeElement === document.body) { e.preventDefault(); roll(); } } });
+document.getElementById("pc").addEventListener("click", e => { const n = players.length % 4 + 1; setPlayers(n); e.currentTarget.textContent = `${n}명`; syncUrl(); });
+addEventListener("keydown", e => { if (e.key === "ArrowLeft") step(-1); if (e.key === "ArrowRight") step(1); });
 
-const fromUrl = (new URLSearchParams(location.search).get("variant") || location.hash.slice(1) || "A").toUpperCase();
-setVariant(KEYS.includes(fromUrl) ? fromUrl : "A");
+const n0 = Math.min(4, Math.max(1, +params.get("players") || 2));
+setPlayers(n0); document.getElementById("pc").textContent = `${n0}명`;
+const l0 = (params.get("layout") || "A").toUpperCase(); setLayout(KEYS.includes(l0) ? l0 : "A");
+applyOrient();
+requestAnimationFrame(() => build());
 </script>
