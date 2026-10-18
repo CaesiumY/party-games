@@ -3,6 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <!--
   PROTOTYPE — 버리는 코드. 질문: "휴대폰 가로·데스크톱에서 요트 화면은 어떻게 놓여야 하나?"
+  2D UI는 디자인 보드(https://claude.ai/artifact/Pu56boShG8unmLSTW8V5hR)에서 고른 B 원작 점수표 스킨을 입혔다.
   v1(태그 prototype-yacht-3d-look-v1)에서 고른 3D 룩(카지노 펠트)은 그대로 두고, 화면 배치만 시안으로 바꿔 본다.
   스펙 docs/specs/yacht.md 「화면 배치」: 세로가 가로보다 길거나 같으면 세로 배치, 가로가 더 길면 가로 배치.
   가로 배치 시안은 ?layout=A|B|C 로 바꾼다(하단 바).
@@ -16,7 +17,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700&family=IBM+Plex+Sans+KR:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gothic+A1:wght@500;700;800&display=swap">
 <style>
   :root {
     --bg: #1b120d; --fg: #f3e7d3; --panel: #2a1b13; --line: #4a3022; --accent: #c8102e; --muted: #b59f86;
@@ -113,6 +114,56 @@
   .bubble.release::after { border-color: #f3e7d3; }
   .bubble[hidden] { display: none !important; }
 
+  /* ===== B 원작 점수표 스킨 (2026-10-19 디자인 보드에서 고름) =====
+     나무 탁자 위의 크림색 종이 점수표, 차례인 세로줄은 노란색(원작과 같음), 글꼴 Jua + Gothic A1 */
+  :root {
+    --bg: #5b3c24; --fg: #1f1a14; --paper: #fbf7ec; --rule: #d9cfb8; --band: #3b3531; --band2: #6e6862;
+    --yellow: #f6d24a; --pre: #8a6d00; --sel: #ffd39b; --selbar: #e8731c;
+    --display: "Jua", "Apple SD Gothic Neo", sans-serif; --body: "Gothic A1", "Apple SD Gothic Neo", sans-serif;
+    color-scheme: light;
+  }
+  .hud h1, .hud .meta { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  .hud h1 { font-family: var(--display); font-weight: 400; font-size: 1.4rem; }
+  #stage { border-radius: 12px; box-shadow: none; }
+  #rolls { display: flex; align-items: center; gap: 5px; font: 400 clamp(15px, 3vh, 22px)/1 var(--display); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #rolls .rico { width: 1em; height: 1em; }
+  #who { background: none; border: 0; padding: 0; gap: 6px; font: 400 15px/1 var(--display); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #who .ava { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 3px solid #fff; background: var(--pc); color: var(--fg); display: flex; align-items: center; justify-content: center; font-size: 15px; text-shadow: none; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+  :root[data-orient="landscape"] #who { flex-direction: column; gap: 1px; font-size: 13px; }
+  :root[data-orient="landscape"] #who .ava { width: 34px; height: 34px; font-size: 16px; }
+  .actions button { font-family: var(--display); font-weight: 400; }
+  #roll { background: var(--yellow); color: var(--fg); box-shadow: 0 4px 0 #9c7a12, 0 6px 10px rgba(0,0,0,.35); }
+  #rec { background: #fffaf0; color: var(--fg); box-shadow: 0 4px 0 #a39a8b, 0 6px 10px rgba(0,0,0,.3); }
+  .actions button:disabled { opacity: 1; background: #e9e3d6; color: #6f675c; box-shadow: 0 4px 0 #a39a8b; }
+  button:focus-visible { outline-color: #fff; }
+  #sheet { background: var(--paper); border: 0; border-radius: 6px; box-shadow: 0 6px 16px rgba(0,0,0,.35); color: var(--fg); }
+  table.sc th, table.sc td { border-bottom: 1px solid var(--rule); }
+  table.sc td.name { font-weight: 700; }
+  table.sc td.v { border-left: 1px solid var(--rule); font-family: var(--display); font-size: 1.15em; }
+  table.sc thead th { background: var(--band); color: #fff; border-bottom: 0; font-weight: 800; border-left: 1px solid #5a534d; }
+  table.sc th.turn { color: #fff; font-family: var(--display); font-weight: 400; font-size: 1em; border-left: 0; }
+  table.sc th.now { background: var(--yellow); color: var(--fg); }
+  table.sc .dot { box-sizing: border-box; border: 1.5px solid #fff; }
+  table.sc th.now .dot { background: var(--pc); border-color: var(--fg); }
+  table.sc td.now { background: var(--yellow); }
+  table.sc td.pre { color: var(--pre); }
+  table.sc td.done { font-weight: 400; color: var(--fg); }
+  table.sc tr.sub td { background: var(--band2); color: #fff; border-bottom: 0; font-family: var(--body); font-size: .74em; border-left-color: #8a847d; }
+  table.sc tr.sub td.now { background: var(--band2); }
+  table.sc tr.total td { background: var(--band); color: #fff; border-bottom: 0; border-left-color: #5a534d; }
+  table.sc tr.total td.name { font-weight: 800; }
+  table.sc tr.total td.now { background: var(--yellow); color: var(--fg); }
+  table.sc tr.cat[data-cat="6"] td { border-top: 3px solid var(--band); }
+  table.sc tr.cat.sel td { background: var(--sel); }
+  table.sc tr.cat.sel td.name { box-shadow: inset 4px 0 0 var(--selbar); }
+  table.sc tr.cat.sel td.now { background: #f9b86a; }
+  .die { position: relative; display: inline-block; width: 1em; height: 1em; margin-right: .35em; vertical-align: -.15em; border-radius: 3px; background: var(--fg); }
+  .die i { position: absolute; width: .22em; height: .22em; border-radius: 50%; background: var(--paper); transform: translate(-50%, -50%); }
+  .bubble { font: 400 12px/1 var(--display); letter-spacing: 0; border: 0; border-radius: 12px; padding: 4px 8px; background: var(--band); color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.4); }
+  .bubble::after { width: 8px; height: 8px; bottom: -3px; border: 0; background: inherit; }
+  .bubble.below::after { top: -3px; bottom: auto; }
+  .bubble.release { background: #fff; color: var(--fg); }
+
   /* 시안 바 (프로토타입 전용, 디자인의 일부가 아님) */
   #proto { position: fixed; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 10; display: flex; align-items: center; gap: 4px; background: #111; color: #fff; border: 2px solid #ffd400; border-radius: 999px; padding: 3px; font: 600 12px/1 system-ui, sans-serif; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
   #proto button { font: inherit; color: inherit; background: #333; border: 0; border-radius: 999px; min-width: 30px; height: 30px; padding: 0 8px; cursor: pointer; }
@@ -201,7 +252,7 @@ function build() {
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(0x1b120d);
+  renderer.setClearColor(0x5b3c24); // B 원작 점수표: 나무 탁자 색
   stageEl.prepend(renderer.domElement);
   scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffe7c4, 0x2a0d08, .55));
@@ -366,6 +417,9 @@ rollBtn.addEventListener("click", roll);
 recBtn.addEventListener("click", record);
 document.getElementById("score").addEventListener("click", e => { const tr = e.target.closest("tr[data-cat]"); if (tr) selectCat(+tr.dataset.cat); });
 
+// 윗칸 이름 앞의 주사위 그림(원작 점수표와 같음)
+const PIP = { 1: [[50, 50]], 2: [[27, 27], [73, 73]], 3: [[27, 27], [50, 50], [73, 73]], 4: [[27, 27], [73, 27], [27, 73], [73, 73]], 5: [[27, 27], [73, 27], [50, 50], [27, 73], [73, 73]], 6: [[27, 25], [73, 25], [27, 50], [73, 50], [27, 75], [73, 75]] };
+const dieIcon = f => `<span class="die" aria-hidden="true">${PIP[f].map(([x, y]) => `<i style="left:${x}%;top:${y}%"></i>`).join("")}</span>`;
 function render(stopped) {
   const showPreview = S.rolled && (!S.animating || stopped);
   const pv = CATS.map(([, f]) => f(S.values));
@@ -376,7 +430,7 @@ function render(stopped) {
     if (v !== null) return `<td class="v done${now ? " now" : ""}" ${pc(i)}>${v}</td>`;
     return `<td class="v${now ? " now" : ""}${now && showPreview ? " pre" : ""}" ${pc(i)}>${now && showPreview ? pv[k] : ""}</td>`;
   };
-  const catRow = k => `<tr class="cat${S.sel === k ? " sel" : ""}" data-cat="${k}"><td class="name">${CATS[k][0]}</td>${players.map((_, i) => cell(i, k)).join("")}</tr>`;
+  const catRow = k => `<tr class="cat${S.sel === k ? " sel" : ""}" data-cat="${k}"><td class="name">${k < 6 ? dieIcon(k + 1) : ""}${CATS[k][0]}</td>${players.map((_, i) => cell(i, k)).join("")}</tr>`;
   const line = (cls, label, f) => `<tr class="${cls}"><td class="name">${label}</td>${players.map((p, i) => `<td class="v${i === cur ? " now" : ""}" ${pc(i)}>${f(p)}</td>`).join("")}</tr>`;
   document.getElementById("score").innerHTML =
     `<colgroup><col class="namecol">${players.map(() => "<col>").join("")}</colgroup>` +
@@ -386,8 +440,8 @@ function render(stopped) {
     [6, 7, 8, 9, 10, 11].map(catRow).join("") +
     line("total", "총합 득점", grand) + `</tbody>`;
   document.getElementById("meta").textContent = `턴 ${turn}/12 · 앞으로 ${S.rollsLeft}번`;
-  document.getElementById("rolls").textContent = `앞으로 ${S.rollsLeft}번`;
-  const who = document.getElementById("who"); who.style.setProperty("--pc", players[cur].color); who.innerHTML = `<span class="dot"></span>${players[cur].name}`;
+  document.getElementById("rolls").innerHTML = `<svg class="rico" viewBox="0 0 18 18" aria-hidden="true"><rect x="1.5" y="1.5" width="15" height="15" rx="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="6" r="1.6" fill="currentColor"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>앞으로 ${S.rollsLeft}번`;
+  const who = document.getElementById("who"); who.style.setProperty("--pc", players[cur].color); who.innerHTML = `<span class="ava">${players[cur].name[0]}</span><span class="nm">${players[cur].name}</span>`;
   rollBtn.textContent = S.rolled ? "다시 던지기" : "주사위 던지기";
   rollBtn.disabled = S.animating || S.rollsLeft === 0 || (S.rolled && S.held.every(Boolean));
   recBtn.disabled = S.animating || S.sel === null;
