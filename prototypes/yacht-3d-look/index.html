@@ -36,6 +36,8 @@
   :root[data-orient="portrait"][data-layout="B"] #app, :root[data-orient="portrait"][data-layout="D"] #app { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage" "sheet"; }
   :root[data-orient="portrait"][data-layout="B"] .hud, :root[data-orient="portrait"][data-layout="D"] .hud { display: none; }
   :root[data-orient="portrait"][data-layout="B"] #rolls, :root[data-orient="portrait"][data-layout="D"] #rolls { display: block; }
+  :root[data-orient="portrait"][data-layout="B"] #stage, :root[data-orient="portrait"][data-layout="D"] #stage { --reserve-top: 40px; }
+  :root[data-orient="landscape"] #stage { --reserve-top: 34px; }
   :root[data-orient="portrait"][data-layout="B"] .actions, :root[data-orient="portrait"][data-layout="D"] .actions { grid-area: stage; align-self: end; z-index: 3; padding-bottom: 10px; pointer-events: none; }
   :root[data-orient="portrait"][data-layout="B"] .actions button, :root[data-orient="portrait"][data-layout="D"] .actions button { pointer-events: auto; }
 
@@ -228,6 +230,8 @@ function build() {
 function resize() {
   const r = stageEl.getBoundingClientRect(); if (!r.width || !r.height || !renderer) return;
   renderer.setSize(r.width, r.height, false);
+  const reserve = parseFloat(getComputedStyle(stageEl).getPropertyValue("--reserve-top")) || 0;
+  topLimit = .96 - 2 * reserve / r.height;
   camera = new THREE.PerspectiveCamera(36, r.width / r.height, .1, 100); camera.position.set(0, 11.5, 8.2); camera.lookAt(TARGET);
   fitBoard();
 }
@@ -235,13 +239,16 @@ function resize() {
 const CORNERS = [];
 for (const x of [-W / 2 - .45, W / 2 + .45]) for (const z of [-D / 2 - .45, D / 2 + .45]) for (const h of [0, RIM_H + .4]) CORNERS.push(new THREE.Vector3(x, h, z));
 CORNERS.push(CUP_POS.clone().add(new THREE.Vector3(.8, 1.4, .8)));
-function boardInside() { camera.updateMatrixWorld(); camera.updateProjectionMatrix(); return CORNERS.every(c => { const p = c.clone().project(camera); return Math.abs(p.x) <= .96 && Math.abs(p.y) <= .96; }); }
+// 판 위에 겹치는 표시(남은 굴림·지금 차례)가 판 위쪽에 있으면 그 높이만큼 판을 내려 그린다.
+let topLimit = .96;
+function boardInside() { camera.updateMatrixWorld(); camera.updateProjectionMatrix(); return CORNERS.every(c => { const p = c.clone().project(camera); return Math.abs(p.x) <= .96 && p.y <= topLimit && p.y >= -.96; }); }
 function fitBoard() {
   const scale = k => camera.position.sub(TARGET).multiplyScalar(k).add(TARGET);
   for (let i = 0; i < 60 && boardInside(); i++) scale(.96);
   for (let i = 0; i < 80 && !boardInside(); i++) scale(1.015);
 }
 new ResizeObserver(() => resize()).observe(stageEl);
+new MutationObserver(() => resize()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-layout", "data-orient"] });
 window.__boardInside = () => !!camera && boardInside(); // 캡처 검사용
 
 // 열 규칙(스펙): 홀드·해제는 같은 열 안에서만 움직이고, 다시 정렬은 굴림이 끝날 때만 한다.
@@ -316,8 +323,12 @@ function placeBubbles() {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   // 열 간격은 먼 쪽(홀드 자리)이 원근 때문에 더 좁다. 그 간격으로 판단한다.
   const gap = zz => Math.abs(new THREE.Vector3(slotX(1), DIE, zz).project(camera).x - new THREE.Vector3(slotX(0), DIE, zz).project(camera).x) * .5 * w;
-  const widest = Math.max(30, ...bubbles.map(x => x.offsetWidth));
-  const stagger = Math.min(gap(LINE_Z), gap(HOLD_Z)) < widest + 4;
+  // 엇갈려 놓으면 같은 높이의 이웃은 두 열 떨어진다. 그래도 모자라면 글자를 줄인다(최소 9px).
+  const g = Math.min(gap(LINE_Z), gap(HOLD_Z));
+  const widest = Math.max(30, ...bubbles.map(x => x.offsetWidth / (parseFloat(x.style.fontSize) || 11) * 11));
+  const stagger = g < widest + 4;
+  const font = stagger ? Math.max(9, Math.min(11, 11 * (2 * g - 6) / widest)) : 11;
+  bubbles.forEach(x => x.style.fontSize = font + "px");
   dice.forEach((m, i) => {
     const b = bubbles[i];
     if (!can) { b.hidden = true; return; }
@@ -366,7 +377,7 @@ function render(stopped) {
   rollBtn.disabled = S.animating || S.rollsLeft === 0 || (S.rolled && S.held.every(Boolean));
   recBtn.disabled = S.animating || S.sel === null;
   recBtn.textContent = S.sel !== null && pv[S.sel] === 0 ? "0점으로 기록" : "기록";
-  window.__yacht = { values: [...S.values], held: [...S.held], rollsLeft: S.rollsLeft, animating: S.animating, cur, turn, sel: S.sel };
+  window.__yacht = { col: [...col], values: [...S.values], held: [...S.held], rollsLeft: S.rollsLeft, animating: S.animating, cur, turn, sel: S.sel };
 }
 
 // ---------- 화면 방향과 시안 전환 ----------
