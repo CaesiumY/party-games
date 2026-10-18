@@ -9,6 +9,7 @@
     A 원작형      점수표 왼쪽, 판 오른쪽, 버튼은 판 바로 아래
     B 판 최대형    점수표 왼쪽, 판 가운데, 버튼은 판 오른쪽에 세로로
     C 점수표 강조형 점수표를 넓고 크게, 판 오른쪽, 버튼은 판 아래
+    D 세로 B + 가로 A 화면 크기 검사에서 각 방향에 통과한 배치끼리 묶은 것
   세로 배치는 셋 다 같다(턴 표시 / 판 / 버튼 / 점수표, 판은 남은 자리만 쓴다).
   ?players=1..4 로 인원을 바꾼다. ?bar=0 이면 시안 바를 숨긴다(캡처용).
   굴림은 물리 엔진 없이 트윈으로 흉내 낸다. 결과는 로직이 먼저 정한다(ADR-0001).
@@ -32,11 +33,11 @@
   /* 세로 배치: 턴 표시 / 판(남은 자리) / 버튼 / 점수표(내용 높이) */
   :root[data-orient="portrait"] #app { max-width: 560px; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; grid-template-areas: "hud" "stage" "actions" "sheet"; }
   :root[data-orient="portrait"] #rolls { display: none; }
-  :root[data-orient="portrait"][data-layout="B"] #app { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage" "sheet"; }
-  :root[data-orient="portrait"][data-layout="B"] .hud { display: none; }
-  :root[data-orient="portrait"][data-layout="B"] #rolls { display: block; }
-  :root[data-orient="portrait"][data-layout="B"] .actions { grid-area: stage; align-self: end; z-index: 3; padding-bottom: 10px; pointer-events: none; }
-  :root[data-orient="portrait"][data-layout="B"] .actions button { pointer-events: auto; }
+  :root[data-orient="portrait"][data-layout="B"] #app, :root[data-orient="portrait"][data-layout="D"] #app { grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage" "sheet"; }
+  :root[data-orient="portrait"][data-layout="B"] .hud, :root[data-orient="portrait"][data-layout="D"] .hud { display: none; }
+  :root[data-orient="portrait"][data-layout="B"] #rolls, :root[data-orient="portrait"][data-layout="D"] #rolls { display: block; }
+  :root[data-orient="portrait"][data-layout="B"] .actions, :root[data-orient="portrait"][data-layout="D"] .actions { grid-area: stage; align-self: end; z-index: 3; padding-bottom: 10px; pointer-events: none; }
+  :root[data-orient="portrait"][data-layout="B"] .actions button, :root[data-orient="portrait"][data-layout="D"] .actions button { pointer-events: auto; }
 
   /* 가로 배치: 점수표 왼쪽, 판 오른쪽 (원작과 같음) */
   :root[data-orient="landscape"] #app { gap: 8px 12px; grid-template-rows: minmax(0, 1fr) auto; }
@@ -45,7 +46,7 @@
   :root[data-orient="landscape"] table.sc { height: 100%; }
   :root[data-orient="landscape"][data-bar="1"] #app { padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
   /* A 원작형 */
-  :root[data-orient="landscape"][data-layout="A"] #app { max-width: 1280px; grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); grid-template-areas: "sheet stage" "sheet actions"; }
+  :root[data-orient="landscape"][data-layout="A"] #app, :root[data-orient="landscape"][data-layout="D"] #app { max-width: 1280px; grid-template-columns: minmax(250px, 34%) minmax(0, 1fr); grid-template-areas: "sheet stage" "sheet actions"; }
   /* B 판 최대형: 버튼을 판 오른쪽에 세로로 */
   :root[data-orient="landscape"][data-layout="B"] #app { max-width: 1280px; grid-template-columns: minmax(250px, 30%) minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr); grid-template-areas: "sheet stage actions"; }
   :root[data-orient="landscape"][data-layout="B"] .actions { flex-direction: column; justify-content: center; }
@@ -63,6 +64,10 @@
   #stage canvas { display: block; width: 100%; height: 100%; }
   #rolls { position: absolute; right: 12px; top: 10px; z-index: 2; font: 700 clamp(13px, 3vh, 22px)/1 var(--display); color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; }
 
+  /* 지금 차례 표시: 판 아래 가운데(원작은 같은 자리에 얼굴 그림) */
+  #who { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; background: rgba(18,12,8,.82); border: 2px solid var(--pc); font: 700 13px/1 var(--body); color: var(--fg); pointer-events: none; white-space: nowrap; }
+  #who .dot { width: 18px; height: 18px; margin: 0; }
+  :root[data-orient="portrait"][data-layout="B"] #who, :root[data-orient="portrait"][data-layout="D"] #who { left: 12px; top: 10px; bottom: auto; transform: none; }
   .actions { grid-area: actions; display: flex; justify-content: center; align-items: center; gap: 10px; }
   .actions button { font: inherit; font-family: var(--display); font-size: clamp(15px, 2.4vh, 21px); min-height: clamp(40px, 6vh, 58px); min-width: clamp(96px, 13vh, 150px); border: 0; border-radius: 999px; padding: 8px 20px; cursor: pointer; }
   #roll { background: var(--accent); color: #fff; box-shadow: 0 4px 0 #6d0618; }
@@ -115,8 +120,8 @@
 <div id="app">
   <header class="hud"><h1>요트</h1><span class="meta" id="meta">턴 1/12 · 앞으로 3번</span></header>
   <section id="sheet" aria-label="점수표"><table class="sc" id="score"></table></section>
-  <div id="stage" aria-label="주사위 판"><div id="bubbles"></div><div id="rolls">앞으로 3번</div></div>
-  <div class="actions"><button id="roll" type="button">굴리기</button><button id="rec" type="button" disabled>기록</button></div>
+  <div id="stage" aria-label="주사위 판"><div id="bubbles"></div><div id="rolls">앞으로 3번</div><div id="who" aria-live="polite"></div></div>
+  <div class="actions"><button id="roll" type="button">주사위 던지기</button><button id="rec" type="button" disabled>기록</button></div>
 </div>
 
 <div id="proto" role="group" aria-label="시안 전환">
@@ -136,7 +141,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
-const LAYOUTS = { A: "원작형", B: "판 최대형", C: "점수표 강조형" };
+const LAYOUTS = { A: "원작형", B: "판 최대형", C: "점수표 강조형", D: "세로 B + 가로 A" };
 const KEYS = Object.keys(LAYOUTS);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const params = new URLSearchParams(location.search);
@@ -173,7 +178,7 @@ function noise(ctx, w, h, base, amp, count) { ctx.fillStyle = base; ctx.fillRect
 const PIPS = { 1: [[.5, .5]], 2: [[.27, .27], [.73, .73]], 3: [[.27, .27], [.5, .5], [.73, .73]], 4: [[.27, .27], [.73, .27], [.27, .73], [.73, .73]], 5: [[.27, .27], [.73, .27], [.5, .5], [.27, .73], [.73, .73]], 6: [[.27, .25], [.73, .25], [.27, .5], [.73, .5], [.27, .75], [.73, .75]] };
 function faceTex(v) { return canvasTex(256, 256, (ctx, w) => { ctx.fillStyle = "#f6efe1"; ctx.fillRect(0, 0, w, w); for (const [x, y] of PIPS[v]) { ctx.beginPath(); ctx.arc(x * w, y * w, v === 1 ? 30 : 22, 0, Math.PI * 2); ctx.fillStyle = v === 1 ? "#c8102e" : "#111"; ctx.fill(); } }); }
 function slotMat() {
-  const map = canvasTex(256, 256, (c, w) => { c.fillStyle = "#5e0914"; c.fillRect(0, 0, w, w); c.strokeStyle = "#c9a24a"; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, w - 28); c.fillStyle = "#c9a24a"; c.globalAlpha = .75; c.font = "700 56px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("홀드", w / 2, w / 2); });
+  const map = canvasTex(256, 256, (c, w) => { c.fillStyle = "#5e0914"; c.fillRect(0, 0, w, w); c.strokeStyle = "#c9a24a"; c.lineWidth = 8; c.strokeRect(14, 14, w - 28, w - 28); c.fillStyle = "#c9a24a"; c.globalAlpha = .75; c.font = "700 56px system-ui, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText("킵", w / 2, w / 2); });
   return new THREE.MeshStandardMaterial({ map, roughness: .9 });
 }
 const FACE_VALUES = [2, 5, 1, 6, 3, 4];
@@ -309,13 +314,15 @@ const tmp = new THREE.Vector3();
 function placeBubbles() {
   const can = S.rolled && !S.animating && S.rollsLeft > 0;
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  const a = new THREE.Vector3(slotX(0), DIE, LINE_Z).project(camera), z = new THREE.Vector3(slotX(1), DIE, LINE_Z).project(camera);
-  const stagger = Math.abs(z.x - a.x) * .5 * w < 40;
+  // 열 간격은 먼 쪽(홀드 자리)이 원근 때문에 더 좁다. 그 간격으로 판단한다.
+  const gap = zz => Math.abs(new THREE.Vector3(slotX(1), DIE, zz).project(camera).x - new THREE.Vector3(slotX(0), DIE, zz).project(camera).x) * .5 * w;
+  const widest = Math.max(30, ...bubbles.map(x => x.offsetWidth));
+  const stagger = Math.min(gap(LINE_Z), gap(HOLD_Z)) < widest + 4;
   dice.forEach((m, i) => {
     const b = bubbles[i];
     if (!can) { b.hidden = true; return; }
     b.hidden = false;
-    const label = S.held[i] ? "해제" : "홀드";
+    const label = S.held[i] ? "되돌리기" : "킵";
     if (b.textContent !== label) { b.textContent = label; b.classList.toggle("release", S.held[i]); b.setAttribute("aria-label", `주사위 ${S.values[i]} ${label}`); }
     // 열 사이가 말풍선보다 좁으면 홀수 열의 말풍선은 주사위 아래(앞쪽)에 놓아 서로 겹치지 않게 한다.
     const below = stagger && col[i] % 2 === 1;
@@ -336,7 +343,7 @@ document.getElementById("score").addEventListener("click", e => { const tr = e.t
 function render(stopped) {
   const showPreview = S.rolled && (!S.animating || stopped);
   const pv = CATS.map(([, f]) => f(S.values));
-  const landscape = document.documentElement.dataset.orient === "landscape" || document.documentElement.dataset.layout === "B";
+  const landscape = document.documentElement.dataset.orient === "landscape" || ["B", "D"].includes(document.documentElement.dataset.layout);
   const pc = i => `style="--pc:${players[i].color}"`;
   const cell = (i, k) => {
     const v = players[i].scores[k], now = i === cur;
@@ -354,6 +361,8 @@ function render(stopped) {
     line("total", "총합 득점", grand) + `</tbody>`;
   document.getElementById("meta").textContent = `턴 ${turn}/12 · 앞으로 ${S.rollsLeft}번`;
   document.getElementById("rolls").textContent = `앞으로 ${S.rollsLeft}번`;
+  const who = document.getElementById("who"); who.style.setProperty("--pc", players[cur].color); who.innerHTML = `<span class="dot"></span>${players[cur].name}`;
+  rollBtn.textContent = S.rolled ? "다시 던지기" : "주사위 던지기";
   rollBtn.disabled = S.animating || S.rollsLeft === 0 || (S.rolled && S.held.every(Boolean));
   recBtn.disabled = S.animating || S.sel === null;
   recBtn.textContent = S.sel !== null && pv[S.sel] === 0 ? "0점으로 기록" : "기록";
@@ -379,7 +388,7 @@ addEventListener("keydown", e => { if (e.key === "ArrowLeft") step(-1); if (e.ke
 
 const n0 = Math.min(4, Math.max(1, +params.get("players") || 2));
 setPlayers(n0); document.getElementById("pc").textContent = `${n0}명`;
-const l0 = (params.get("layout") || "A").toUpperCase(); setLayout(KEYS.includes(l0) ? l0 : "A");
+const l0 = (params.get("layout") || "D").toUpperCase(); setLayout(KEYS.includes(l0) ? l0 : "D");
 applyOrient();
 requestAnimationFrame(() => build());
 </script>
