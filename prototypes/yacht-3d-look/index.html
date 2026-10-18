@@ -128,7 +128,7 @@
   #rolls { display: flex; align-items: center; gap: 5px; font: 400 clamp(15px, 3vh, 22px)/1 var(--display); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
   #rolls .rico { width: 1em; height: 1em; }
   #who { background: none; border: 0; padding: 0; gap: 6px; font: 400 15px/1 var(--display); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-  #who .ava { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 3px solid #fff; background: var(--pc); color: var(--fg); display: flex; align-items: center; justify-content: center; font-size: 15px; text-shadow: none; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+  #who .ava { width: 30px; height: 30px; box-sizing: border-box; border-radius: 50%; border: 5px solid var(--pc); background: #fff; color: var(--fg); display: flex; align-items: center; justify-content: center; font-size: 15px; text-shadow: none; box-shadow: 0 2px 6px rgba(0,0,0,.45); }
   :root[data-orient="landscape"] #who { flex-direction: column; gap: 1px; font-size: 13px; }
   :root[data-orient="landscape"] #who .ava { width: 34px; height: 34px; font-size: 16px; }
   .actions button { font-family: var(--display); font-weight: 400; }
@@ -204,7 +204,7 @@ document.documentElement.dataset.bar = params.get("bar") === "0" ? "0" : "1";
 
 // ---------- 게임 상태 (로직이 먼저 정한다) ----------
 const S = { values: [1, 2, 3, 4, 5], held: [false, false, false, false, false], rollsLeft: 3, rolled: false, animating: false, sel: null };
-const NAMES = ["하나", "두리", "세나", "네모"], COLORS = ["#ffcf3f", "#5ad1ff", "#ff7aa8", "#8be37a"];
+const NAMES = ["하나", "두리", "세나", "네모"], COLORS = ["#d63a4c", "#1f5fbf", "#4cc477", "#b48be8"] // 노란 강조와 섞이지 않게 노랑·주황을 빼고, 밝기를 서로 다르게;
 let players = [], cur = 0, turn = 1;
 function setPlayers(n) {
   players = Array.from({ length: n }, (_, i) => ({ name: NAMES[i], color: COLORS[i], scores: Array(12).fill(null) }));
