@@ -1,1 +1,4 @@
 .gstack/
+node_modules/
+dist/
+*.local
