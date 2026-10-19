@@ -34,6 +34,16 @@ export interface JudgeInput {
   selection: Category | null;
   /** 떠 있는 보너스 알림. 없거나 null 이면 차례 넘김을 미루지 않는다. */
   bonusNotice?: HandOffNotice | null;
+  /** 떠 있는 차례 배너. 조작은 막지 않고 "?" 만 막는다. */
+  turnBanner?: TurnBanner | null;
+}
+
+/** 떠 있는 차례 배너(스펙 「차례 배너」). 화면의 차례 넘김 때 뜨고, 표시가 끝나면 지워진다. */
+export interface TurnBanner {
+  /** 배너마다 다른 번호. 표시가 끝났다고 알릴 때 쓴다. */
+  id: number;
+  /** 이제 차례인 플레이어의 순번. */
+  player: number;
 }
 
 /**
@@ -65,13 +75,12 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
 }
 
 /**
- * 플레이 방법("?" 버튼)을 열 수 있는지. 굴림 연출 중과 보너스 알림 중에는 막는다.
- * 연 사이에 차례가 넘어가 버리면 닫았을 때 연 때와 다른 화면이 되기 때문이다.
- * 차례 배너(#9)가 떠 있는 동안의 잠금은 그 티켓이 여기에 더한다.
+ * 플레이 방법("?" 버튼)을 열 수 있는지. 굴림 연출 중, 보너스 알림 중, 차례 배너가 떠 있는 동안 막는다.
+ * 연 사이에 차례가 넘어가 버리면 닫았을 때 연 때와 다른 화면이 되고 차례 배너도 놓치기 때문이다.
  */
 export function helpBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
-  if (s.bonusNotice) return "handing-off";
+  if (s.bonusNotice || s.turnBanner) return "handing-off";
   return null;
 }
 

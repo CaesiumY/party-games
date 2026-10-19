@@ -25,9 +25,10 @@ export function usePermissions(): Permissions {
   const presentation = useGame((s) => s.presentation);
   const selection = useGame((s) => s.selection);
   const bonusNotice = useGame((s) => s.bonusNotice);
+  const turnBanner = useGame((s) => s.turnBanner);
   return useMemo(
-    () => judge({ game, presentation, selection, bonusNotice }),
-    [game, presentation, selection, bonusNotice],
+    () => judge({ game, presentation, selection, bonusNotice, turnBanner }),
+    [game, presentation, selection, bonusNotice, turnBanner],
   );
 }
 
