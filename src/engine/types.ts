@@ -55,12 +55,7 @@ export interface GameState {
 }
 
 /** 규칙에 맞지 않아 거부된 이유. */
-export type Rejection =
-  | "game-over"
-  | "not-rolled-yet"
-  | "no-rolls-left"
-  | "category-filled"
-  | "category-unavailable";
+export type Rejection = "game-over" | "not-rolled-yet" | "no-rolls-left" | "category-filled";
 
 /**
  * 모든 엔진 명령의 결과. 규칙에 맞지 않는 명령은 예외를 던지지 않고

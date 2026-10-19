@@ -1,5 +1,5 @@
 import type { DiceSource } from "./dice-source";
-import { isScorable, scoreFor } from "./scoring";
+import { scoreFor } from "./scoring";
 import {
   type Category,
   type CommandResult,
@@ -58,7 +58,6 @@ export function roll(state: GameState, source: DiceSource): CommandResult {
 export function recordRejection(state: GameState, category: Category): Rejection | null {
   if (state.rollsUsed === 0) return "not-rolled-yet";
   if (state.players[state.currentPlayer]?.scores[category] !== undefined) return "category-filled";
-  if (!isScorable(category)) return "category-unavailable";
   return null;
 }
 
@@ -67,12 +66,19 @@ export function currentValues(state: GameState): DieValue[] {
   return state.dice.map((die) => die.value);
 }
 
-/** 기록. 현재 플레이어의 빈 카테고리에 다섯 눈으로 계산한 점수를 적는다. */
+/**
+ * 점수 미리보기: 지금 다섯 눈으로 이 카테고리에 기록하면 받을 점수. 기록도 이 값을 그대로 적는다.
+ * 성립하지 않으면 0(스크래치)이다.
+ */
+export function scorePreview(state: GameState, category: Category): number {
+  return scoreFor(category, currentValues(state));
+}
+
+/** 기록. 현재 플레이어의 빈 카테고리에 점수 미리보기 값을 적는다. */
 export function record(state: GameState, category: Category): CommandResult {
   const rejection = recordRejection(state, category);
   if (rejection) return { ok: false, reason: rejection };
-  const points = scoreFor(category, currentValues(state));
-  if (points === undefined) return { ok: false, reason: "category-unavailable" };
+  const points = scorePreview(state, category);
   const players = state.players.map((player, i) =>
     i === state.currentPlayer
       ? { ...player, scores: { ...player.scores, [category]: points } }
