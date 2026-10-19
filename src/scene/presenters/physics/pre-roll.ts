@@ -1,6 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import type { DieId, DieValue } from "../../../engine/types";
 import { BOARD, columnX } from "../../../layout/board";
+import { pourAxes, pourStart } from "./cup-pour";
 import { faceFix } from "./face-fix";
 import type { Rapier } from "./load-rapier";
 
@@ -36,7 +37,7 @@ export interface RollPlan {
   tracks: DieTrack[];
 }
 
-export type RestProblem = "out" | "stacked" | "edge";
+export type RestProblem = "out" | "cup" | "stacked" | "edge";
 
 /** 시뮬레이션 한 스텝의 길이(초). 재생도 이 간격으로 프레임을 읽는다. */
 export const STEP_SECONDS = 1 / 60;
@@ -55,7 +56,8 @@ const STILL_ANGULAR = 0.05;
 
 /**
  * 멈춘 자세가 정렬 전에 보여 주기에 알맞은지. 문제가 있으면 그 시드를 버리고 다시 굴린다.
- * - out: 판 밖, stacked: 다른 주사위·벽에 기대 떠 있음, edge: 모서리로 섬
+ * - out: 판 밖, cup: 쏟은 뒤 제자리로 돌아온 컵 아래(컵은 물리에 넣지 않는다)
+ * - stacked: 다른 주사위·벽에 기대 떠 있음, edge: 모서리로 섬
  */
 export function restProblem(
   position: { x: number; y: number; z: number },
@@ -67,6 +69,9 @@ export function restProblem(
     Math.abs(position.z) > BOARD.depth / 2 - half + 0.01
   ) {
     return "out";
+  }
+  if (Math.hypot(position.x - BOARD.cup.x, position.z - BOARD.cup.z) < BOARD.cup.radius + half) {
+    return "cup";
   }
   if (Math.abs(position.y - half) > 0.03) return "stacked";
   if (flatness(rotation) < 0.99) return "edge";
@@ -170,17 +175,18 @@ function buildBoard(rapier: Rapier, world: World, heldColumns: readonly number[]
   }
 }
 
-/** 컵 입구 근처에서 판 가운데 쪽으로 던진다. 주사위끼리 높이를 달리해 처음부터 겹치지 않게 한다. */
+/**
+ * 다 쏟은 컵(옆으로 누움)의 입구에서 판 가운데 쪽으로 던진다(cup-pour.ts).
+ * 주사위끼리 자리를 띄워 처음부터 겹치지 않게 한다.
+ */
 function throwDie(rapier: Rapier, world: World, random: () => number, index: number) {
   const axis = new Vector3(random() - 0.5, random() - 0.5, random() - 0.5).normalize();
   const rotation = new Quaternion().setFromAxisAngle(axis, random() * Math.PI * 2);
+  const [x, y, z] = pourStart(index);
+  const jitter = () => (random() - 0.5) * 0.08;
   const body = world.createRigidBody(
     rapier.RigidBodyDesc.dynamic()
-      .setTranslation(
-        BOARD.cup.x + (random() - 0.5) * 0.6,
-        1.2 + index * 0.85,
-        BOARD.cup.z + (random() - 0.5) * 0.6,
-      )
+      .setTranslation(x + jitter(), y + jitter(), z + jitter())
       .setRotation(rotation)
       .setCcdEnabled(true)
       .setLinearDamping(0.1)
@@ -194,7 +200,17 @@ function throwDie(rapier: Rapier, world: World, random: () => number, index: num
       .setRestitution(0.35),
     body,
   );
-  body.setLinvel({ x: -3 - random() * 2.5, y: 0.5 + random(), z: -4 - random() * 3 }, true);
+  const { forward, side } = pourAxes();
+  const speed = 4 + random() * 2.5;
+  const spread = (random() - 0.5) * 2.4;
+  body.setLinvel(
+    {
+      x: forward[0] * speed + side[0] * spread,
+      y: 0.5 + random(),
+      z: forward[2] * speed + side[2] * spread,
+    },
+    true,
+  );
   body.setAngvel(
     { x: (random() - 0.5) * 30, y: (random() - 0.5) * 30, z: (random() - 0.5) * 30 },
     true,
