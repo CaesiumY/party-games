@@ -417,7 +417,8 @@ describe("보너스 알림", () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(screen.queryByRole("status")).toBeNull();
+    // 알림이 끝나면 화면의 차례가 넘어가 차례 배너가 뜬다.
+    expect(screen.getByRole("status").textContent).toBe("다음은 플레이어 2 차례");
     expect(current()).toBe("플레이어 2");
     expect(rowOf("소계").getAllByRole("cell")[0]?.classList.contains("bonus")).toBe(false);
     expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", false);

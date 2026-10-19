@@ -3,6 +3,7 @@ import { totalScore, UPPER_BONUS_THRESHOLD, upperBonus, upperSubtotal } from "..
 import { CATEGORIES, type Category } from "../engine/types";
 import { useGame, usePermissions, usePreviewVisible, useShownPlayer } from "../store/store-context";
 import { CATEGORY_NAMES } from "./category-names";
+import { PlayerDot } from "./player-dot";
 
 const UPPER = CATEGORIES.slice(0, 6);
 const LOWER = CATEGORIES.slice(6);
@@ -101,6 +102,7 @@ export function Scorecard() {
             </th>
             {game.players.map((p, i) => (
               <th key={p.name} scope="col" className={i === now ? "now" : undefined}>
+                <PlayerDot player={i} />
                 {p.name}
               </th>
             ))}

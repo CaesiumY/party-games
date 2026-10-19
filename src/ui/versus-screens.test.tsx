@@ -1,0 +1,170 @@
+// @vitest-environment jsdom
+import { act, cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { useEffect } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "../app";
+import type { DiceSource } from "../engine/dice-source";
+import type { DieValue } from "../engine/types";
+import { createGameStore } from "../store/game-store";
+import { useGame } from "../store/store-context";
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+/** 캔버스 없는 판 영역 대역. 굴림마다 멈춤과 정렬 끝을 곧바로 알린다. */
+function FakeBoard() {
+  const rollId = useGame((s) => s.rollId);
+  const stopped = useGame((s) => s.presenterStopped);
+  const linedUp = useGame((s) => s.presenterLinedUp);
+  useEffect(() => {
+    if (rollId === 0) return;
+    stopped(rollId);
+    linedUp(rollId);
+  }, [rollId, stopped, linedUp]);
+  return <div className="board" />;
+}
+
+/** 플레이어마다 언제나 같은 눈(다섯 개 모두). */
+const facesByPlayer =
+  (faces: DieValue[]): DiceSource =>
+  ({ count, player }) =>
+    Array.from({ length: count }, () => faces[player] ?? 1);
+
+function openApp(diceSource: DiceSource = facesByPlayer([6, 6, 6, 6])) {
+  const store = createGameStore({ diceSource });
+  render(<App store={store} webgl Board={FakeBoard} />);
+  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+}
+
+const sheet = () => within(screen.getByRole("region", { name: "점수표" }));
+/** 판 위의 지금 차례 표시가 보여 주는 이름. */
+const currentPlayer = () => document.querySelector(".current-player")?.textContent;
+const headers = () =>
+  sheet()
+    .getAllByRole("columnheader")
+    .slice(1)
+    .map((h) => h.textContent);
+
+/** 시작 화면에서 인원을 고르고 이름을 넣어 시작한다. 빈 문자열은 비워 둔다. */
+async function start(user: ReturnType<typeof userEvent.setup>, names: string[]) {
+  await user.click(screen.getByRole("radio", { name: `${names.length}명` }));
+  for (const [i, name] of names.entries()) {
+    const input = screen.getByRole("textbox", { name: `플레이어 ${i + 1} 이름` });
+    await user.clear(input);
+    if (name) await user.type(input, name);
+  }
+  await user.click(
+    screen.getByRole("button", { name: names.length === 1 ? "혼자 시작" : "대전 시작" }),
+  );
+}
+
+/** 한 턴: 굴리고 맨 위 빈 카테고리에 기록한 뒤, 알림·배너가 끝날 만큼 시간을 보낸다. */
+async function playTurn(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+  const empty = sheet()
+    .getAllByRole("button")
+    .find((button) => !(button as HTMLButtonElement).disabled);
+  if (!empty) throw new Error("고를 수 있는 카테고리가 없다");
+  await user.click(empty);
+  await user.click(screen.getByRole("button", { name: /기록/ }));
+  act(() => {
+    vi.advanceTimersByTime(2000);
+  });
+}
+
+describe("대전 모드 시작", () => {
+  it("인원을 고르고 이름을 넣어 시작하면 그 순서로 점수표 세로줄이 생긴다. 비운 이름은 「플레이어 n」이다", async () => {
+    const user = openApp();
+
+    await start(user, ["가람", "나래", "", "라온"]);
+
+    expect(headers()).toEqual(["가람", "나래", "플레이어 3", "라온"]);
+    expect(currentPlayer()).toBe("가람");
+  });
+
+  it("같은 이름을 두 번 넣으면 뒤의 것에 번호를 붙여 구분한다", async () => {
+    const user = openApp();
+
+    await start(user, ["가람", " 가람 "]);
+
+    expect(headers()).toEqual(["가람", "가람 2"]);
+  });
+
+  it("인원 선택지는 1~4명이고, 1명이면 혼자 시작한다", async () => {
+    const user = openApp();
+    expect(screen.getAllByRole("radio")).toHaveLength(4);
+    for (const n of [1, 2, 3, 4])
+      expect(screen.getByRole("radio", { name: `${n}명` })).toBeTruthy();
+
+    await start(user, [""]);
+
+    expect(headers()).toEqual(["플레이어 1"]);
+  });
+});
+
+describe("차례 넘기기", () => {
+  it("기록하면 「다음은 ○○ 차례」 배너가 잠깐 떴다 사라지고, 지금 차례 표시가 다음 플레이어로 바뀐다", async () => {
+    const user = openApp();
+    await start(user, ["가람", "나래"]);
+
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    await user.click(sheet().getByRole("button", { name: "초이스" }));
+    await user.click(screen.getByRole("button", { name: "기록" }));
+
+    expect(screen.getByText("다음은 나래 차례")).toBeTruthy();
+    expect(currentPlayer()).toBe("나래");
+    // 배너가 떠 있어도 바로 굴릴 수 있다.
+    expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", false);
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByText("다음은 나래 차례")).toBeNull();
+  });
+});
+
+describe("대전 모드 결과", () => {
+  it("순위 표(동점이면 같은 순위) → 「다음」 → 승자 화면(공동 1등 모두), 「같은 멤버로 다시」는 같은 이름·순서로 다시 연다", async () => {
+    // 가람·다솜은 늘 6(총합 득점 170), 나래는 늘 5(150) → 가람·다솜 공동 1위, 나래 3위.
+    const user = openApp(facesByPlayer([6, 5, 6]));
+    await start(user, ["가람", "나래", "다솜"]);
+
+    for (let i = 0; i < 36; i++) await playTurn(user);
+
+    const ranks = within(screen.getByRole("table", { name: "순위" }));
+    const rows = ranks
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent),
+      );
+    expect(rows).toEqual([
+      ["1위", "가람", "170"],
+      ["1위", "다솜", "170"],
+      ["3위", "나래", "150"],
+    ]);
+    expect(screen.queryByRole("button", { name: "같은 멤버로 다시" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    const winner = within(screen.getByRole("main", { name: "승리!" }));
+    expect(winner.getByText("가람")).toBeTruthy();
+    expect(winner.getByText("다솜")).toBeTruthy();
+    expect(winner.queryByText("나래")).toBeNull();
+    expect(winner.getAllByText("총합 득점 170")).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "같은 멤버로 다시" }));
+
+    expect(headers()).toEqual(["가람", "나래", "다솜"]);
+    expect(sheet().getByText("턴 1/12")).toBeTruthy();
+  }, 20_000); // 36턴을 화면으로 끝까지 한다.
+});
