@@ -7,9 +7,9 @@
 | `engine/` | 게임 엔진. 점수 규칙과 턴 진행. 순수 TypeScript | 엔진 안의 파일만 (`boundary.test.ts` 가 검사) |
 | `store/` | zustand 상태 저장소. 엔진을 화면에 잇고, **조작 가능 여부를 한 곳에서 판정**. 지금 보이는 화면(시작/게임)과 브라우저 저장도 여기 | engine, layout |
 | `layout/` | 화면 표현을 정하는 순수 계산. 열 규칙, 주사위 자리, 카메라 거리 맞춤 | engine 의 타입, three.js 의 수학(WebGL·DOM 없이) |
+| `sound/` | 효과음. Web Audio 재생, 충돌음 일정(겹침 제한), 음원 목록 | store |
 | `scene/` | 3D 장면(React Three Fiber). 판, 주사위, **굴림 연출 입구** | store, layout, sound |
 | `ui/` | 2D 화면. 시작 화면, 점수표, 버튼, 판 위 겹침 표시(음소거 버튼 포함), 결과 화면, WebGL 미지원 안내 | store, engine 의 조회 함수, sound |
-| `sound/` | 효과음. Web Audio 재생, 충돌음 일정(겹침 제한), 음원 목록 | store |
 | `a11y/` | 접근성. '동작 줄이기' 감지, 보이지 않는 주사위 버튼 | store, layout |
 
 `main.tsx` 는 시작점(주사위 공급원·저장소·브라우저 저장 항목·효과음을 만들고 설정을 잇는다), `app.tsx` 는 WebGL 유무와 저장소의 `screen` 으로 화면(시작 → 게임 → 결과)을 고른다.
