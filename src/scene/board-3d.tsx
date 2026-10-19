@@ -5,6 +5,7 @@ import { applyFit, type CameraFit, fitCamera, type Rect } from "../layout/camera
 import { useDiceSlots, useGame } from "../store/store-context";
 import { BoardMesh } from "./board-mesh";
 import { choosePresenter } from "./choose-presenter";
+import { ContributingGlow } from "./contributing-glow";
 import { DieHitTargets } from "./die-hit-targets";
 import { HoldBubbles } from "./hold-bubbles";
 import { type OverlayReserve, overlayReserve } from "./overlay-reserve";
@@ -51,6 +52,7 @@ export function Board3D() {
         />
         <BoardMesh />
         <PresenterSlot />
+        <ContributingGlow />
         <DieHitTargets />
       </Canvas>
       {fit && <HoldBubbles fit={fit} topLimit={reserveTop} />}

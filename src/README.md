@@ -28,6 +28,10 @@
 - **브라우저 저장 도우미**: `store/stored-value.ts` 의 `createStoredValue({ storage, key, version, parse })` → `{ read, write, clear }`. 저장 항목(키)마다 버전을 두고, 읽을 수 없거나 버전이 다르거나 `parse` 가 null 을 돌려주면 그 키만 지운다. 저장소 접근이 막혀도 예외를 던지지 않는다. 운영은 `browserStorage()`, 테스트는 `memoryStorage()`. 이어 하기(#10)·음소거(#12)는 `best-score.ts` 처럼 항목 파일을 하나 더하고 `main.tsx` 에서 저장소에 넣는다.
 - **최고 점수**: `store/best-score.ts` 의 `bestScoreValue(storage)`(키 `yacht.best-score`). 연습 모드 판이 끝나는 기록에서 저장소가 지난 최고 점수와 견주어(`settleBest`) 넘었을 때만 쓰고, 결과는 `outcome` 에 둔다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
+- **기여 주사위**: 점수 계산 표(`engine/scoring.ts`)가 점수와 함께 기여 주사위도 낸다(`contributingFor`). 엔진 조회는 `contributingDice(state, category)`, 화면은 `useContributingDice()`(선택한 카테고리 기준). 3D 빛은 `scene/contributing-glow.tsx` 가 정렬 줄·홀드 자리의 열 위치에 겹쳐 그려서, 연출 구현(#5·#11)은 몰라도 된다.
+- **성립 알림**: 엔진 `comboCallout(state)` 가 띄울 카테고리를 정하고, 저장소가 정렬 끝(`presenterLinedUp`)에 `callout` 으로 들고 있다가 `calloutEnded(rollId)`·다시 굴림·기록에 지운다. 화면은 `ui/notices.tsx`.
+- **색종이**: `ui/confetti.tsx` 의 `<Confetti onDone? />`. 붙이면 한 번 터지고, 다시 터뜨리려면 `key` 를 바꾼다. '동작 줄이기'면 스스로 아무것도 그리지 않으므로 쓰는 쪽이 따로 막지 않아도 된다(결과 화면 #9 도 그대로 쓴다).
+- **차례 넘김 미루기(보너스 알림)**: 엔진은 기록과 함께 바로 다음 차례로 넘어간다(저장·복원도 그 상태). 기록이 보너스 알림(엔진 `bonusNotice(before, after)`: "+35"/"+0")을 낳으면 저장소가 `bonusNotice` 를 들고, 그동안 화면의 지금 차례는 방금 기록한 플레이어다(`shownPlayer()`, 화면은 `useShownPlayer()`). 굴림과 "?"(`canOpenHelp`)는 잠긴다. 알림 표시가 끝나면(`bonusNoticeEnded(id)`) `bonusNotice` 가 지워지고 `shownPlayer` 가 엔진의 지금 차례로 바뀐다 — **이 순간이 화면의 차례 넘김**이다. 차례 배너(#9)는 `useShownPlayer()` 가 바뀔 때 띄우고, 결과 화면은 게임이 끝났고 `bonusNotice` 가 없을 때 띄운다. 차례 배너 동안의 "?" 잠금은 `helpBlocker` 에 더한다.
 
 ## 테스트
 
