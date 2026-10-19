@@ -27,6 +27,7 @@
 - **화면 전환**: 저장소의 `screen`(`"start" | "game"`)과 명령 `newGame(players)`·`restart()`(같은 멤버로 다시)·`goHome()`(처음으로). 결과 화면을 띄울지는 `resultVisible`(`store/game-store.ts`) 한 곳에서 정한다. 보너스 알림이 끝날 때까지 결과 화면을 미루는 조건은 여기에 더한다.
 - **브라우저 저장 도우미**: `store/stored-value.ts` 의 `createStoredValue({ storage, key, version, parse })` → `{ read, write, clear }`. 저장 항목(키)마다 버전을 두고, 읽을 수 없거나 버전이 다르거나 `parse` 가 null 을 돌려주면 그 키만 지운다. 저장소 접근이 막혀도 예외를 던지지 않는다. 운영은 `browserStorage()`, 테스트는 `memoryStorage()`. 이어 하기(#10)·음소거(#12)는 `best-score.ts` 처럼 항목 파일을 하나 더하고 `main.tsx` 에서 저장소에 넣는다.
 - **최고 점수**: `store/best-score.ts` 의 `bestScoreValue(storage)`(키 `yacht.best-score`). 연습 모드 판이 끝나는 기록에서 저장소가 지난 최고 점수와 견주어(`settleBest`) 넘었을 때만 쓰고, 결과는 `outcome` 에 둔다.
+- **3D 장면 룩(카지노 펠트)**: 재질은 그리는 파일마다 둔다 — 판 `scene/board-mesh.tsx`(펠트·테두리·홀드 자리), 주사위 `scene/die-mesh.tsx`, 컵 `scene/cup-mesh.tsx`, 조명 `scene/board-3d.tsx` 의 `SceneLights`. 펠트·가죽의 결 같은 캔버스 텍스처는 `scene/textures.ts` 로 만들고, 재질은 처음 쓸 때 한 번만 만들어 공유한다. 주사위 모서리 반지름을 바꾸면 물리 충돌체(`presenters/physics/pre-roll.ts` 의 `DIE_CORNER`)도 함께 바꾼다.
 - **플레이 방법**: `ui/how-to-play.tsx` 의 `HowToPlayButton`(여는 버튼 + 모달 대화상자). 문구는 `ui/how-to-play-content.ts`, 족보 예시 주사위와 점수는 `engine/rule-examples.ts`(점수는 점수 계산 표로 셈한다). 열고 닫기는 화면 상태라 저장소의 게임 상태를 건드리지 않는다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
 
