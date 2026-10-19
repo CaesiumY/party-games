@@ -164,7 +164,7 @@ describe("보이지 않는 주사위 버튼", () => {
     expect(store.getState().game.dice.map((d) => d.held)).toEqual([true, false, true, false, true]);
   });
 
-  it("첫 굴림 전과 굴림 연출 중에는 눌러도 홀드되지 않는다", async () => {
+  it("첫 굴림 전에는 눌러도 홀드되지 않는다", async () => {
     const user = userEvent.setup();
     const store = renderGame([]);
 
