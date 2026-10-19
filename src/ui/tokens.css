@@ -1,0 +1,45 @@
+/*
+ * 디자인 토큰(루트 DESIGN.md 「Color」·「Typography」). 2D UI 의 색·글꼴은 이 파일 한 곳에만 둔다.
+ * 점수 글자 대비는 src/ui/tokens.test.ts 가 이 값을 읽어 잰다(스펙 「플레이어 색과 차례 강조」).
+ */
+:root {
+  /* 원작 점수표 세 색: 크림색 칸, 진회색 띠, 노란 차례 줄 */
+  --cell: #fffbef;
+  --band: #404040;
+  --band-soft: #737373;
+  --on-band: #ffffff;
+  --turn: #fee267;
+  --turn-soft: #e9d272;
+
+  /* 글자 */
+  --text: #2b2a27;
+  --preview: #5e594f;
+
+  /* 고른 카테고리(원작 주황 + 하늘색 괄호) */
+  --sel-name: #ff9a2e;
+  --sel-cell: #ff7a3d;
+  --sel-ring: #39c3f2;
+
+  /* 성립 알림·보너스 알림 빛 */
+  --callout-cell: #ff9a2e;
+  --yacht: #f5c542;
+  --bonus: #ff6fb1;
+
+  /* 앱 바탕(원작 나무 탁자)과 판 위 겹침 표시 */
+  --page: #c9935a;
+  --chip-bg: rgb(43 42 39 / 78%);
+
+  /* 글꼴: 둥근 고딕(원작). 이 기기에 없으면 시스템 고딕으로 대신한다(DESIGN.md 「Typography」). */
+  --font-ui:
+    "NanumSquareRound", "나눔스퀘어라운드", "Apple SD Gothic Neo", "Malgun Gothic", system-ui,
+    sans-serif;
+  --font-num:
+    "M PLUS Rounded 1c", "NanumSquareRound", "나눔스퀘어라운드", "Apple SD Gothic Neo",
+    "Malgun Gothic", system-ui, sans-serif;
+
+  /* 플레이어 색(노랑·주황 계열 없음, 언제나 이름과 함께) */
+  --player-1: #2f6bff;
+  --player-2: #1fa45b;
+  --player-3: #8b4dff;
+  --player-4: #e5383b;
+}
