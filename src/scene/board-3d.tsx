@@ -22,7 +22,7 @@ export function Board3D() {
   return (
     <div className="board" ref={ref}>
       <Canvas
-        shadows
+        shadows="percentage"
         frameloop="demand"
         dpr={[1, 2]}
         camera={{ manual: true }}
