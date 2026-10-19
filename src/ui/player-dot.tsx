@@ -12,10 +12,10 @@ export function playerColor(player: number): string {
  * 플레이어 색 점. 색만으로 누구인지 알리지 않으므로 언제나 이름 옆에 쓰고, 화면 낭독기에서는 빠진다.
  * 테두리는 바탕에 따라 CSS 가 고른다(어두운 바탕 흰색, 노란 강조 위 진한 색).
  */
-export function PlayerDot({ player, size }: { player: number; size?: "large" }) {
+export function PlayerDot({ player, size }: { player: number; size?: "small" | "large" }) {
   return (
     <span
-      className={size === "large" ? "player-dot large" : "player-dot"}
+      className={size ? `player-dot ${size}` : "player-dot"}
       style={{ background: playerColor(player) }}
       aria-hidden="true"
     />

@@ -102,7 +102,7 @@ export function Scorecard() {
             </th>
             {game.players.map((p, i) => (
               <th key={p.name} scope="col" className={i === now ? "now" : undefined}>
-                <PlayerDot player={i} />
+                <PlayerDot player={i} size="small" />
                 {p.name}
               </th>
             ))}

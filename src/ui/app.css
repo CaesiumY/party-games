@@ -200,6 +200,14 @@ button:focus-visible {
   margin-right: 0;
 }
 
+/* 점수표 머리의 색 점. 4인 세로줄이 좁아도 이름이 보이게 작게 둔다. */
+.player-dot.small {
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  border-width: 1.5px;
+}
+
 .now .player-dot {
   border-color: #2b2a27;
 }
@@ -319,6 +327,13 @@ button:focus-visible {
   width: 40%;
 }
 
+/* 가로 배치: 4인 세로줄 머리의 이름이 보이도록 카테고리 열을 조금 줄인다. */
+@media (orientation: landscape) {
+  .scorecard col.name-col {
+    width: 36%;
+  }
+}
+
 .scorecard th,
 .scorecard td {
   height: var(--row);
@@ -342,6 +357,10 @@ button:focus-visible {
   color: var(--fg);
   font-size: 0.85em;
   font-weight: 600;
+}
+
+.scorecard thead th {
+  padding: 0 2px;
 }
 
 .scorecard thead th.turn {
@@ -829,6 +848,7 @@ button:focus-visible {
   font-weight: 700;
 }
 
-.ranks tr.first .player-dot {
+/* 밝은 표 바탕 위라 색 점 테두리는 진한 색이다. */
+.result .ranks .player-dot {
   border-color: #2b2a27;
 }
