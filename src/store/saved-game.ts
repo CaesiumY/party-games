@@ -42,9 +42,11 @@ function parsePlayer(value: unknown): PlayerState | null {
 }
 
 function parseDie(value: unknown, index: number): Die | null {
-  if (!isRecord(value) || value.id !== DIE_IDS[index]) return null;
+  // 배열 순번이 곧 DieId 다.
+  const id = DIE_IDS[index];
+  if (id === undefined || !isRecord(value) || value.id !== id) return null;
   if (!isIntIn(value.value, 1, 6) || typeof value.held !== "boolean") return null;
-  return { id: DIE_IDS[index], value: value.value as DieValue, held: value.held };
+  return { id, value: value.value as DieValue, held: value.held };
 }
 
 /** 이어 할 수 있는 게임 상태인지 확인한다. 모양이 맞지 않거나 끝난 게임이면 null. */

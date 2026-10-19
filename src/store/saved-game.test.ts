@@ -55,11 +55,23 @@ describe("진행 중 게임 저장 항목", () => {
   const broken: [string, unknown][] = [
     ["객체가 아님", "게임"],
     ["플레이어가 없음", { ...game, players: [] }],
-    ["플레이어가 다섯 명", { ...game, players: [...game.players, ...game.players, game.players[0]] }],
+    [
+      "플레이어가 다섯 명",
+      { ...game, players: [...game.players, ...game.players, game.players[0]] },
+    ],
     ["이름이 글자가 아님", { ...game, players: [{ name: 1, scores: {} }, game.players[1]] }],
-    ["모르는 카테고리", { ...game, players: [{ name: "가", scores: { bonus: 35 } }, game.players[1]] }],
-    ["점수가 정수가 아님", { ...game, players: [{ name: "가", scores: { choice: 1.5 } }, game.players[1]] }],
-    ["점수가 음수", { ...game, players: [{ name: "가", scores: { choice: -1 } }, game.players[1]] }],
+    [
+      "모르는 카테고리",
+      { ...game, players: [{ name: "가", scores: { bonus: 35 } }, game.players[1]] },
+    ],
+    [
+      "점수가 정수가 아님",
+      { ...game, players: [{ name: "가", scores: { choice: 1.5 } }, game.players[1]] },
+    ],
+    [
+      "점수가 음수",
+      { ...game, players: [{ name: "가", scores: { choice: -1 } }, game.players[1]] },
+    ],
     ["지금 차례가 인원 밖", { ...game, currentPlayer: 2 }],
     ["턴이 13", { ...game, turn: 13 }],
     ["턴이 0", { ...game, turn: 0 }],

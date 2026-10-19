@@ -71,6 +71,11 @@ export interface GameStoreState {
    * 있으면 그 알림이 끝난 뒤) 뜬다. 조작은 막지 않고 "?" 만 막는다. 저장하지 않는다.
    */
   turnBanner: TurnBanner | null;
+  /**
+   * 시작 화면에서 이어 할 수 있는 게임. 앱을 열 때 저장된 진행 중 게임을 읽은 것이고,
+   * 이어 하거나(`resume`) 새 게임을 시작하면 지워진다. 이어 할 게임이 없으면 null.
+   */
+  resumable: GameState | null;
 
   roll(): ActionResult;
   /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
@@ -90,6 +95,8 @@ export interface GameStoreState {
   restart(): void;
   /** 「처음으로」: 시작 화면을 연다. */
   goHome(): void;
+  /** 「이어 하기」: 저장된 게임을 그 상태 그대로 게임 화면에 연다. 굴림 연출은 다시 틀지 않는다. */
+  resume(): void;
   /** 성립 알림 표시가 끝남. 그 굴림의 알림일 때만 지운다. */
   calloutEnded(rollId: number): void;
   /** 보너스 알림 표시가 끝남(약 2초). 그 알림일 때만 지운다. 이때 화면의 차례가 다음 플레이어로 넘어간다. */
@@ -120,6 +127,11 @@ export interface GameStoreOptions {
   reducedMotion?: boolean;
   /** 이 기기의 최고 점수 저장 항목. 없으면 최고 점수를 읽지도 쓰지도 않는다. */
   bestScore?: StoredValue<number>;
+  /**
+   * 진행 중 게임 저장 항목. 게임 상태가 바뀔 때마다 쓰고, 게임이 끝나면 지운다.
+   * `players` 없이 열 때 읽어서, 있으면 시작 화면에서 이어 할 수 있다. 없으면 읽지도 쓰지도 않는다.
+   */
+  savedGame?: StoredValue<GameState>;
 }
 
 /**
@@ -132,6 +144,23 @@ export function resultVisible(s: {
   bonusNotice: HandOffNotice | null;
 }): boolean {
   return s.screen === "game" && s.game.finished && s.bonusNotice === null;
+}
+
+/**
+ * 저장된 게임을 다시 열 때의 상태. 연출 진행 상태는 저장하지 않았으므로 연출이 끝난 상태로 연다:
+ * 굴림 번호 0(연출 입구는 다시 굴리지 않고 자리에 놓는다), 주사위는 굴림이 끝났을 때의 정렬된 열이다.
+ */
+function restored(game: GameState) {
+  return {
+    game,
+    presentation: { phase: "idle" } as const,
+    rollId: 0,
+    selection: null,
+    columns: lineupColumns(game.dice, { finalRoll: rollsLeft(game) === 0 }),
+    outcome: null,
+    movingDice: [] as readonly DieId[],
+    turnBanner: null,
+  };
 }
 
 /**
@@ -150,6 +179,7 @@ export function createGameStore({
   diceSource,
   reducedMotion = false,
   bestScore,
+  savedGame,
 }: GameStoreOptions) {
   /**
    * 한 판의 처음 상태. 굴림 번호도 0으로 돌린다. 연출 입구는 0을 "아직 굴리지 않음"으로 읽으므로,
@@ -175,13 +205,18 @@ export function createGameStore({
     return outcome;
   };
 
-  return createStore<GameStoreState>()((set, get) => ({
+  const resumable = players ? null : (savedGame?.read() ?? null);
+
+  const store = createStore<GameStoreState>()((set, get) => ({
     ...fresh(players ?? PLACEHOLDER_PLAYERS),
+    // 이어 할 게임을 쥐고 있으면 시작 화면의 이름 칸도 그 게임의 이름으로 채워진다.
+    ...(resumable ? restored(resumable) : {}),
     reducedMotion,
     screen: players ? "game" : "start",
     best: bestScore?.read() ?? null,
     callout: null,
     bonusNotice: null,
+    resumable,
 
     roll() {
       const blocker = rollBlocker(get());
@@ -293,7 +328,7 @@ export function createGameStore({
 
     newGame(names) {
       // 지난 판의 알림이 새 판에 남지 않게 함께 지운다(굴림 번호가 0부터 다시 오른다).
-      set({ ...fresh(names), screen: "game", callout: null, bonusNotice: null });
+      set({ ...fresh(names), screen: "game", callout: null, bonusNotice: null, resumable: null });
     },
 
     restart() {
@@ -302,6 +337,18 @@ export function createGameStore({
 
     goHome() {
       set({ screen: "start", turnBanner: null });
+    },
+
+    resume() {
+      const { resumable } = get();
+      if (!resumable) return;
+      set({
+        ...restored(resumable),
+        screen: "game",
+        callout: null,
+        bonusNotice: null,
+        resumable: null,
+      });
     },
 
     calloutEnded(rollId) {
@@ -325,4 +372,15 @@ export function createGameStore({
     slots: () => diceSlots(get().game.dice, get().columns, { allUp: allDiceUp(get()) }),
     resultVisible: () => resultVisible(get()),
   }));
+
+  // 게임 상태가 바뀔 때마다 저장한다. 굴림 결과도 굴림 명령 때 곧바로 저장되어, 연출 도중 새로고침해도 같다.
+  // 끝난 게임은 이어 할 수 없으므로 지운다.
+  if (savedGame) {
+    store.subscribe((state, previous) => {
+      if (state.game === previous.game) return;
+      if (state.game.finished) savedGame.clear();
+      else savedGame.write(state.game);
+    });
+  }
+  return store;
 }
