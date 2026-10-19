@@ -1,14 +1,24 @@
-import { useGame, usePermissions } from "../store/store-context";
+import { useAllDiceUp, useGame, usePermissions } from "../store/store-context";
 
-/** 굴림·기록 버튼. 세로 배치에서는 판 영역 왼쪽 아래에 겹치고, 가로 배치에서는 판 바로 아래에 놓인다. */
+/**
+ * 굴림·기록 버튼. 세로 배치에서는 판 영역 왼쪽 아래에 겹치고, 가로 배치에서는 판 바로 아래에 놓인다.
+ * 3번째 굴림이 끝나면 굴림 버튼은 사라진다. 자리는 그대로 두어 판(카메라 맞춤)이 움직이지 않게 한다.
+ */
 export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> }) {
   const rolled = useGame((s) => s.game.rollsUsed > 0);
   const roll = useGame((s) => s.roll);
   const record = useGame((s) => s.record);
   const can = usePermissions();
+  const allUp = useAllDiceUp();
   return (
     <div className="actions" {...overlayAttr}>
-      <button type="button" className="roll" disabled={!can.canRoll} onClick={() => roll()}>
+      <button
+        type="button"
+        className="roll"
+        disabled={!can.canRoll}
+        style={allUp ? { visibility: "hidden" } : undefined}
+        onClick={() => roll()}
+      >
         {rolled ? "다시 던지기" : "주사위 던지기"}
       </button>
       <button type="button" className="record" disabled={!can.canRecord} onClick={() => record()}>
