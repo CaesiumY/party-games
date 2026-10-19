@@ -1,7 +1,8 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { useStore } from "zustand";
+import { type DieSlot, diceSlots } from "../layout/columns";
 import type { GameStore, GameStoreState } from "./game-store";
-import { judge, type Permissions, previewVisible } from "./permissions";
+import { allDiceUp, judge, type Permissions, previewVisible } from "./permissions";
 
 const StoreContext = createContext<GameStore | null>(null);
 
@@ -22,6 +23,25 @@ export function usePermissions(): Permissions {
   const presentation = useGame((s) => s.presentation);
   const selection = useGame((s) => s.selection);
   return useMemo(() => judge({ game, presentation, selection }), [game, presentation, selection]);
+}
+
+/** 주사위마다 놓이는 자리(DieId 순서). 3번째 굴림의 정렬이 끝나면 다섯 개 모두 홀드 자리다. */
+export function useDiceSlots(): DieSlot[] {
+  const game = useGame((s) => s.game);
+  const presentation = useGame((s) => s.presentation);
+  const columns = useGame((s) => s.columns);
+  return useMemo(
+    () =>
+      diceSlots(game.dice, columns, { allUp: allDiceUp({ game, presentation, selection: null }) }),
+    [game, presentation, columns],
+  );
+}
+
+/** 3번째 굴림의 정렬이 끝나 다섯 개가 모두 홀드 자리로 올라간 상태인지. */
+export function useAllDiceUp(): boolean {
+  const game = useGame((s) => s.game);
+  const presentation = useGame((s) => s.presentation);
+  return allDiceUp({ game, presentation, selection: null });
 }
 
 /** 점수 미리보기를 보일지. */

@@ -1,10 +1,12 @@
 import { createStore } from "zustand/vanilla";
 import type { DiceSource } from "../engine/dice-source";
-import { record, roll, startGame } from "../engine/game";
-import type { Category, GameState } from "../engine/types";
-import { initialColumns, lineupColumns } from "../layout/columns";
+import { record, roll, rollsLeft, startGame, toggleHold } from "../engine/game";
+import type { Category, DieId, GameState } from "../engine/types";
+import { type DieSlot, diceSlots, initialColumns, lineupColumns } from "../layout/columns";
 import {
   type ActionResult,
+  allDiceUp,
+  holdBlocker,
   judge,
   type Permissions,
   type Presentation,
@@ -29,6 +31,8 @@ export interface GameStoreState {
   reducedMotion: boolean;
 
   roll(): ActionResult;
+  /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
+  toggleHold(die: DieId): ActionResult;
   select(category: Category): ActionResult;
   record(): ActionResult;
   /** 연출 입구가 알리는 멈춤. */
@@ -39,6 +43,8 @@ export interface GameStoreState {
 
   permissions(): Permissions;
   previewVisible(): boolean;
+  /** 주사위마다 놓이는 자리(DieId 순서). 3번째 굴림의 정렬이 끝나면 다섯 개 모두 홀드 자리다. */
+  slots(): DieSlot[];
 }
 
 export interface GameStoreOptions {
@@ -69,8 +75,17 @@ export function createGameStore({ players, diceSource, reducedMotion = false }: 
         rollId,
         presentation: { phase: "rolling", rollId },
         selection: null,
-        columns: lineupColumns(result.state.dice),
+        columns: lineupColumns(result.state.dice, { finalRoll: rollsLeft(result.state) === 0 }),
       });
+      return { ok: true };
+    },
+
+    toggleHold(die) {
+      const blocker = holdBlocker(get(), die);
+      if (blocker) return { ok: false, reason: blocker };
+      const result = toggleHold(get().game, die);
+      if (!result.ok) return result;
+      set({ game: result.state });
       return { ok: true };
     },
 
@@ -113,5 +128,6 @@ export function createGameStore({ players, diceSource, reducedMotion = false }: 
 
     permissions: () => judge(get()),
     previewVisible: () => previewVisible(get()),
+    slots: () => diceSlots(get().game.dice, get().columns, { allUp: allDiceUp(get()) }),
   }));
 }
