@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../app";
 import type { DiceSource } from "../engine/dice-source";
 import type { DieValue } from "../engine/types";
@@ -11,7 +11,10 @@ import { createGameStore } from "../store/game-store";
 import { useGame } from "../store/store-context";
 import { type KeyValueStorage, memoryStorage } from "../store/stored-value";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 /** 캔버스 없는 판 영역 대역. 굴림마다 멈춤과 정렬 끝을 곧바로 알린다. */
 function FakeBoard() {
@@ -55,6 +58,10 @@ async function playTwelveTurns(user: ReturnType<typeof userEvent.setup>) {
     if (!empty) throw new Error("고를 수 있는 카테고리가 없다");
     await user.click(empty);
     await user.click(screen.getByRole("button", { name: /기록/ }));
+    // 윗칸이 다 차면 보너스 알림(약 2초)이 끝나야 다음 굴림을 할 수 있다.
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
   }
 }
 
@@ -76,7 +83,8 @@ describe("시작 화면", () => {
 
 describe("연습 모드 한 판", () => {
   it("혼자 시작해 12턴을 마치면 결과 화면에 총합 득점과 새 최고 점수가 뜨고, 새로고침해도 최고 점수가 남는다", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const storage = storageWithBest(120);
     openApp(storage);
 
@@ -93,7 +101,8 @@ describe("연습 모드 한 판", () => {
   });
 
   it("「같은 멤버로 다시」는 첫 턴부터 새 게임을, 「처음으로」는 시작 화면을 연다", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     openApp(storageWithBest(300));
     await user.click(screen.getByRole("button", { name: "혼자 시작" }));
     await playTwelveTurns(user);

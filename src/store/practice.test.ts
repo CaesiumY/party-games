@@ -30,6 +30,9 @@ function playTurn(store: GameStore) {
   if (!empty) throw new Error("빈 카테고리가 없다");
   store.getState().select(empty);
   if (!store.getState().record().ok) throw new Error("기록할 수 없다");
+  // 보너스 알림이 뜨면 그 표시가 끝난 것으로 한다(그동안은 굴릴 수 없다).
+  const notice = store.getState().bonusNotice;
+  if (notice) store.getState().bonusNoticeEnded(notice.id);
 }
 
 function playToEnd(store: GameStore) {
