@@ -1,6 +1,5 @@
-import { currentValues } from "../engine/game";
-import { scoreFor } from "../engine/scoring";
-import { totalScore, upperSubtotal } from "../engine/totals";
+import { scorePreview } from "../engine/game";
+import { totalScore, UPPER_BONUS_THRESHOLD, upperBonus, upperSubtotal } from "../engine/totals";
 import { CATEGORIES, type Category } from "../engine/types";
 import { useGame, usePermissions, usePreviewVisible } from "../store/store-context";
 import { CATEGORY_NAMES } from "./category-names";
@@ -15,7 +14,6 @@ export function Scorecard() {
   const select = useGame((s) => s.select);
   const showPreview = usePreviewVisible();
   const can = usePermissions();
-  const values = currentValues(game);
 
   const row = (category: Category) => {
     const selected = selection === category;
@@ -37,7 +35,7 @@ export function Scorecard() {
           const recorded = player.scores[category];
           const isCurrent = i === game.currentPlayer;
           const preview = isCurrent && showPreview && recorded === undefined;
-          const shown = recorded ?? (preview ? scoreFor(category, values) : undefined);
+          const shown = recorded ?? (preview ? scorePreview(game, category) : undefined);
           return (
             <td
               key={player.name}
@@ -89,8 +87,8 @@ export function Scorecard() {
         </thead>
         <tbody>
           {UPPER.map(row)}
-          {line("sub", "소계", (i) => `${upperSubtotal(player(i))}/63`)}
-          {line("sub", "보너스+35", () => "")}
+          {line("sub", "소계", (i) => `${upperSubtotal(player(i))}/${UPPER_BONUS_THRESHOLD}`)}
+          {line("sub", "보너스+35", (i) => upperBonus(player(i)) || "")}
           {LOWER.map(row)}
           {line("total", "총합 득점", (i) => totalScore(player(i)))}
         </tbody>
