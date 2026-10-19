@@ -95,9 +95,10 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
  * 닫았을 때 연 때와 다른 화면이 되므로, 무엇이 움직이고 있는 동안에는 막는다.
  *
  * - 굴림 연출(rolling·stopped)과 3번째 굴림 뒤 자동 이동(auto-moving): 연출 단계가 idle 이 아니면 막는다.
- * - 보너스 알림·차례 배너가 떠 있는 동안: 연 사이에 차례가 넘어가 버리면 차례 배너도 놓친다.
  * - 홀드·홀드 풀기로 옮겨 가는 주사위(`movingDice`)는 막지 않는다. 그 주사위만 잠그는 짧은 이동이라
  *   차례나 굴림이 바뀌지 않기 때문이다.
+ * - 보너스 알림(#13)이 떠 있는 동안: 알림이 끝나야 차례가 넘어가므로 막는다.
+ * - 차례 배너(#9)가 떠 있는 동안: 배너를 놓치지 않게 막는다. 굴림은 막지 않는다.
  */
 export function helpBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";

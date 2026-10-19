@@ -133,11 +133,14 @@ describe("차례 넘기기", () => {
     expect(currentPlayer()).toBe("나래");
     // 배너가 떠 있어도 바로 굴릴 수 있다.
     expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", false);
+    // 배너를 놓치지 않게 그동안은 플레이 방법("?")을 열 수 없다.
+    expect(screen.getByRole("button", { name: "플레이 방법" })).toHaveProperty("disabled", true);
 
     act(() => {
       vi.advanceTimersByTime(2000);
     });
     expect(screen.queryByText("다음은 나래 차례")).toBeNull();
+    expect(screen.getByRole("button", { name: "플레이 방법" })).toHaveProperty("disabled", false);
   });
 });
 
