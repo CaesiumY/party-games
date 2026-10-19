@@ -29,6 +29,8 @@ export interface GameStoreState {
   columns: number[];
   /** 기기의 '동작 줄이기' 설정. 켜져 있으면 순간 배치 연출만 쓴다. */
   reducedMotion: boolean;
+  /** 홀드·홀드 풀기로 자리를 옮겨 가는 중인 주사위. 저장하지 않는다. */
+  movingDice: readonly DieId[];
 
   roll(): ActionResult;
   /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
@@ -39,6 +41,8 @@ export interface GameStoreState {
   presenterStopped(rollId: number): void;
   /** 연출 입구가 알리는 정렬 끝. 조작 잠금이 풀린다. */
   presenterLinedUp(rollId: number): void;
+  /** 연출 입구가 알리는, 주사위 하나가 굴림이 아닌 자리 바뀜(홀드·홀드 풀기 등)을 다 옮겼음. */
+  presenterDieSettled(die: DieId): void;
   setReducedMotion(on: boolean): void;
 
   permissions(): Permissions;
@@ -63,6 +67,7 @@ export function createGameStore({ players, diceSource, reducedMotion = false }: 
     selection: null,
     columns: initialColumns(),
     reducedMotion,
+    movingDice: [],
 
     roll() {
       const blocker = rollBlocker(get());
@@ -85,7 +90,9 @@ export function createGameStore({ players, diceSource, reducedMotion = false }: 
       if (blocker) return { ok: false, reason: blocker };
       const result = toggleHold(get().game, die);
       if (!result.ok) return result;
-      set({ game: result.state });
+      // '동작 줄이기'면 순간 이동이라 옮겨 가는 동안이 없다.
+      const { movingDice, reducedMotion } = get();
+      set({ game: result.state, movingDice: reducedMotion ? movingDice : [...movingDice, die] });
       return { ok: true };
     },
 
@@ -116,14 +123,38 @@ export function createGameStore({ players, diceSource, reducedMotion = false }: 
     },
 
     presenterLinedUp(rollId) {
-      const { presentation } = get();
-      if (presentation.phase !== "idle" && presentation.rollId === rollId) {
-        set({ presentation: { phase: "idle" } });
+      const { presentation, game, reducedMotion } = get();
+      if (presentation.phase !== "rolling" && presentation.phase !== "stopped") return;
+      if (presentation.rollId !== rollId) return;
+      // 3번째 굴림이면 정렬 줄의 주사위가 이어서 홀드 자리로 올라간다. 다 옮길 때까지 모두 막는다.
+      const rising = game.dice.filter((d) => !d.held).map((d) => d.id);
+      if (rollsLeft(game) === 0 && rising.length > 0 && !reducedMotion) {
+        set({ presentation: { phase: "auto-moving", rollId }, movingDice: rising });
+        return;
       }
+      set({ presentation: { phase: "idle" } });
+    },
+
+    presenterDieSettled(die) {
+      const { movingDice, presentation } = get();
+      if (!movingDice.includes(die)) return;
+      const rest = movingDice.filter((d) => d !== die);
+      const done = presentation.phase === "auto-moving" && rest.length === 0;
+      set(done ? { movingDice: rest, presentation: { phase: "idle" } } : { movingDice: rest });
     },
 
     setReducedMotion(on) {
-      set({ reducedMotion: on });
+      if (!on) {
+        set({ reducedMotion: on });
+        return;
+      }
+      // 순간 배치 연출로 바뀌어 옮겨 가던 주사위가 곧바로 제자리에 놓인다.
+      const { presentation } = get();
+      set({
+        reducedMotion: on,
+        movingDice: [],
+        presentation: presentation.phase === "auto-moving" ? { phase: "idle" } : presentation,
+      });
     },
 
     permissions: () => judge(get()),
