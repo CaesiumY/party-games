@@ -15,7 +15,10 @@ function storageWithBest(best: number | null): KeyValueStorage {
   return storage;
 }
 
-/** 지금 플레이어가 한 번 굴리고(연출은 곧바로 끝난 것으로) 맨 위 빈 카테고리에 기록한다. */
+/**
+ * 지금 플레이어가 한 번 굴리고(연출은 곧바로 끝난 것으로) 맨 위 빈 카테고리에 기록한다.
+ * 그 기록이 보너스 알림을 띄우면 화면처럼 알림 표시가 끝난 것으로 알린다.
+ */
 function playTurn(store: GameStore) {
   const s = store.getState();
   if (!s.roll().ok) throw new Error("굴릴 수 없다");
@@ -30,7 +33,6 @@ function playTurn(store: GameStore) {
   if (!empty) throw new Error("빈 카테고리가 없다");
   store.getState().select(empty);
   if (!store.getState().record().ok) throw new Error("기록할 수 없다");
-  // 보너스 알림이 뜨면 그 표시가 끝난 것으로 한다(그동안은 굴릴 수 없다).
   const notice = store.getState().bonusNotice;
   if (notice) store.getState().bonusNoticeEnded(notice.id);
 }
@@ -139,6 +141,45 @@ describe("시작 화면과 결과 화면 사이", () => {
     expect(game.players).toEqual([{ name: "플레이어 1", scores: {} }]);
     expect([game.turn, game.rollsUsed, game.finished]).toEqual([1, 0, false]);
     expect(store.getState().roll()).toEqual({ ok: true });
+  });
+
+  it("마지막 기록이 보너스 알림을 띄우면 결과 화면은 알림이 끝난 뒤에 뜨고, 최고 점수는 한 번만 정한다", () => {
+    const writes: number[] = [];
+    const best = bestScoreValue(storageWithBest(null));
+    const store = createGameStore({
+      players: ["플레이어 1"],
+      diceSource: allSixes,
+      bestScore: {
+        ...best,
+        write(value) {
+          writes.push(value);
+          best.write(value);
+        },
+      },
+    });
+    // 아랫칸 여섯 개를 먼저 채우고 윗칸을 식스까지 채운다. 마지막 기록(식스)이 윗칸을 다 채워 「+0」이 뜬다.
+    const order = [...CATEGORIES.slice(6), ...CATEGORIES.slice(0, 6)];
+    for (const category of order) {
+      const notice = store.getState().bonusNotice;
+      expect(notice).toBeNull();
+      store.getState().roll();
+      const { rollId } = store.getState();
+      store.getState().presenterStopped(rollId);
+      store.getState().presenterLinedUp(rollId);
+      store.getState().select(category);
+      expect(store.getState().record()).toEqual({ ok: true });
+    }
+
+    const notice = store.getState().bonusNotice;
+    expect(store.getState().game.finished).toBe(true);
+    expect(notice?.notice).toBe("+0");
+    expect(store.getState().resultVisible()).toBe(false);
+
+    if (notice) store.getState().bonusNoticeEnded(notice.id);
+
+    expect(store.getState().resultVisible()).toBe(true);
+    expect(store.getState().outcome).toEqual({ total: 170, best: 170, isNewBest: true });
+    expect(writes).toEqual([170]);
   });
 
   it("「처음으로」는 시작 화면을 열고, 시작 화면은 방금 바뀐 최고 점수를 보여 준다", () => {
