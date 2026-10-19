@@ -20,6 +20,9 @@ function midGame(): GameState {
   return ok(toggleHold(ok(roll(first, source)), 3));
 }
 
+/** 굴림이 끝난 정렬 줄의 열. 주사위 번호(DieId) 순서다. */
+const COLUMNS = [4, 3, 1, 0, 2];
+
 /** 저장 형식(`{version, value}`)을 그대로 써 넣는다. */
 function writeRaw(storage: ReturnType<typeof memoryStorage>, value: unknown, version = 1) {
   storage.setItem("yacht.saved-game", JSON.stringify({ version, value }));
@@ -28,14 +31,14 @@ function writeRaw(storage: ReturnType<typeof memoryStorage>, value: unknown, ver
 describe("진행 중 게임 저장 항목", () => {
   it("저장한 게임을 그대로 읽는다", () => {
     const storage = memoryStorage();
-    savedGameValue(storage).write(midGame());
+    savedGameValue(storage).write({ game: midGame(), columns: COLUMNS });
 
-    expect(savedGameValue(storage).read()).toEqual(midGame());
+    expect(savedGameValue(storage).read()).toEqual({ game: midGame(), columns: COLUMNS });
   });
 
   it("끝난 게임은 이어 할 수 없어 읽지 않고 버린다", () => {
     const storage = memoryStorage();
-    writeRaw(storage, { ...midGame(), finished: true });
+    writeRaw(storage, { game: { ...midGame(), finished: true }, columns: COLUMNS });
 
     expect(savedGameValue(storage).read()).toBeNull();
     expect(storage.getItem("yacht.saved-game")).toBeNull();
@@ -43,7 +46,7 @@ describe("진행 중 게임 저장 항목", () => {
 
   it("버전이 다르면 이 항목만 버린다", () => {
     const storage = memoryStorage();
-    writeRaw(storage, midGame(), 0);
+    writeRaw(storage, { game: midGame(), columns: COLUMNS }, 0);
     storage.setItem("yacht.best-score", JSON.stringify({ version: 1, value: 120 }));
 
     expect(savedGameValue(storage).read()).toBeNull();
@@ -84,7 +87,23 @@ describe("진행 중 게임 저장 항목", () => {
   ];
   it.each(broken)("읽을 수 없는 게임(%s)은 버린다", (_, value) => {
     const storage = memoryStorage();
-    writeRaw(storage, value);
+    writeRaw(storage, { game: value, columns: COLUMNS });
+
+    expect(savedGameValue(storage).read()).toBeNull();
+    expect(storage.getItem("yacht.saved-game")).toBeNull();
+  });
+
+  // 열을 다시 계산하지 않고 항목을 버린다. 열이 틀렸다면 다른 값도 믿기 어렵기 때문이다.
+  const brokenColumns: [string, unknown][] = [
+    ["열이 없음", undefined],
+    ["열이 네 개", [0, 1, 2, 3]],
+    ["같은 열이 두 번", [0, 1, 2, 3, 3]],
+    ["열이 5", [0, 1, 2, 3, 5]],
+    ["열이 정수가 아님", [0, 1, 2, 3, 4.5]],
+  ];
+  it.each(brokenColumns)("주사위 열이 맞지 않으면(%s) 버린다", (_, columns) => {
+    const storage = memoryStorage();
+    writeRaw(storage, { game: midGame(), columns });
 
     expect(savedGameValue(storage).read()).toBeNull();
     expect(storage.getItem("yacht.saved-game")).toBeNull();

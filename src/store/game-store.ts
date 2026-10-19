@@ -28,6 +28,7 @@ import {
   shownPlayer,
   type TurnBanner,
 } from "./permissions";
+import type { SavedGame } from "./saved-game";
 import type { StoredValue } from "./stored-value";
 
 /** 지금 보이는 화면. 결과 화면은 게임 화면에서 게임이 끝나면 뜬다(`resultVisible`). */
@@ -75,7 +76,7 @@ export interface GameStoreState {
    * 시작 화면에서 이어 할 수 있는 게임. 앱을 열 때 저장된 진행 중 게임을 읽은 것이고,
    * 이어 하거나(`resume`) 새 게임을 시작하면 지워진다. 이어 할 게임이 없으면 null.
    */
-  resumable: GameState | null;
+  resumable: SavedGame | null;
 
   roll(): ActionResult;
   /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
@@ -128,10 +129,10 @@ export interface GameStoreOptions {
   /** 이 기기의 최고 점수 저장 항목. 없으면 최고 점수를 읽지도 쓰지도 않는다. */
   bestScore?: StoredValue<number>;
   /**
-   * 진행 중 게임 저장 항목. 게임 상태가 바뀔 때마다 쓰고, 게임이 끝나면 지운다.
+   * 진행 중 게임 저장 항목. 게임 상태나 주사위의 열이 바뀔 때마다 쓰고, 게임이 끝나면 지운다.
    * `players` 없이 열 때 읽어서, 있으면 시작 화면에서 이어 할 수 있다. 없으면 읽지도 쓰지도 않는다.
    */
-  savedGame?: StoredValue<GameState>;
+  savedGame?: StoredValue<SavedGame>;
 }
 
 /**
@@ -148,15 +149,15 @@ export function resultVisible(s: {
 
 /**
  * 저장된 게임을 다시 열 때의 상태. 연출 진행 상태는 저장하지 않았으므로 연출이 끝난 상태로 연다:
- * 굴림 번호 0(연출 입구는 다시 굴리지 않고 자리에 놓는다), 주사위는 굴림이 끝났을 때의 정렬된 열이다.
+ * 굴림 번호 0(연출 입구는 다시 굴리지 않고 저장한 열 그대로 자리에 놓는다).
  */
-function restored(game: GameState) {
+function restored({ game, columns }: SavedGame) {
   return {
     game,
     presentation: { phase: "idle" } as const,
     rollId: 0,
     selection: null,
-    columns: lineupColumns(game.dice, { finalRoll: rollsLeft(game) === 0 }),
+    columns,
     outcome: null,
     movingDice: [] as readonly DieId[],
     turnBanner: null,
@@ -373,13 +374,13 @@ export function createGameStore({
     resultVisible: () => resultVisible(get()),
   }));
 
-  // 게임 상태가 바뀔 때마다 저장한다. 굴림 결과도 굴림 명령 때 곧바로 저장되어, 연출 도중 새로고침해도 같다.
-  // 끝난 게임은 이어 할 수 없으므로 지운다.
+  // 게임 상태나 주사위의 열이 바뀔 때마다 저장한다. 굴림 결과도 굴림 명령 때 곧바로 저장되어,
+  // 연출 도중 새로고침해도 같다. 끝난 게임은 이어 할 수 없으므로 지운다.
   if (savedGame) {
-    store.subscribe((state, previous) => {
-      if (state.game === previous.game) return;
-      if (state.game.finished) savedGame.clear();
-      else savedGame.write(state.game);
+    store.subscribe(({ game, columns }, previous) => {
+      if (game === previous.game && columns === previous.columns) return;
+      if (game.finished) savedGame.clear();
+      else savedGame.write({ game, columns });
     });
   }
   return store;

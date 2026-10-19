@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DiceSource } from "../engine/dice-source";
+import { type DiceSource, scriptedDiceSource } from "../engine/dice-source";
 import { CATEGORIES, type DieValue } from "../engine/types";
 import { bestScoreValue } from "./best-score";
 import { createGameStore, type GameStore } from "./game-store";
@@ -47,6 +47,40 @@ function playTurn(store: GameStore) {
   if (notice) store.getState().bonusNoticeEnded(notice.id);
 }
 
+describe("이어 하기의 주사위 자리", () => {
+  it("홀드한 5·5가 오른쪽 두 칸에 있던 채로 새로고침하면, 이어 한 뒤에도 같은 칸에 있다", () => {
+    const storage = memoryStorage();
+    // 첫 굴림 2·4·2·5·5 → 정렬 줄은 2·2·4·5·5 라 5·5(주사위 3·4)가 오른쪽 두 칸이다.
+    const before = createGameStore({
+      diceSource: scriptedDiceSource([[2, 4, 2, 5, 5]]),
+      savedGame: savedGameValue(storage),
+    });
+    before.getState().newGame(["플레이어 1"]);
+    before.getState().roll();
+    finishAnimation(before);
+    before.getState().toggleHold(3);
+    before.getState().toggleHold(4);
+    const held = (store: GameStore) =>
+      store
+        .getState()
+        .slots()
+        .filter((slot) => slot.id === 3 || slot.id === 4);
+    expect(held(before)).toEqual([
+      { id: 3, column: 3, row: "hold" },
+      { id: 4, column: 4, row: "hold" },
+    ]);
+
+    const after = openApp(storage);
+    after.getState().resume();
+
+    expect(held(after)).toEqual([
+      { id: 3, column: 3, row: "hold" },
+      { id: 4, column: 4, row: "hold" },
+    ]);
+    expect(after.getState().slots()).toEqual(before.getState().slots());
+  });
+});
+
 describe("이어 하기", () => {
   it("이어 할 게임이 없으면 시작 화면에 이어 하기가 없다", () => {
     const store = openApp(memoryStorage());
@@ -64,7 +98,7 @@ describe("이어 하기", () => {
 
     const after = openApp(storage);
     expect(after.getState().screen).toBe("start");
-    expect(after.getState().resumable).toEqual(before.getState().game);
+    expect(after.getState().resumable?.game).toEqual(before.getState().game);
 
     after.getState().resume();
     const s = after.getState();
@@ -204,7 +238,7 @@ describe("이어 하기", () => {
     expect(
       savedGameValue(storage)
         .read()
-        ?.players.map((p) => p.name),
+        ?.game.players.map((p) => p.name),
     ).toEqual(["다"]);
   });
 });
