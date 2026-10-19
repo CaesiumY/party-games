@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CanvasTexture, DoubleSide, SRGBColorSpace } from "three";
+import { CanvasTexture, SRGBColorSpace } from "three";
 import { BOARD, columnX } from "../layout/board";
 
 function holdSlotTexture(): CanvasTexture {
@@ -25,10 +25,13 @@ function holdSlotTexture(): CanvasTexture {
   return texture;
 }
 
-/** 판: 펠트 바닥, 검은 테두리, 위쪽의 홀드 자리 다섯 칸, 오른쪽 아래의 컵. 기본 도형만 쓴다. */
+/**
+ * 판: 펠트 바닥, 검은 테두리, 위쪽의 홀드 자리 다섯 칸. 기본 도형만 쓴다.
+ * 오른쪽 아래의 컵은 굴림 연출이 흔들고 쏟으므로 연출 구현이 그린다(cup-mesh.tsx).
+ */
 export function BoardMesh() {
   const slotTexture = useMemo(holdSlotTexture, []);
-  const { width, depth, rimThickness: t, rimHeight, cup } = BOARD;
+  const { width, depth, rimThickness: t, rimHeight } = BOARD;
   const rims: [number, number, number, number][] = [
     [0, -depth / 2 - t / 2, width + t * 2, t],
     [0, depth / 2 + t / 2, width + t * 2, t],
@@ -58,16 +61,6 @@ export function BoardMesh() {
           <meshStandardMaterial map={slotTexture} roughness={0.9} />
         </mesh>
       ))}
-      <group position={[cup.x, 0, cup.z]}>
-        <mesh position={[0, cup.height / 2, 0]} castShadow>
-          <cylinderGeometry args={[cup.radius, cup.radius * 0.72, cup.height, 32, 1, true]} />
-          <meshStandardMaterial color="#4a2a18" roughness={0.7} side={DoubleSide} />
-        </mesh>
-        <mesh position={[0, cup.height, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[cup.radius, 0.06, 10, 40]} />
-          <meshStandardMaterial color="#b08850" roughness={0.35} metalness={0.4} />
-        </mesh>
-      </group>
     </group>
   );
 }

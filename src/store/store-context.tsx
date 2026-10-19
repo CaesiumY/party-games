@@ -24,11 +24,12 @@ export function usePermissions(): Permissions {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
   const selection = useGame((s) => s.selection);
+  const movingDice = useGame((s) => s.movingDice);
   const bonusNotice = useGame((s) => s.bonusNotice);
   const turnBanner = useGame((s) => s.turnBanner);
   return useMemo(
-    () => judge({ game, presentation, selection, bonusNotice, turnBanner }),
-    [game, presentation, selection, bonusNotice, turnBanner],
+    () => judge({ game, presentation, selection, movingDice, bonusNotice, turnBanner }),
+    [game, presentation, selection, movingDice, bonusNotice, turnBanner],
   );
 }
 
@@ -56,8 +57,7 @@ export function useDiceSlots(): DieSlot[] {
   const presentation = useGame((s) => s.presentation);
   const columns = useGame((s) => s.columns);
   return useMemo(
-    () =>
-      diceSlots(game.dice, columns, { allUp: allDiceUp({ game, presentation, selection: null }) }),
+    () => diceSlots(game.dice, columns, { allUp: allDiceUp({ game, presentation }) }),
     [game, presentation, columns],
   );
 }
@@ -66,12 +66,12 @@ export function useDiceSlots(): DieSlot[] {
 export function useAllDiceUp(): boolean {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
-  return allDiceUp({ game, presentation, selection: null });
+  return allDiceUp({ game, presentation });
 }
 
 /** 점수 미리보기를 보일지. */
 export function usePreviewVisible(): boolean {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
-  return previewVisible({ game, presentation, selection: null });
+  return previewVisible({ game, presentation });
 }

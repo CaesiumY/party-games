@@ -21,7 +21,10 @@ export interface PresentedDie {
  *   연출은 결과를 바꾸지 않고, 멈춘 면을 읽어 점수에 반영하지도 않는다.
  * - 주사위가 멈추면 `onStopped(rollId)`, 정렬 줄·홀드 자리에 다 놓이면 `onLinedUp(rollId)` 를 한 번씩 부른다.
  *   점수 미리보기는 멈춤에서, 조작 잠금 해제는 정렬 끝에서 일어난다.
- * - 굴림이 아닐 때(홀드 토글, 화면 회전 등)는 `dice` 의 열·홀드 상태대로 주사위를 그려 두기만 한다.
+ * - 굴림이 아닌 갱신으로 주사위의 자리(열·홀드 자리)가 바뀌면(홀드·홀드 풀기, 3번째 굴림 뒤 올라감,
+ *   다음 턴에 내려옴) 그 자리로 옮기고, 다 옮기면 그 주사위마다 `onDieSettled(id)` 를 부른다.
+ *   저장소는 옮기는 동안 그 주사위의 홀드와 굴림·기록을 막는다. 순간 배치면 곧바로 부른다.
+ *   자리가 바뀌지 않았거나 이미 놓인 주사위에 불러도 된다(저장소가 무시한다).
  * - `rollId` 0 은 아직 굴림이 없다는 뜻이다. 알리지 않는다.
  */
 export interface RollPresenterProps {
@@ -29,6 +32,7 @@ export interface RollPresenterProps {
   dice: readonly PresentedDie[];
   onStopped(rollId: number): void;
   onLinedUp(rollId: number): void;
+  onDieSettled(id: DieId): void;
 }
 
 export type RollPresenter = ComponentType<RollPresenterProps>;

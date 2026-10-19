@@ -467,6 +467,7 @@ button:focus-visible {
   color: #ff6fb1;
 }
 
+/* 길이는 글자마다 떠 있는 시간(src/ui/notices.tsx 의 BONUS_STEPS)을 style 로 덮어쓴다. */
 .bonus-text span {
   display: inline-block;
   animation: notice-pop 1s ease-out forwards;

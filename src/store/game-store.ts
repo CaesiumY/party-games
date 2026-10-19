@@ -54,6 +54,8 @@ export interface GameStoreState {
   best: number | null;
   /** 끝난 연습 모드 판의 결과. 게임 도중이나 대전 모드는 null. */
   outcome: PracticeOutcome | null;
+  /** 홀드·홀드 풀기로 자리를 옮겨 가는 중인 주사위. 저장하지 않는다. */
+  movingDice: readonly DieId[];
   /**
    * 떠 있는 성립 알림. 굴림의 정렬 끝에 정해지고, 알림 표시가 끝나면(`calloutEnded`)·다시 굴리거나 기록하면 지워진다.
    * 조작을 막지 않는다. 저장하지 않는다.
@@ -79,6 +81,8 @@ export interface GameStoreState {
   presenterStopped(rollId: number): void;
   /** 연출 입구가 알리는 정렬 끝. 조작 잠금이 풀린다. */
   presenterLinedUp(rollId: number): void;
+  /** 연출 입구가 알리는, 주사위 하나가 굴림이 아닌 자리 바뀜(홀드·홀드 풀기 등)을 다 옮겼음. */
+  presenterDieSettled(die: DieId): void;
   setReducedMotion(on: boolean): void;
   /** 이 플레이어들로 첫 턴부터 새 게임을 열고 게임 화면으로 간다. */
   newGame(players: readonly string[]): void;
@@ -158,6 +162,7 @@ export function createGameStore({
     selection: null,
     columns: initialColumns(),
     outcome: null,
+    movingDice: [] as readonly DieId[],
     turnBanner: null,
   });
 
@@ -200,7 +205,9 @@ export function createGameStore({
       if (blocker) return { ok: false, reason: blocker };
       const result = toggleHold(get().game, die);
       if (!result.ok) return result;
-      set({ game: result.state });
+      // '동작 줄이기'면 순간 이동이라 옮겨 가는 동안이 없다.
+      const { movingDice, reducedMotion } = get();
+      set({ game: result.state, movingDice: reducedMotion ? movingDice : [...movingDice, die] });
       return { ok: true };
     },
 
@@ -247,18 +254,41 @@ export function createGameStore({
     },
 
     presenterLinedUp(rollId) {
-      const { presentation } = get();
-      if (presentation.phase !== "idle" && presentation.rollId === rollId) {
-        const category = comboCallout(get().game);
-        set({
-          presentation: { phase: "idle" },
-          callout: category ? { rollId, category } : null,
-        });
+      const { presentation, game, reducedMotion } = get();
+      if (presentation.phase !== "rolling" && presentation.phase !== "stopped") return;
+      if (presentation.rollId !== rollId) return;
+      // 성립 알림은 정렬 끝에 뜬다. 3번째 굴림의 자동 이동 중에도 그대로 떠 있다.
+      const category = comboCallout(game);
+      const callout = category ? { rollId, category } : null;
+      // 3번째 굴림이면 정렬 줄의 주사위가 이어서 홀드 자리로 올라간다. 다 옮길 때까지 모두 막는다.
+      const rising = game.dice.filter((d) => !d.held).map((d) => d.id);
+      if (rollsLeft(game) === 0 && rising.length > 0 && !reducedMotion) {
+        set({ presentation: { phase: "auto-moving", rollId }, movingDice: rising, callout });
+        return;
       }
+      set({ presentation: { phase: "idle" }, callout });
+    },
+
+    presenterDieSettled(die) {
+      const { movingDice, presentation } = get();
+      if (!movingDice.includes(die)) return;
+      const rest = movingDice.filter((d) => d !== die);
+      const done = presentation.phase === "auto-moving" && rest.length === 0;
+      set(done ? { movingDice: rest, presentation: { phase: "idle" } } : { movingDice: rest });
     },
 
     setReducedMotion(on) {
-      set({ reducedMotion: on });
+      if (!on) {
+        set({ reducedMotion: on });
+        return;
+      }
+      // 순간 배치 연출로 바뀌어 옮겨 가던 주사위가 곧바로 제자리에 놓인다.
+      const { presentation } = get();
+      set({
+        reducedMotion: on,
+        movingDice: [],
+        presentation: presentation.phase === "auto-moving" ? { phase: "idle" } : presentation,
+      });
     },
 
     newGame(names) {

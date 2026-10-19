@@ -17,8 +17,8 @@ export const BOARD = {
   lineupZ: 0.2,
   /** 열 간격. */
   columnGap: 1.05,
-  /** 컵: 판 오른쪽 아래(앞쪽) 모서리 근처. */
-  cup: { x: 2.15, z: 3.15, radius: 0.87, height: 1.4 },
+  /** 컵: 판 오른쪽 아래(앞쪽) 모서리 근처. radius 는 입구, bottomRadius 는 바닥의 반지름. */
+  cup: { x: 2.15, z: 3.15, radius: 0.87, bottomRadius: 0.63, height: 1.4 },
 } as const;
 
 /** 열(0~4)의 x 좌표. */
@@ -55,10 +55,19 @@ export function cupCorners(): Vec3[] {
 
 /** 정렬 줄 다섯 칸의 주사위를 감싸는 상자의 꼭짓점. */
 export function lineupCorners(): Vec3[] {
+  return rowCorners(BOARD.lineupZ);
+}
+
+/** 홀드 자리 다섯 칸의 주사위를 감싸는 상자의 꼭짓점. */
+export function holdRowCorners(): Vec3[] {
+  return rowCorners(BOARD.holdRowZ);
+}
+
+function rowCorners(rowZ: number): Vec3[] {
   const half = BOARD.die / 2;
   const points: Vec3[] = [];
   for (const x of [columnX(0) - half, columnX(4) + half]) {
-    for (const z of [BOARD.lineupZ - half, BOARD.lineupZ + half]) {
+    for (const z of [rowZ - half, rowZ + half]) {
       for (const y of [0, BOARD.die]) points.push([x, y, z]);
     }
   }

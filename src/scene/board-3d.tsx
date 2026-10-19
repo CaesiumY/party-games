@@ -75,7 +75,8 @@ function CameraRig({ fit }: { fit: CameraFit }) {
 }
 
 /**
- * 저장소의 굴림 결과·홀드 상태·열을 연출 입구에 넘기고, 입구가 알리는 두 시점을 저장소에 돌려준다.
+ * 저장소의 굴림 결과·홀드 상태·열을 연출 입구에 넘기고, 입구가 알리는 시점(멈춤·정렬 끝·다 옮김)을
+ * 저장소에 돌려준다.
  * `held` 는 그 주사위가 홀드 자리에 놓이는지다. 굴림 연출 동안은 엔진의 홀드 그대로이고,
  * 3번째 굴림의 정렬 끝 뒤에는(굴림이 아닌 갱신으로) 다섯 개 모두 홀드 자리가 된다.
  */
@@ -86,6 +87,7 @@ function PresenterSlot() {
   const slots = useDiceSlots();
   const onStopped = useGame((s) => s.presenterStopped);
   const onLinedUp = useGame((s) => s.presenterLinedUp);
+  const onDieSettled = useGame((s) => s.presenterDieSettled);
   const dice = useMemo<PresentedDie[]>(
     () =>
       gameDice.map((die) => {
@@ -95,7 +97,15 @@ function PresenterSlot() {
     [gameDice, slots],
   );
   const Presenter = choosePresenter(reducedMotion, PRESENTERS);
-  return <Presenter rollId={rollId} dice={dice} onStopped={onStopped} onLinedUp={onLinedUp} />;
+  return (
+    <Presenter
+      rollId={rollId}
+      dice={dice}
+      onStopped={onStopped}
+      onLinedUp={onLinedUp}
+      onDieSettled={onDieSettled}
+    />
+  );
 }
 
 interface BoardArea extends OverlayReserve {

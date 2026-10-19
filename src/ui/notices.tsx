@@ -8,7 +8,7 @@ import { Confetti } from "./confetti";
 /** 성립 알림이 떠 있는 시간(ms). 원작은 1~1.5초. */
 export const CALLOUT_MS = 1300;
 
-/** 보너스 알림 한 단계의 시간(ms). "+35" 는 「보너스!」→「+35」 두 단계, "+0" 은 두 단계 시간 동안 「+0」. */
+/** 보너스 알림 한 단계의 시간(ms). "+35" 는 「보너스!」→「+35」 두 단계, "+0" 은 두 단계 시간 내내 「+0」 하나. */
 export const BONUS_STEP_MS = 1000;
 
 /**
@@ -62,20 +62,40 @@ export function BonusNoticeView() {
   return <BonusText key={bonusNotice.id} id={bonusNotice.id} notice={bonusNotice.notice} />;
 }
 
+/**
+ * 알림에 차례로 띄울 글자와 각각 떠 있는 시간(ms). 합은 언제나 BONUS_STEP_MS * 2 다.
+ * 글자마다 나타났다 사라지는 연출을 그 시간에 맞춰, 알림이 끝나기 전에 글자가 사라지지 않게 한다.
+ */
+const BONUS_STEPS: Record<BonusNotice, readonly (readonly [string, number])[]> = {
+  "+35": [
+    ["보너스!", BONUS_STEP_MS],
+    ["+35", BONUS_STEP_MS],
+  ],
+  "+0": [["+0", BONUS_STEP_MS * 2]],
+};
+
 function BonusText({ id, notice }: { id: number; notice: BonusNotice }) {
   const ended = useGame((s) => s.bonusNoticeEnded);
-  const [step, setStep] = useState(notice === "+35" ? 0 : 1);
+  const [step, setStep] = useState(0);
   useEffect(() => {
-    const next = setTimeout(() => setStep(1), BONUS_STEP_MS);
-    const end = setTimeout(() => ended(id), BONUS_STEP_MS * 2);
+    const steps = BONUS_STEPS[notice];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let at = 0;
+    steps.forEach(([, ms], i) => {
+      at += ms;
+      timers.push(setTimeout(() => (i + 1 < steps.length ? setStep(i + 1) : ended(id)), at));
+    });
     return () => {
-      clearTimeout(next);
-      clearTimeout(end);
+      for (const timer of timers) clearTimeout(timer);
     };
-  }, [id, ended]);
+  }, [id, notice, ended]);
+  const [text, ms] = BONUS_STEPS[notice][step] ?? ["", 0];
+  // 단계가 바뀌면 key 로 새로 붙여 연출을 처음부터 다시 한다. '동작 줄이기'면 CSS 가 연출을 끈다.
   return (
     <div className="notice bonus-text" role="status">
-      <span key={step}>{step === 0 ? "보너스!" : notice}</span>
+      <span key={step} style={{ animationDuration: `${ms}ms` }}>
+        {text}
+      </span>
     </div>
   );
 }
