@@ -5,6 +5,7 @@ import {
   type CommandResult,
   DIE_IDS,
   type Die,
+  type DieId,
   type DieValue,
   type GameState,
   type Rejection,
@@ -33,7 +34,23 @@ export function rollsLeft(state: GameState): number {
 /** 지금 굴릴 수 없는 이유. 굴릴 수 있으면 null. */
 export function rollRejection(state: GameState): Rejection | null {
   if (rollsLeft(state) <= 0) return "no-rolls-left";
+  if (state.dice.every((die) => die.held)) return "all-held";
   return null;
+}
+
+/** 지금 이 주사위의 홀드를 바꿀 수 없는 이유. 바꿀 수 있으면 null. */
+export function holdRejection(state: GameState, _die: DieId): Rejection | null {
+  if (state.rollsUsed === 0) return "not-rolled-yet";
+  if (rollsLeft(state) <= 0) return "no-rolls-left";
+  return null;
+}
+
+/** 홀드 토글. 그 주사위만 홀드하거나 푼다. 눈과 주사위 정체성은 그대로다. */
+export function toggleHold(state: GameState, die: DieId): CommandResult {
+  const rejection = holdRejection(state, die);
+  if (rejection) return { ok: false, reason: rejection };
+  const dice = state.dice.map((d) => (d.id === die ? { ...d, held: !d.held } : d));
+  return { ok: true, state: { ...state, dice } };
 }
 
 /** 굴림. 홀드하지 않은 주사위의 눈을 공급원이 정한 값으로 바꾼다. */

@@ -1,7 +1,12 @@
 import type { ComponentType } from "react";
 import type { DieId, DieValue } from "../engine/types";
 
-/** 연출 입구가 받는 주사위 하나. 굴림 결과(눈)와 홀드 상태, 정렬이 끝났을 때의 열. */
+/**
+ * 연출 입구가 받는 주사위 하나. 굴림 결과(눈)와 홀드 상태, 정렬이 끝났을 때의 열.
+ * `held` 는 그 주사위가 홀드 자리에 놓이는지다. 굴림(`rollId` 가 바뀐 때)에는 엔진의 홀드 그대로라
+ * 홀드하지 않은 주사위만 컵에 넣으면 된다. 3번째 굴림의 정렬 끝 뒤에는 굴림이 아닌 갱신으로
+ * 다섯 개 모두 `held: true` 가 된다(정렬 줄의 주사위가 같은 열의 홀드 자리로 올라감).
+ */
 export interface PresentedDie {
   id: DieId;
   value: DieValue;

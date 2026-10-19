@@ -1,4 +1,4 @@
-import { recordRejection, rollRejection, rollsLeft } from "../engine/game";
+import { holdRejection, recordRejection, rollRejection, rollsLeft } from "../engine/game";
 import type { Category, DieId, GameState, Rejection } from "../engine/types";
 
 /**
@@ -41,12 +41,10 @@ export function recordBlocker(s: JudgeInput): StoreRejection | null {
   return recordRejection(s.game, s.selection);
 }
 
-/** 홀드 토글을 받을 수 있는지. 홀드 명령 자체는 #7 이 엔진에 더한다. */
-export function holdBlocker(s: JudgeInput, _die: DieId): StoreRejection | null {
+/** 홀드 토글을 받을 수 있는지. 굴림 버튼을 누른 때부터 정렬 끝까지는 막는다. */
+export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
-  if (s.game.rollsUsed === 0) return "not-rolled-yet";
-  if (rollsLeft(s.game) <= 0) return "no-rolls-left";
-  return null;
+  return holdRejection(s.game, die);
 }
 
 export interface Permissions {
@@ -63,6 +61,14 @@ export function judge(s: JudgeInput): Permissions {
     canSelect: (category) => selectBlocker(s, category) === null,
     canHold: (die) => holdBlocker(s, die) === null,
   };
+}
+
+/**
+ * 3번째 굴림의 정렬이 끝나 다섯 개가 모두 홀드 자리로 올라간 상태인지(스펙 「3D 장면」).
+ * 표현일 뿐이라 엔진의 홀드 상태는 바꾸지 않는다. 굴림 연출 동안은 엔진의 홀드 그대로 보여 준다.
+ */
+export function allDiceUp(s: JudgeInput): boolean {
+  return s.game.rollsUsed > 0 && rollsLeft(s.game) <= 0 && s.presentation.phase === "idle";
 }
 
 /** 점수 미리보기는 주사위가 멈추는 순간부터 보인다. 조작 잠금은 정렬 끝에 풀린다. */
