@@ -23,6 +23,7 @@
 - **열 규칙**: `layout/columns.ts`. 굴림이 끝날 때만 `lineupColumns(dice, { finalRoll })` 로 열을 다시 받고, 홀드 토글은 열을 바꾸지 않는다. 주사위가 놓이는 자리(열·줄)는 저장소의 `slots()`(화면은 `useDiceSlots()`)가 정하며, 3번째 굴림의 정렬 끝 뒤에는 다섯 개 모두 홀드 자리다(표현일 뿐 엔진의 홀드는 그대로). 보이지 않는 주사위 버튼의 순서는 `screenOrder(slots)`.
 - **홀드**: 엔진 `toggleHold(state, die)`·`holdRejection`, 저장소 `toggleHold(die)`. 3D 탭(`scene/die-hit-targets.tsx`), 홀드 말풍선(`scene/hold-bubbles.tsx`, 자리 계산은 `layout/hold-bubbles.ts`), 보이지 않는 주사위 버튼(`a11y/dice-buttons.tsx`)이 모두 같은 저장소 명령을 쓴다. 말풍선 자리는 카메라 맞춤 값과 그 주사위의 열·줄로만 정해져, 다른 주사위를 홀드해도 움직이지 않는다.
 - **카메라 맞춤**: `layout/camera-fit.ts` 의 `fitCamera({ width, height, reserveTop, avoid })`. 판 위에 겹치는 요소에 `data-board-overlay` 를 붙이면 `scene/board-3d.tsx` 가 자리를 재서 넣는다. 맨 위에 붙은 것은 판을 아래로 내려 피하고, 나머지(세로 배치의 버튼 등)는 컵·정렬 줄이 겹치지 않게 피한다.
+- **3D 장면 룩(카지노 펠트)**: 재질은 그리는 파일마다 둔다 — 판 `scene/board-mesh.tsx`(펠트·테두리·홀드 자리), 주사위 `scene/die-mesh.tsx`, 컵 `scene/cup-mesh.tsx`, 조명 `scene/board-3d.tsx` 의 `SceneLights`. 펠트·가죽의 결 같은 캔버스 텍스처는 `scene/textures.ts` 로 만들고, 재질은 처음 쓸 때 한 번만 만들어 공유한다. 주사위 모서리 반지름을 바꾸면 물리 충돌체(`presenters/physics/pre-roll.ts` 의 `DIE_CORNER`)도 함께 바꾼다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
 
 ## 테스트
