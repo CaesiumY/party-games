@@ -407,7 +407,8 @@ button:focus-visible {
   padding: 0 8px;
   max-width: 100%;
   color: #fff;
-  font-size: 38px;
+  /* 휴대폰 세로 폭에서도 「L. 스트레이트」가 판 폭 안에 들어가게 줄인다. */
+  font-size: clamp(26px, 9vw, 38px);
   font-weight: 800;
   line-height: 1.1;
   white-space: nowrap;

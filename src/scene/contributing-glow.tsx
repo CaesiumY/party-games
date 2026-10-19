@@ -25,12 +25,13 @@ function haloTexture(): CanvasTexture {
     const g = ctx.createRadialGradient(
       size / 2,
       size / 2,
-      size * 0.18,
+      size * 0.22,
       size / 2,
       size / 2,
       size / 2,
     );
-    g.addColorStop(0, "rgba(254, 226, 103, 0.95)");
+    g.addColorStop(0, "rgba(254, 226, 103, 1)");
+    g.addColorStop(0.45, "rgba(254, 226, 103, 0.55)");
     g.addColorStop(1, "rgba(254, 226, 103, 0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
@@ -51,9 +52,9 @@ function useGlowAssets() {
   return useMemo(() => {
     shared ??= {
       // 주사위보다 조금 큰 상자의 뒷면만 그리면 주사위 둘레에 노란 테두리가 남는다.
-      shell: new RoundedBoxGeometry(BOARD.die * 1.16, BOARD.die * 1.16, BOARD.die * 1.16, 3, 0.14),
+      shell: new RoundedBoxGeometry(BOARD.die * 1.26, BOARD.die * 1.26, BOARD.die * 1.26, 3, 0.16),
       shellMaterial: new MeshBasicMaterial({ color: GLOW, side: BackSide, toneMapped: false }),
-      halo: new PlaneGeometry(BOARD.die * 2.2, BOARD.die * 2.2),
+      halo: new PlaneGeometry(BOARD.die * 2.8, BOARD.die * 2.8),
       haloMaterial: new MeshBasicMaterial({
         map: haloTexture(),
         transparent: true,
