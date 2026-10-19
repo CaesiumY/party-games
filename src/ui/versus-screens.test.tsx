@@ -5,8 +5,8 @@ import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../app";
 import type { DiceSource } from "../engine/dice-source";
-import type { DieValue } from "../engine/types";
-import { createGameStore } from "../store/game-store";
+import { CATEGORIES, type DieValue } from "../engine/types";
+import { createGameStore, type GameStore } from "../store/game-store";
 import { useGame } from "../store/store-context";
 
 beforeEach(() => {
@@ -40,7 +40,32 @@ const facesByPlayer =
 function openApp(diceSource: DiceSource = facesByPlayer([6, 6, 6, 6])) {
   const store = createGameStore({ diceSource });
   render(<App store={store} webgl Board={FakeBoard} />);
-  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+  // 동작 사이의 setTimeout 대기를 없앤다(클릭마다 쌓이면 테스트 시간 제한을 넘나든다).
+  const user = userEvent.setup({ delay: null, advanceTimers: vi.advanceTimersByTime });
+  return { user, store };
+}
+
+/**
+ * 화면 클릭 대신 저장소 명령으로 남은 턴을 끝까지 진행한다(굴림 → 연출 끝 → 맨 위 빈 카테고리 기록,
+ * 보너스 알림은 끝난 것으로). 화면으로 턴을 끝까지 하는 것은 연습 모드 화면 테스트가 맡는다.
+ */
+function finishGameViaStore(store: GameStore) {
+  act(() => {
+    const s = () => store.getState();
+    while (!s().game.finished) {
+      const notice = s().bonusNotice;
+      if (notice) s().bonusNoticeEnded(notice.id);
+      if (!s().roll().ok) throw new Error("굴릴 수 없다");
+      s().presenterStopped(s().rollId);
+      s().presenterLinedUp(s().rollId);
+      const { game } = s();
+      const scores = game.players[game.currentPlayer]?.scores ?? {};
+      const empty = CATEGORIES.find((category) => scores[category] === undefined);
+      if (!empty || !s().select(empty).ok || !s().record().ok) throw new Error("기록할 수 없다");
+    }
+    const notice = s().bonusNotice;
+    if (notice) s().bonusNoticeEnded(notice.id);
+  });
 }
 
 const sheet = () => within(screen.getByRole("region", { name: "점수표" }));
@@ -65,23 +90,9 @@ async function start(user: ReturnType<typeof userEvent.setup>, names: string[]) 
   );
 }
 
-/** 한 턴: 굴리고 맨 위 빈 카테고리에 기록한 뒤, 알림·배너가 끝날 만큼 시간을 보낸다. */
-async function playTurn(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
-  const empty = sheet()
-    .getAllByRole("button")
-    .find((button) => !(button as HTMLButtonElement).disabled);
-  if (!empty) throw new Error("고를 수 있는 카테고리가 없다");
-  await user.click(empty);
-  await user.click(screen.getByRole("button", { name: /기록/ }));
-  act(() => {
-    vi.advanceTimersByTime(2000);
-  });
-}
-
 describe("대전 모드 시작", () => {
   it("인원을 고르고 이름을 넣어 시작하면 그 순서로 점수표 세로줄이 생긴다. 비운 이름은 「플레이어 n」이다", async () => {
-    const user = openApp();
+    const { user } = openApp();
 
     await start(user, ["가람", "나래", "", "라온"]);
 
@@ -90,7 +101,7 @@ describe("대전 모드 시작", () => {
   });
 
   it("같은 이름을 두 번 넣으면 뒤의 것에 번호를 붙여 구분한다", async () => {
-    const user = openApp();
+    const { user } = openApp();
 
     await start(user, ["가람", " 가람 "]);
 
@@ -98,7 +109,7 @@ describe("대전 모드 시작", () => {
   });
 
   it("인원 선택지는 1~4명이고, 1명이면 혼자 시작한다", async () => {
-    const user = openApp();
+    const { user } = openApp();
     expect(screen.getAllByRole("radio")).toHaveLength(4);
     for (const n of [1, 2, 3, 4])
       expect(screen.getByRole("radio", { name: `${n}명` })).toBeTruthy();
@@ -111,7 +122,7 @@ describe("대전 모드 시작", () => {
 
 describe("차례 넘기기", () => {
   it("기록하면 「다음은 ○○ 차례」 배너가 잠깐 떴다 사라지고, 지금 차례 표시가 다음 플레이어로 바뀐다", async () => {
-    const user = openApp();
+    const { user } = openApp();
     await start(user, ["가람", "나래"]);
 
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
@@ -133,10 +144,13 @@ describe("차례 넘기기", () => {
 describe("대전 모드 결과", () => {
   it("순위 표(동점이면 같은 순위) → 「다음」 → 승자 화면(공동 1등 모두), 「같은 멤버로 다시」는 같은 이름·순서로 다시 연다", async () => {
     // 가람·다솜은 늘 6(총합 득점 170), 나래는 늘 5(150) → 가람·다솜 공동 1위, 나래 3위.
-    const user = openApp(facesByPlayer([6, 5, 6]));
+    const { user, store } = openApp(facesByPlayer([6, 5, 6]));
     await start(user, ["가람", "나래", "다솜"]);
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    await user.click(sheet().getByRole("button", { name: "에이스" }));
+    await user.click(screen.getByRole("button", { name: "0점으로 기록" }));
 
-    for (let i = 0; i < 36; i++) await playTurn(user);
+    finishGameViaStore(store);
 
     const ranks = within(screen.getByRole("table", { name: "순위" }));
     const rows = ranks
@@ -156,7 +170,7 @@ describe("대전 모드 결과", () => {
 
     await user.click(screen.getByRole("button", { name: "다음" }));
 
-    const winner = within(screen.getByRole("main", { name: "승리!" }));
+    const winner = within(screen.getByRole("main", { name: "Winner!" }));
     expect(winner.getByText("가람")).toBeTruthy();
     expect(winner.getByText("다솜")).toBeTruthy();
     expect(winner.queryByText("나래")).toBeNull();
@@ -166,5 +180,5 @@ describe("대전 모드 결과", () => {
 
     expect(headers()).toEqual(["가람", "나래", "다솜"]);
     expect(sheet().getByText("턴 1/12")).toBeTruthy();
-  }, 20_000); // 36턴을 화면으로 끝까지 한다.
+  });
 });

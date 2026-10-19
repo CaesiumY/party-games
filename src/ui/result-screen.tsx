@@ -78,7 +78,8 @@ function Winners() {
   const winners = ranking(game).filter((standing) => standing.rank === 1);
   return (
     <main className="result winner" aria-labelledby="winner-title">
-      <h1 id="winner-title">승리!</h1>
+      {/* 원작 그대로의 문구(조사 보고서 4.8). 순위 표의 제목은 「결과」다. */}
+      <h1 id="winner-title">Winner!</h1>
       <ul className="winners">
         {winners.map((standing) => (
           <li key={standing.player}>
