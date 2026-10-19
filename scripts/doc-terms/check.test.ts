@@ -124,4 +124,55 @@ describe("findAvoidedWords", () => {
       [4, "킵"],
     ]);
   });
+
+  it("한 어절에 허용된 쓰임과 허용되지 않은 쓰임이 함께 있으면 허용되지 않은 쪽은 걸린다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**홀드 (Hold)**:\n주사위를 남겨 두는 것.\n_Avoid_: 킵, 고정\n`,
+      docs: [{ path: "docs/specs/a.md", text: "문구 「킵」·킵 둘." }],
+      allowlist: [{ word: "킵", phrase: "「킵」", reason: "원작 화면 문구" }],
+    });
+
+    expect(hits.map((hit) => [hit.word, hit.column])).toEqual([["킵", 8]]);
+  });
+
+  it("두 글자 이상의 피할 말도 한 어절 안의 쓰임을 하나하나 따로 본다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**카테고리 (Category)**:\n점수를 기록하는 자리.\n_Avoid_: 족보, 항목\n`,
+      docs: [{ path: "docs/specs/a.md", text: "탭 「족보」·족보를 본다." }],
+      allowlist: [{ word: "족보", phrase: "「족보」", reason: "원작 탭 이름" }],
+    });
+
+    expect(hits.map((hit) => [hit.word, hit.column])).toEqual([["족보", 8]]);
+  });
+
+  it("강조·코드·링크 표시가 여러 어절로 된 피할 말을 갈라도 걸리고, 위치는 원문 기준이다", () => {
+    const hits = findAvoidedWords({
+      glossary: [
+        "**대전 모드 (Versus Mode)**:",
+        "여러 명이 하는 게임.",
+        "_Avoid_: 파티 모드",
+        "",
+        "**핫시트 (Hot-seat)**:",
+        "기기 하나를 넘겨 가며 하는 방식.",
+        "_Avoid_: 로컬 멀티",
+      ].join("\n"),
+      docs: [
+        {
+          path: "docs/specs/a.md",
+          text: [
+            "대전은 파티 **모드**로 한다.",
+            "[로컬](https://e.x/a) 멀티는 없다.",
+            "`파티` 모드",
+          ].join("\n"),
+        },
+      ],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([
+      [1, 5, "파티 모드"],
+      [2, 2, "로컬 멀티"],
+      [3, 2, "파티 모드"],
+    ]);
+  });
 });
