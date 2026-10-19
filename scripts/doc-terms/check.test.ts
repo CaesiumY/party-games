@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { findAvoidedWords } from "./check.ts";
 
@@ -422,5 +424,28 @@ describe("findAvoidedWords", () => {
     it("두 개짜리 물결표 취소선 안의 글은 그대로 검사한다", () => {
       expect(check("~~1~6칸은 옛 이름~~이다.")).toEqual([[1, 3, "1~6칸"]]);
     });
+  });
+});
+
+describe("용어집 (GLOSSARY.md)", () => {
+  const glossary = readFileSync(join(import.meta.dirname, "../../GLOSSARY.md"), "utf8");
+
+  it("윗칸의 피할 말은 범위(~)가 아니라 낱말마다 풀어 써서, 범위 안의 이름도 걸린다", () => {
+    const hits = findAvoidedWords({
+      glossary,
+      docs: [{ path: "docs/specs/a.md", text: "투즈와 쓰리즈, 그리고 3칸." }],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.word, hit.term])).toEqual([
+      ["투즈", "윗칸"],
+      ["쓰리즈", "윗칸"],
+      ["3칸", "윗칸"],
+    ]);
+  });
+
+  it("피할 말에 범위 표시(~)를 쓰지 않는다 — 검사기는 범위를 펼치지 않는다", () => {
+    const avoidLines = glossary.split(/\r?\n/).filter((line) => line.startsWith("_Avoid_:"));
+    expect(avoidLines.filter((line) => line.includes("~"))).toEqual([]);
   });
 });
