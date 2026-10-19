@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import { record, roll, rollsLeft, startGame, toggleHold } from "./game";
-import type { CommandResult, GameState } from "./types";
+import { record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
+import { totalScore, upperSubtotal } from "./totals";
+import {
+  CATEGORIES,
+  type Category,
+  type CommandResult,
+  type DieValue,
+  type GameState,
+} from "./types";
 
 function ok(result: CommandResult): GameState {
   if (!result.ok) throw new Error(`거부됨: ${result.reason}`);
@@ -45,12 +52,78 @@ describe("첫 굴림과 초이스 기록", () => {
 
     expect(record(turn2, "choice")).toEqual({ ok: false, reason: "category-filled" });
   });
+});
 
-  // #6 에서 12개 카테고리가 다 들어오면 이 테스트는 지운다.
-  it("점수 계산이 아직 들어오지 않은 카테고리에는 기록할 수 없다", () => {
-    const rolled = ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([[1, 2, 3, 4, 5]])));
+describe("점수 미리보기와 기록", () => {
+  it("12개 카테고리 모두 점수 미리보기 값이 그대로 기록된다", () => {
+    const rolled = ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([[1, 1, 2, 3, 4]])));
+    const expected: Record<Category, number> = {
+      aces: 2,
+      deuces: 2,
+      treys: 3,
+      fours: 4,
+      fives: 0,
+      sixes: 0,
+      choice: 11,
+      fourDice: 0,
+      fullHouse: 0,
+      sStraight: 15,
+      lStraight: 0,
+      yacht: 0,
+    };
 
-    expect(record(rolled, "yacht")).toEqual({ ok: false, reason: "category-unavailable" });
+    for (const category of CATEGORIES) {
+      const preview = scorePreview(rolled, category);
+      const recorded = ok(record(rolled, category)).players[0]?.scores[category];
+
+      expect([category, preview]).toEqual([category, expected[category]]);
+      expect([category, recorded]).toEqual([category, preview]);
+    }
+  });
+
+  it("첫 굴림 뒤에는 남은 굴림이 있어도 언제든 기록할 수 있다", () => {
+    const rolled = ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([[2, 2, 2, 2, 2]])));
+    expect(rollsLeft(rolled)).toBe(2);
+
+    const recorded = ok(record(rolled, "yacht"));
+
+    expect(recorded.players[0]?.scores.yacht).toBe(50);
+  });
+
+  it("성립하지 않는 카테고리에 기록하면 0점(스크래치)이 적힌다", () => {
+    const rolled = ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([[1, 2, 3, 5, 6]])));
+
+    const recorded = ok(record(rolled, "lStraight"));
+
+    expect(recorded.players[0]?.scores).toEqual({ lStraight: 0 });
+  });
+});
+
+describe("최대 점수 한 판", () => {
+  it("정해진 눈으로 12턴을 진행하면 총합 득점 325점이 나온다", () => {
+    const turns: [Category, DieValue[]][] = [
+      ["aces", [1, 1, 1, 1, 1]],
+      ["deuces", [2, 2, 2, 2, 2]],
+      ["treys", [3, 3, 3, 3, 3]],
+      ["fours", [4, 4, 4, 4, 4]],
+      ["fives", [5, 5, 5, 5, 5]],
+      ["sixes", [6, 6, 6, 6, 6]],
+      ["choice", [6, 6, 6, 6, 6]],
+      ["fourDice", [6, 6, 6, 6, 6]],
+      ["fullHouse", [6, 6, 6, 6, 6]],
+      ["sStraight", [1, 2, 3, 4, 5]],
+      ["lStraight", [2, 3, 4, 5, 6]],
+      ["yacht", [6, 6, 6, 6, 6]],
+    ];
+    const source = scriptedDiceSource(turns.map(([, values]) => values));
+
+    let state = startGame(["플레이어 1"]);
+    for (const [category] of turns) state = ok(record(ok(roll(state, source)), category));
+
+    const player = state.players[0];
+    if (!player) throw new Error("플레이어가 없다");
+    expect(upperSubtotal(player)).toBe(105);
+    expect(totalScore(player)).toBe(325);
   });
 });
 

@@ -60,8 +60,7 @@ export type Rejection =
   | "not-rolled-yet"
   | "no-rolls-left"
   | "all-held"
-  | "category-filled"
-  | "category-unavailable";
+  | "category-filled";
 
 /**
  * 모든 엔진 명령의 결과. 규칙에 맞지 않는 명령은 예외를 던지지 않고

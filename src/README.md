@@ -17,7 +17,7 @@
 
 - **엔진 명령의 거부 방식**: 모든 명령은 예외를 던지지 않고 `{ ok: true, state }` 또는 `{ ok: false, reason }` 을 돌려준다(`engine/types.ts` 의 `CommandResult`). 거부 이유를 더할 때는 `Rejection` 에 더한다. 규칙 판정은 `rollRejection`·`recordRejection` 처럼 "안 되는 이유 | null" 함수로 따로 내보내, 저장소가 같은 판정을 다시 쓰게 한다.
 - **주사위 공급원**: `engine/dice-source.ts` 의 `DiceSource` (플레이어, 턴, 굴림 번호, 굴릴 개수 → 눈). 운영은 `crypto-dice-source.ts`, 단위 테스트는 `scriptedDiceSource`. E2E 공급원(#15)은 새 파일로 더한다.
-- **점수 계산**: `engine/scoring.ts` 의 표 하나. 미리보기와 기록이 같은 함수를 쓴다. 지금은 초이스만 있다(#6 이 채운다).
+- **점수 계산**: `engine/scoring.ts` 의 표 하나(12개 카테고리, 성립하지 않으면 0). 미리보기와 기록은 같은 조회 `scorePreview`(`engine/game.ts`)를 쓴다. 윗칸 보너스와 총합 득점은 `engine/totals.ts`.
 - **조작 잠금 판정**: `store/permissions.ts` 가 유일한 자리. 버튼 활성·저장소 명령이 모두 이것을 쓴다. 홀드·플레이 방법("?") 잠금도 여기에 더한다.
 - **굴림 연출 입구**: `scene/roll-presenter.ts` 의 `RollPresenter` — `{ rollId, dice: {id, value, held, column}[], onStopped(rollId), onLinedUp(rollId) }` 를 받는 R3F 컴포넌트. 굴림 결과는 굴림 버튼을 누를 때 이미 정해져 있다(ADR-0001). 구현은 `scene/presenters/` 에 파일로 더하고 `presenters/index.ts` 의 `animated` 만 바꾼다(#5). '동작 줄이기'가 켜져 있으면 `choosePresenter` 가 언제나 `instant`(순간 배치)를 고른다.
 - **열 규칙**: `layout/columns.ts`. 굴림이 끝날 때만 `lineupColumns(dice, { finalRoll })` 로 열을 다시 받고, 홀드 토글은 열을 바꾸지 않는다. 주사위가 놓이는 자리(열·줄)는 저장소의 `slots()`(화면은 `useDiceSlots()`)가 정하며, 3번째 굴림의 정렬 끝 뒤에는 다섯 개 모두 홀드 자리다(표현일 뿐 엔진의 홀드는 그대로). 보이지 않는 주사위 버튼의 순서는 `screenOrder(slots)`.

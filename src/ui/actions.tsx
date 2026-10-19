@@ -1,3 +1,4 @@
+import { scorePreview } from "../engine/game";
 import { useAllDiceUp, useGame, usePermissions } from "../store/store-context";
 
 /**
@@ -8,6 +9,8 @@ export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> 
   const rolled = useGame((s) => s.game.rollsUsed > 0);
   const roll = useGame((s) => s.roll);
   const record = useGame((s) => s.record);
+  // 고른 카테고리가 성립하지 않으면(점수 미리보기 0) 스크래치임을 알린다.
+  const scratch = useGame((s) => s.selection !== null && scorePreview(s.game, s.selection) === 0);
   const can = usePermissions();
   const allUp = useAllDiceUp();
   return (
@@ -22,7 +25,7 @@ export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> 
         {rolled ? "다시 던지기" : "주사위 던지기"}
       </button>
       <button type="button" className="record" disabled={!can.canRecord} onClick={() => record()}>
-        기록
+        {scratch ? "0점으로 기록" : "기록"}
       </button>
     </div>
   );
