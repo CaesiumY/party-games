@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useGame } from "../store/store-context";
+import { HowToPlayButton } from "./how-to-play";
 import { PlayerDot } from "./player-dot";
 import { defaultName, NAME_MAX_LENGTH, PLAYER_COUNTS, playerNames } from "./player-names";
 
 /**
  * 시작 화면. 인원(1~4명)을 고르고 이름을 넣어 시작한다. 1명이면 연습 모드, 2~4명이면 대전 모드다.
  * 플레이어 색은 자리 순서로 정해진다. 처음으로 돌아오면 방금 한 게임의 인원과 이름이 채워져 있다.
- * "플레이 방법" 버튼은 #26 이 이 화면에 덧붙인다.
+ * 시작 폼 아래에 "플레이 방법" 버튼이 있다.
  */
 export function StartScreen() {
   const best = useGame((s) => s.best);
@@ -71,6 +72,7 @@ export function StartScreen() {
           {count === 1 ? "혼자 시작" : "대전 시작"}
         </button>
       </form>
+      <HowToPlayButton>플레이 방법</HowToPlayButton>
     </main>
   );
 }

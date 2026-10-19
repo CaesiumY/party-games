@@ -352,7 +352,8 @@ button:focus-visible {
 }
 
 .scorecard thead th {
-  height: 18px;
+  /* 플레이 방법 "?" 버튼의 누르는 영역(24px)이 들어가는 높이. */
+  height: 24px;
   background: var(--band);
   color: var(--fg);
   font-size: 0.85em;
@@ -852,4 +853,177 @@ button:focus-visible {
 /* 밝은 표 바탕 위라 색 점 테두리는 진한 색이다. */
 .result .ranks .player-dot {
   border-color: #2b2a27;
+}
+
+/* ---------- 플레이 방법 (최소판, 디자인은 #16) ---------- */
+
+/* 점수표 머리의 "?" 버튼. 누르는 영역 24px 이상(스펙 「화면 배치」). */
+.scorecard thead th.turn {
+  padding-right: 0;
+  line-height: 24px;
+}
+
+.scorecard .help {
+  float: right;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fg);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 24px;
+  cursor: pointer;
+}
+
+.scorecard .help:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.how-to-play {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.how-to-play:not([open]) {
+  display: none;
+}
+
+.how-to-play::backdrop {
+  background: rgb(0 0 0 / 60%);
+}
+
+.how-to-play :focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.how-to-play-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px 4px;
+}
+
+.how-to-play h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.how-to-play .close {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.how-to-play-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 2px solid var(--rule);
+}
+
+.how-to-play-tabs [role="tab"] {
+  flex: 1;
+  min-height: 36px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: #5d5143;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.how-to-play-tabs [role="tab"][aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+
+/* 내용이 화면보다 길면 이 영역만 스크롤한다. */
+.how-to-play-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px 16px 16px;
+  line-height: 1.5;
+}
+
+.how-to-play-body h3 {
+  margin: 12px 0 2px;
+  font-size: 1rem;
+}
+
+.how-to-play-body p {
+  margin: 0 0 4px;
+}
+
+.how-to-play .rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-to-play .rules li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.how-to-play .rules li.bonus {
+  border-bottom: 0;
+}
+
+.how-to-play .rules h3 {
+  margin: 0 0 2px;
+}
+
+.how-to-play .note {
+  font-size: 0.875rem;
+  color: #5d5143;
+}
+
+.how-to-play .examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 4px 0 0;
+}
+
+.how-to-play .example {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.how-to-play .die-face {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--ink);
+  border-radius: 5px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.how-to-play .example .score {
+  margin-left: 6px;
+  font-weight: 700;
 }
