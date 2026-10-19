@@ -36,7 +36,7 @@ function makePieces(count: number, duration: number): Piece[] {
 
 /**
  * 색종이 한 번 터뜨리기. 화면 전체 위에 겹치고 조작을 막지 않는다. 다시 터뜨리려면 `key` 를 바꿔 새로 붙인다.
- * 성립 알림의 요트와 결과 화면의 승자 표시(#9)가 쓴다.
+ * 성립 알림의 요트와 결과 화면의 승자 표시가 쓴다.
  * '동작 줄이기'가 켜져 있으면 아무것도 그리지 않는다(스펙: 색종이는 어느 화면에서도 띄우지 않는다).
  */
 export function Confetti({ pieces = 120, duration = 2600, onDone }: ConfettiProps) {

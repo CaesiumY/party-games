@@ -63,7 +63,7 @@ export interface GameStoreState {
   callout: Callout | null;
   /**
    * 떠 있는 보너스 알림. 있는 동안 화면의 차례 넘김을 미룬다(`shownPlayer`). 저장하지 않는다.
-   * 차례 배너(#9)와 결과 화면은 이것이 지워진 뒤에 띄운다(src/README.md 「차례 넘김 미루기」).
+   * 결과 화면은 이것이 지워진 뒤에 띄우고(src/README.md 「차례 넘김 미루기」), 차례 배너도 그때 띄운다(「차례 배너」).
    */
   bonusNotice: HandOffNotice | null;
   /**

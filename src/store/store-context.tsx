@@ -35,7 +35,7 @@ export function usePermissions(): Permissions {
 
 /**
  * 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림 동안은 방금 기록한 플레이어이고, 알림이 끝나면 엔진의 지금 차례다.
- * 점수표의 차례 강조·지금 차례 표시·차례 배너(#9)가 모두 이것을 쓴다.
+ * 점수표의 차례 강조·지금 차례 표시가 이것을 쓴다. 차례 배너는 이 값이 바뀌는 순간에 뜬다.
  */
 export function useShownPlayer(): number {
   return useGame((s) => shownPlayer(s));
