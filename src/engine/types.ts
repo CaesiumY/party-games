@@ -59,6 +59,7 @@ export type Rejection =
   | "game-over"
   | "not-rolled-yet"
   | "no-rolls-left"
+  | "all-held"
   | "category-filled"
   | "category-unavailable";
 

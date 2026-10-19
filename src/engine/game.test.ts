@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import { record, roll, rollsLeft, startGame } from "./game";
+import { record, roll, rollsLeft, startGame, toggleHold } from "./game";
 import type { CommandResult, GameState } from "./types";
 
 function ok(result: CommandResult): GameState {
@@ -130,5 +130,83 @@ describe("주사위 정체성", () => {
       [3, 3],
       [4, 2],
     ]);
+  });
+});
+
+describe("홀드", () => {
+  const firstRoll = () =>
+    ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([[2, 3, 4, 5, 6]])));
+
+  it("홀드를 토글하면 그 주사위만 홀드되고, 다시 토글하면 풀린다", () => {
+    const held = ok(toggleHold(firstRoll(), 2));
+
+    expect(held.dice.map((die) => die.held)).toEqual([false, false, true, false, false]);
+    expect(ok(toggleHold(held, 2)).dice.every((die) => !die.held)).toBe(true);
+  });
+
+  it("홀드를 바꿔도 주사위 정체성과 눈은 그대로다", () => {
+    const held = ok(toggleHold(ok(toggleHold(firstRoll(), 4)), 0));
+
+    expect(held.dice.map((die) => [die.id, die.value])).toEqual([
+      [0, 2],
+      [1, 3],
+      [2, 4],
+      [3, 5],
+      [4, 6],
+    ]);
+  });
+
+  it("턴의 첫 굴림 전에는 홀드가 거부된다", () => {
+    expect(toggleHold(startGame(["플레이어 1"]), 0)).toEqual({
+      ok: false,
+      reason: "not-rolled-yet",
+    });
+  });
+
+  it("홀드한 주사위는 다시 굴려도 눈이 그대로이고, 홀드하지 않은 주사위만 굴린다", () => {
+    const counts: number[] = [];
+    const script = scriptedDiceSource([
+      [1, 2, 3, 4, 5],
+      [6, 6, 6],
+    ]);
+    const source: DiceSource = (request) => {
+      counts.push(request.count);
+      return script(request);
+    };
+    const first = ok(roll(startGame(["플레이어 1"]), source));
+    const held = ok(toggleHold(ok(toggleHold(first, 1)), 3));
+
+    const second = ok(roll(held, source));
+
+    expect(counts).toEqual([5, 3]);
+    expect(second.dice.map((die) => die.value)).toEqual([6, 2, 6, 4, 6]);
+    expect(second.dice.map((die) => die.held)).toEqual([false, true, false, true, false]);
+  });
+
+  it("다섯 개를 모두 홀드하면 굴릴 수 없고, 하나를 풀면 다시 굴릴 수 있다", () => {
+    let state = firstRoll();
+    for (const id of [0, 1, 2, 3, 4] as const) state = ok(toggleHold(state, id));
+
+    expect(roll(state, scriptedDiceSource([]))).toEqual({ ok: false, reason: "all-held" });
+    expect(roll(ok(toggleHold(state, 0)), scriptedDiceSource([[1]])).ok).toBe(true);
+  });
+
+  it("세 번 다 굴린 뒤에는 홀드할 수 없다", () => {
+    const source = scriptedDiceSource([
+      [1, 1, 1, 1, 1],
+      [2, 2, 2, 2, 2],
+      [3, 3, 3, 3, 3],
+    ]);
+    const third = ok(roll(ok(roll(ok(roll(startGame(["플레이어 1"]), source)), source)), source));
+
+    expect(toggleHold(third, 0)).toEqual({ ok: false, reason: "no-rolls-left" });
+  });
+
+  it("기록해서 새 턴이 되면 홀드가 모두 풀린다", () => {
+    const held = ok(toggleHold(ok(toggleHold(firstRoll(), 0)), 4));
+
+    const next = ok(record(held, "choice"));
+
+    expect(next.dice.every((die) => !die.held)).toBe(true);
   });
 });
