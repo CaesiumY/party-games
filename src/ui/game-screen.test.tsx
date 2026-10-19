@@ -11,16 +11,24 @@ import { useGame } from "../store/store-context";
 
 afterEach(cleanup);
 
-/** 캔버스 없는 판 영역 대역. 순간 배치 연출처럼 굴림마다 멈춤과 정렬 끝을 곧바로 알린다. */
+/**
+ * 캔버스 없는 판 영역 대역. 순간 배치 연출처럼 굴림마다 멈춤과 정렬 끝을 곧바로 알리고,
+ * 자리가 바뀐 주사위도 곧바로 다 옮겼다고 알린다.
+ */
 function FakeBoard() {
   const rollId = useGame((s) => s.rollId);
   const stopped = useGame((s) => s.presenterStopped);
   const linedUp = useGame((s) => s.presenterLinedUp);
+  const moving = useGame((s) => s.movingDice);
+  const settled = useGame((s) => s.presenterDieSettled);
   useEffect(() => {
     if (rollId === 0) return;
     stopped(rollId);
     linedUp(rollId);
   }, [rollId, stopped, linedUp]);
+  useEffect(() => {
+    for (const die of moving) settled(die);
+  }, [moving, settled]);
   return <div className="board" />;
 }
 
