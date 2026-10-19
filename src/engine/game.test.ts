@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import {
-  gameMode,
-  record,
-  roll,
-  rollsLeft,
-  scorePreview,
-  startGame,
-  toggleHold,
-} from "./game";
+import { gameMode, record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
 import { totalScore, upperSubtotal } from "./totals";
 import {
   CATEGORIES,
