@@ -17,8 +17,8 @@ export const BOARD = {
   lineupZ: 0.2,
   /** 열 간격. */
   columnGap: 1.05,
-  /** 컵: 판 오른쪽 아래(앞쪽) 모서리 근처. */
-  cup: { x: 2.15, z: 3.15, radius: 0.87, height: 1.4 },
+  /** 컵: 판 오른쪽 아래(앞쪽) 모서리 근처. radius 는 입구, bottomRadius 는 바닥의 반지름. */
+  cup: { x: 2.15, z: 3.15, radius: 0.87, bottomRadius: 0.63, height: 1.4 },
 } as const;
 
 /** 열(0~4)의 x 좌표. */

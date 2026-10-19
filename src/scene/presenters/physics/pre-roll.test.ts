@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { DieId, DieValue } from "../../../engine/types";
 import { BOARD, columnX } from "../../../layout/board";
+import { pourMouth } from "./cup-pour";
 import { loadRapier, type Rapier } from "./load-rapier";
 import { type DieTrack, preRoll, restProblem } from "./pre-roll";
 import { visibleTop } from "./visible-top.testing";
@@ -109,6 +110,19 @@ describe("미리 굴리기", () => {
     }
   });
 
+  it("굴린 주사위는 누운 컵의 입구에서 나와 판 가운데 쪽으로 간다", () => {
+    const [mx, , mz] = pourMouth();
+    const plan = preRoll(rapier, { seed: 7, rolling: outcome(7, ALL), heldColumns: [] });
+    for (const track of plan?.tracks ?? []) {
+      const [x = 0, , z = 0] = track.frames;
+      expect(Math.hypot(x - mx, z - mz)).toBeLessThan(1.2);
+      const later = track.frames.slice(10 * FRAME, 10 * FRAME + 3);
+      expect(Math.hypot(later[0] ?? 0, (later[2] ?? 0) - BOARD.lineupZ)).toBeLessThan(
+        Math.hypot(x, z - BOARD.lineupZ),
+      );
+    }
+  });
+
   it("궤적은 주사위가 눈에 보이게 멈춘 프레임에서 끝난다(멈춤을 확인하는 정지 구간은 재생하지 않는다)", () => {
     for (let seed = 1; seed <= 40; seed++) {
       const plan = preRoll(rapier, { seed, rolling: outcome(seed, ALL), heldColumns: [] });
@@ -147,6 +161,10 @@ describe("멈춘 자세 검사", () => {
 
   it("다른 주사위나 벽에 기대 떠 있으면 다시 굴린다", () => {
     expect(restProblem({ ...onFloor, y: BOARD.die * 1.5 }, flat)).toBe("stacked");
+  });
+
+  it("제자리로 돌아온 컵 아래에 멈추면 다시 굴린다", () => {
+    expect(restProblem({ ...onFloor, x: BOARD.cup.x - 0.5, z: BOARD.cup.z }, flat)).toBe("cup");
   });
 
   it("판 밖으로 나가면 다시 굴린다", () => {

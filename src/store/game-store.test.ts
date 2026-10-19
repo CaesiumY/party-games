@@ -15,6 +15,11 @@ function finishPresentation(store: ReturnType<typeof storeWith>) {
   store.getState().presenterLinedUp(presentation.rollId);
 }
 
+/** 연출 입구가 옮겨 가던 주사위를 모두 다 옮겼다고 알린 것처럼 한다. */
+function settleMoves(store: ReturnType<typeof storeWith>) {
+  for (const die of store.getState().movingDice) store.getState().presenterDieSettled(die);
+}
+
 describe("굴림부터 기록까지", () => {
   it("굴리고 연출이 끝난 뒤 초이스를 골라 기록하면 다섯 눈의 합이 적힌다", () => {
     const store = storeWith([[3, 4, 5, 6, 6]]);
@@ -141,6 +146,7 @@ describe("홀드", () => {
 
     store.getState().toggleHold(0);
     store.getState().toggleHold(2);
+    settleMoves(store);
     expect(store.getState().game.dice.map((d) => d.held)).toEqual([
       true,
       false,
@@ -163,6 +169,7 @@ describe("홀드", () => {
     finishPresentation(store);
     store.getState().toggleHold(2);
     store.getState().toggleHold(0);
+    settleMoves(store);
 
     store.getState().roll();
     finishPresentation(store);
@@ -179,6 +186,7 @@ describe("홀드", () => {
     store.getState().roll();
     finishPresentation(store);
     for (const id of [0, 2, 4] as const) store.getState().toggleHold(id);
+    settleMoves(store);
     store.getState().roll();
     finishPresentation(store);
 
@@ -191,6 +199,7 @@ describe("홀드", () => {
         .map((s) => s.row),
     ).toEqual(["hold", "lineup", "hold", "lineup", "hold"]);
     finishPresentation(store);
+    settleMoves(store);
 
     expect(view(store)).toBe("1↑ 2↑ 5↑ 5↑ 6↑");
     expect(store.getState().game.dice.map((d) => d.held)).toEqual([true, false, true, false, true]);
@@ -214,6 +223,7 @@ describe("홀드", () => {
     finishPresentation(store);
 
     for (const id of [0, 1, 2, 3, 4] as const) store.getState().toggleHold(id);
+    settleMoves(store);
 
     expect(store.getState().permissions().canRoll).toBe(false);
     expect(store.getState().roll()).toEqual({ ok: false, reason: "all-held" });
@@ -231,5 +241,200 @@ describe("점수 미리보기가 보이는 때", () => {
     const { presentation } = store.getState();
     if (presentation.phase !== "idle") store.getState().presenterStopped(presentation.rollId);
     expect(store.getState().previewVisible()).toBe(true);
+  });
+});
+
+describe("홀드 이동 중 잠금", () => {
+  it("주사위 A가 옮겨 가는 동안 B의 홀드는 받고, A의 홀드·굴림·기록은 거부한다(카테고리 선택은 된다)", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().select("choice");
+
+    expect(store.getState().toggleHold(0)).toEqual({ ok: true });
+
+    expect(store.getState().toggleHold(2)).toEqual({ ok: true });
+    expect(store.getState().toggleHold(0)).toEqual({ ok: false, reason: "moving" });
+    expect(store.getState().roll()).toEqual({ ok: false, reason: "moving" });
+    expect(store.getState().record()).toEqual({ ok: false, reason: "moving" });
+    expect(store.getState().select("yacht")).toEqual({ ok: true });
+    const can = store.getState().permissions();
+    expect([can.canHold(0), can.canHold(2), can.canHold(1), can.canRoll, can.canRecord]).toEqual([
+      false,
+      false,
+      true,
+      false,
+      false,
+    ]);
+    expect(store.getState().game.dice.map((d) => d.held)).toEqual([
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  it("A가 다 옮겨지면 A를 다시 누를 수 있고, 옮겨 가는 주사위가 없어야 굴림·기록이 된다", () => {
+    const store = storeWith([
+      [5, 1, 4, 1, 3],
+      [2, 2, 2],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().toggleHold(0);
+    store.getState().toggleHold(2);
+
+    store.getState().presenterDieSettled(0);
+
+    expect(store.getState().permissions().canHold(0)).toBe(true);
+    expect(store.getState().roll()).toEqual({ ok: false, reason: "moving" });
+
+    store.getState().presenterDieSettled(2);
+
+    expect(store.getState().roll()).toEqual({ ok: true });
+  });
+
+  it("옮겨 가지 않는 주사위의 다 옮겼다는 알림은 아무것도 바꾸지 않는다", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().toggleHold(0);
+
+    store.getState().presenterDieSettled(3);
+
+    expect(store.getState().movingDice).toEqual([0]);
+  });
+});
+
+describe("3번째 굴림 뒤 자동 이동 중 잠금", () => {
+  /** 첫 굴림 뒤 주사위 0을 홀드하고 두 번 더 굴려 3번째 굴림의 정렬 끝까지 알린다. */
+  function afterThirdLineup() {
+    const store = storeWith([
+      [6, 1, 2, 3, 4],
+      [1, 2, 3, 4],
+      [5, 5, 5, 5],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().toggleHold(0);
+    settleMoves(store);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().roll();
+    finishPresentation(store);
+    return store;
+  }
+
+  it("정렬 줄의 주사위가 홀드 자리로 올라가는 동안 굴림·홀드·카테고리 선택·기록을 모두 거부한다", () => {
+    const store = afterThirdLineup();
+
+    expect(store.getState().presentation.phase).toBe("auto-moving");
+    expect(
+      store
+        .getState()
+        .slots()
+        .every((s) => s.row === "hold"),
+    ).toBe(true);
+    const can = store.getState().permissions();
+    expect([can.canRoll, can.canHold(0), can.canHold(1), can.canSelect("yacht")]).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(store.getState().select("yacht")).toEqual({ ok: false, reason: "presenting" });
+    expect(store.getState().toggleHold(1)).toEqual({ ok: false, reason: "presenting" });
+    expect(store.getState().previewVisible()).toBe(true);
+  });
+
+  it("올라간 주사위를 모두 다 옮겼다고 알리면 카테고리를 골라 기록할 수 있다", () => {
+    const store = afterThirdLineup();
+
+    for (const die of [1, 2, 3] as const) store.getState().presenterDieSettled(die);
+    expect(store.getState().permissions().canSelect("yacht")).toBe(false);
+    store.getState().presenterDieSettled(4);
+
+    expect(store.getState().presentation.phase).toBe("idle");
+    expect(
+      store
+        .getState()
+        .slots()
+        .every((s) => s.row === "hold"),
+    ).toBe(true);
+    expect(store.getState().toggleHold(1)).toEqual({ ok: false, reason: "no-rolls-left" });
+    expect(store.getState().select("yacht")).toEqual({ ok: true });
+    expect(store.getState().record()).toEqual({ ok: true });
+    expect(store.getState().game.players[0]?.scores.yacht).toBe(0);
+  });
+});
+
+describe("'동작 줄이기'가 켜져 있으면 옮겨 가는 이동이 없다", () => {
+  function reducedStore(rolls: DieValue[][]) {
+    return createGameStore({
+      players: ["플레이어 1"],
+      diceSource: scriptedDiceSource(rolls),
+      reducedMotion: true,
+    });
+  }
+
+  it("홀드한 바로 뒤에 굴릴 수 있다", () => {
+    const store = reducedStore([
+      [5, 1, 4, 1, 3],
+      [2, 2, 2, 2],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    store.getState().toggleHold(0);
+
+    expect(store.getState().roll()).toEqual({ ok: true });
+  });
+
+  it("3번째 굴림의 정렬 끝에 바로 모든 조작이 풀린다", () => {
+    const store = reducedStore([
+      [1, 2, 3, 4, 5],
+      [1, 2, 3, 4, 5],
+      [1, 2, 3, 4, 5],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      store.getState().roll();
+      finishPresentation(store);
+    }
+
+    expect(store.getState().presentation.phase).toBe("idle");
+    expect(
+      store
+        .getState()
+        .slots()
+        .every((s) => s.row === "hold"),
+    ).toBe(true);
+    expect(store.getState().select("choice")).toEqual({ ok: true });
+  });
+
+  it("옮겨 가는 도중에 켜지면 순간 배치로 바뀌므로 잠금이 풀린다", () => {
+    const store = storeWith([
+      [1, 2, 3, 4, 5],
+      [1, 2, 3, 4, 5],
+      [1, 2, 3, 4, 5],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().toggleHold(0);
+
+    store.getState().setReducedMotion(true);
+
+    expect(store.getState().permissions().canRoll).toBe(true);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().setReducedMotion(false);
+    store.getState().roll();
+    finishPresentation(store);
+    expect(store.getState().presentation.phase).toBe("auto-moving");
+
+    store.getState().setReducedMotion(true);
+
+    expect(store.getState().presentation.phase).toBe("idle");
+    expect(store.getState().permissions().canSelect("choice")).toBe(true);
   });
 });
