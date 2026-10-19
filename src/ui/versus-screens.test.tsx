@@ -185,3 +185,20 @@ describe("대전 모드 결과", () => {
     expect(sheet().getByText("턴 1/12")).toBeTruthy();
   });
 });
+
+describe("결과 화면의 모드", () => {
+  it("연습 모드에서 최고 점수 비교가 없으면(이어 하기로 연 끝난 판 등) 최고 점수 줄 없이 총합 득점만 보여 준다", async () => {
+    const { user, store } = openApp(facesByPlayer([6]));
+    await start(user, [""]);
+    finishGameViaStore(store);
+    act(() => {
+      store.setState({ outcome: null });
+    });
+
+    const result = within(screen.getByRole("main", { name: "결과" }));
+    expect(result.getByText("총합 득점 170")).toBeTruthy();
+    expect(result.queryByText(/최고 점수/)).toBeNull();
+    expect(screen.queryByRole("table", { name: "순위" })).toBeNull();
+    expect(result.getByRole("button", { name: "같은 멤버로 다시" })).toBeTruthy();
+  });
+});

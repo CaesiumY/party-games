@@ -594,7 +594,8 @@ button:focus-visible {
   font-weight: 800;
   white-space: nowrap;
   pointer-events: none;
-  animation: banner-in 1.6s ease-out forwards;
+  /* 길이는 TURN_BANNER_MS(src/ui/turn-banner.tsx)와 같다. */
+  animation: banner-in 2s ease-out forwards;
 }
 
 .turn-banner .player-dot {
@@ -639,16 +640,30 @@ button:focus-visible {
 
 /* ---------- 시작 화면·결과 화면 (최소판, 디자인은 #16) ---------- */
 
+/* 화면보다 길면(짧은 가로 화면에서 4인 입력, 화면 키보드) 이 영역만 세로로 스크롤한다. 게임 화면의
+   body 스크롤 잠금은 그대로다. 남는 높이가 있으면 첫·끝 요소의 auto 여백으로 가운데에 모으고,
+   모자라면 위에서부터 놓아 제목이 잘리지 않는다. */
 .start,
 .result {
   height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 16px;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
+}
+
+.start > :first-child,
+.result > :first-child {
+  margin-top: auto;
+}
+
+.start > :last-child,
+.result > :last-child {
+  margin-bottom: auto;
 }
 
 .start h1,
@@ -700,7 +715,7 @@ button:focus-visible {
   color: var(--ink);
 }
 
-/* 시작 화면의 인원·이름 입력(대전 모드 #9). */
+/* 시작 화면의 인원·이름 입력. */
 .setup {
   display: flex;
   flex-direction: column;
@@ -785,7 +800,7 @@ button:focus-visible {
   font-size: 1rem;
 }
 
-/* 승자 화면과 순위 표(대전 모드 결과, #9). */
+/* 승자 화면과 순위 표(대전 모드 결과). */
 .winners {
   display: flex;
   flex-wrap: wrap;

@@ -2,8 +2,11 @@ import { useEffect } from "react";
 import { useGame } from "../store/store-context";
 import { PlayerDot } from "./player-dot";
 
-/** 차례 배너가 떠 있는 시간(ms). 원작의 차례 넘김 연출이 약 2초다. */
-export const TURN_BANNER_MS = 1600;
+/**
+ * 차례 배너가 떠 있는 시간(ms). 원작의 차례 넘김 연출(노란 세로줄이 옮겨 가고 컵이 들어오기까지)이
+ * 약 2초라서 같게 둔다(docs/research/yacht-51-original.md 4.7). 조작을 막지 않으므로 길어도 흐름이 끊기지 않는다.
+ */
+export const TURN_BANNER_MS = 2000;
 
 /**
  * 차례 배너(스펙 「차례 배너」). 대전 모드에서 화면의 차례가 넘어갈 때 판 가운데에 「다음은 ○○ 차례」를
