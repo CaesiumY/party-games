@@ -91,10 +91,14 @@ export function createGameStore({
   reducedMotion = false,
   bestScore,
 }: GameStoreOptions) {
-  /** 한 판의 처음 상태. 굴림 번호는 이어서 올려, 연출 입구가 지난 판의 굴림과 헷갈리지 않게 한다. */
+  /**
+   * 한 판의 처음 상태. 굴림 번호도 0으로 돌린다. 연출 입구는 0을 "아직 굴리지 않음"으로 읽으므로,
+   * 새 판을 연 판 영역이 지난 판의 마지막 굴림을 다시 연출하지 않는다.
+   */
   const fresh = (names: readonly string[]) => ({
     game: startGame(names),
     presentation: { phase: "idle" } as const,
+    rollId: 0,
     selection: null,
     columns: initialColumns(),
     outcome: null,
@@ -111,7 +115,6 @@ export function createGameStore({
 
   return createStore<GameStoreState>()((set, get) => ({
     ...fresh(players ?? PLACEHOLDER_PLAYERS),
-    rollId: 0,
     reducedMotion,
     screen: players ? "game" : "start",
     best: bestScore?.read() ?? null,
