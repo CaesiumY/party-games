@@ -44,6 +44,16 @@ export interface JudgeInput {
   movingDice: readonly DieId[];
   /** 떠 있는 보너스 알림. 없거나 null 이면 차례 넘김을 미루지 않는다. */
   bonusNotice?: HandOffNotice | null;
+  /** 떠 있는 차례 배너. 조작은 막지 않고 "?" 만 막는다. */
+  turnBanner?: TurnBanner | null;
+}
+
+/** 떠 있는 차례 배너(스펙 「차례 배너」). 화면의 차례 넘김 때 뜨고, 표시가 끝나면 지워진다. */
+export interface TurnBanner {
+  /** 배너마다 다른 번호. 표시가 끝났다고 알릴 때 쓴다. */
+  id: number;
+  /** 이제 차례인 플레이어의 순번. */
+  player: number;
 }
 
 /**
@@ -88,11 +98,11 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
  * - 홀드·홀드 풀기로 옮겨 가는 주사위(`movingDice`)는 막지 않는다. 그 주사위만 잠그는 짧은 이동이라
  *   차례나 굴림이 바뀌지 않기 때문이다.
  * - 보너스 알림(#13)이 떠 있는 동안: 알림이 끝나야 차례가 넘어가므로 막는다.
- * - 차례 배너(#9)가 떠 있는 동안의 잠금은 그 티켓이 여기에 더한다.
+ * - 차례 배너(`turnBanner`)가 떠 있는 동안: 배너를 놓치지 않게 막는다. 굴림은 막지 않는다.
  */
 export function helpBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
-  if (s.bonusNotice) return "handing-off";
+  if (s.bonusNotice || s.turnBanner) return "handing-off";
   return null;
 }
 

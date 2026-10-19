@@ -26,7 +26,9 @@ import {
   rollBlocker,
   selectBlocker,
   shownPlayer,
+  type TurnBanner,
 } from "./permissions";
+import type { SavedGame } from "./saved-game";
 import type { StoredValue } from "./stored-value";
 
 /** 지금 보이는 화면. 결과 화면은 게임 화면에서 게임이 끝나면 뜬다(`resultVisible`). */
@@ -62,9 +64,19 @@ export interface GameStoreState {
   callout: Callout | null;
   /**
    * 떠 있는 보너스 알림. 있는 동안 화면의 차례 넘김을 미룬다(`shownPlayer`). 저장하지 않는다.
-   * 차례 배너(#9)와 결과 화면은 이것이 지워진 뒤에 띄운다(src/README.md 「차례 넘김 미루기」).
+   * 결과 화면은 이것이 지워진 뒤에 띄우고(src/README.md 「차례 넘김 미루기」), 차례 배너도 그때 띄운다(「차례 배너」).
    */
   bonusNotice: HandOffNotice | null;
+  /**
+   * 떠 있는 차례 배너("다음은 ○○ 차례"). 대전 모드에서 화면의 차례가 다음 플레이어로 넘어갈 때(기록 뒤, 보너스 알림이
+   * 있으면 그 알림이 끝난 뒤) 뜬다. 조작은 막지 않고 "?" 만 막는다. 저장하지 않는다.
+   */
+  turnBanner: TurnBanner | null;
+  /**
+   * 시작 화면에서 이어 할 수 있는 게임. 앱을 열 때 저장된 진행 중 게임을 읽은 것이고,
+   * 이어 하거나(`resume`) 새 게임을 시작하면 지워진다. 이어 할 게임이 없으면 null.
+   */
+  resumable: SavedGame | null;
 
   roll(): ActionResult;
   /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
@@ -84,10 +96,14 @@ export interface GameStoreState {
   restart(): void;
   /** 「처음으로」: 시작 화면을 연다. */
   goHome(): void;
+  /** 「이어 하기」: 저장된 게임을 그 상태 그대로 게임 화면에 연다. 굴림 연출은 다시 틀지 않는다. */
+  resume(): void;
   /** 성립 알림 표시가 끝남. 그 굴림의 알림일 때만 지운다. */
   calloutEnded(rollId: number): void;
   /** 보너스 알림 표시가 끝남(약 2초). 그 알림일 때만 지운다. 이때 화면의 차례가 다음 플레이어로 넘어간다. */
   bonusNoticeEnded(id: number): void;
+  /** 차례 배너 표시가 끝남. 그 배너일 때만 지운다. */
+  turnBannerEnded(id: number): void;
 
   permissions(): Permissions;
   /** 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림 동안은 방금 기록한 플레이어다. */
@@ -112,6 +128,11 @@ export interface GameStoreOptions {
   reducedMotion?: boolean;
   /** 이 기기의 최고 점수 저장 항목. 없으면 최고 점수를 읽지도 쓰지도 않는다. */
   bestScore?: StoredValue<number>;
+  /**
+   * 진행 중 게임 저장 항목. 게임 상태나 주사위의 열이 바뀔 때마다 쓰고, 게임이 끝나면 지운다.
+   * `players` 없이 열 때 읽어서, 있으면 시작 화면에서 이어 할 수 있다. 없으면 읽지도 쓰지도 않는다.
+   */
+  savedGame?: StoredValue<SavedGame>;
 }
 
 /**
@@ -126,6 +147,32 @@ export function resultVisible(s: {
   return s.screen === "game" && s.game.finished && s.bonusNotice === null;
 }
 
+/**
+ * 저장된 게임을 다시 열 때의 상태. 연출 진행 상태는 저장하지 않았으므로 연출이 끝난 상태로 연다:
+ * 굴림 번호 0(연출 입구는 다시 굴리지 않고 저장한 열 그대로 자리에 놓는다).
+ */
+function restored({ game, columns }: SavedGame) {
+  return {
+    game,
+    presentation: { phase: "idle" } as const,
+    rollId: 0,
+    selection: null,
+    columns,
+    outcome: null,
+    movingDice: [] as readonly DieId[],
+    turnBanner: null,
+  };
+}
+
+/**
+ * 화면의 차례가 `from` 에서 넘어갈 때 띄울 차례 배너. 게임이 끝났거나 차례가 그대로면(연습 모드) 없다.
+ * 엔진은 게임이 끝나면 지금 차례를 마지막 플레이어에 둔다.
+ */
+function bannerAfter(game: GameState, from: number, id: number): TurnBanner | null {
+  if (game.finished || game.currentPlayer === from) return null;
+  return { id, player: game.currentPlayer };
+}
+
 export type GameStore = ReturnType<typeof createGameStore>;
 
 export function createGameStore({
@@ -133,6 +180,7 @@ export function createGameStore({
   diceSource,
   reducedMotion = false,
   bestScore,
+  savedGame,
 }: GameStoreOptions) {
   /**
    * 한 판의 처음 상태. 굴림 번호도 0으로 돌린다. 연출 입구는 0을 "아직 굴리지 않음"으로 읽으므로,
@@ -146,6 +194,7 @@ export function createGameStore({
     columns: initialColumns(),
     outcome: null,
     movingDice: [] as readonly DieId[],
+    turnBanner: null,
   });
 
   /** 연습 모드 판이 끝났으면 최고 점수와 견주고, 넘었으면 저장한다. */
@@ -157,13 +206,18 @@ export function createGameStore({
     return outcome;
   };
 
-  return createStore<GameStoreState>()((set, get) => ({
+  const resumable = players ? null : (savedGame?.read() ?? null);
+
+  const store = createStore<GameStoreState>()((set, get) => ({
     ...fresh(players ?? PLACEHOLDER_PLAYERS),
+    // 이어 할 게임을 쥐고 있으면 시작 화면의 이름 칸도 그 게임의 이름으로 채워진다.
+    ...(resumable ? restored(resumable) : {}),
     reducedMotion,
     screen: players ? "game" : "start",
     best: bestScore?.read() ?? null,
     callout: null,
     bonusNotice: null,
+    resumable,
 
     roll() {
       const blocker = rollBlocker(get());
@@ -222,6 +276,8 @@ export function createGameStore({
         callout: null,
         // 한 기록에는 굴림이 적어도 한 번 있으므로 지금 굴림 번호가 알림마다 다르다.
         bonusNotice: notice ? { id: state.rollId, player, notice } : null,
+        // 보너스 알림이 있으면 배너는 알림이 끝날 때 띄운다.
+        turnBanner: notice ? null : bannerAfter(result.state, player, state.rollId),
       });
       return { ok: true };
     },
@@ -273,7 +329,7 @@ export function createGameStore({
 
     newGame(names) {
       // 지난 판의 알림이 새 판에 남지 않게 함께 지운다(굴림 번호가 0부터 다시 오른다).
-      set({ ...fresh(names), screen: "game", callout: null, bonusNotice: null });
+      set({ ...fresh(names), screen: "game", callout: null, bonusNotice: null, resumable: null });
     },
 
     restart() {
@@ -281,7 +337,19 @@ export function createGameStore({
     },
 
     goHome() {
-      set({ screen: "start" });
+      set({ screen: "start", turnBanner: null });
+    },
+
+    resume() {
+      const { resumable } = get();
+      if (!resumable) return;
+      set({
+        ...restored(resumable),
+        screen: "game",
+        callout: null,
+        bonusNotice: null,
+        resumable: null,
+      });
     },
 
     calloutEnded(rollId) {
@@ -289,7 +357,14 @@ export function createGameStore({
     },
 
     bonusNoticeEnded(id) {
-      if (get().bonusNotice?.id === id) set({ bonusNotice: null });
+      const { bonusNotice, game } = get();
+      if (bonusNotice?.id !== id) return;
+      // 이 순간이 화면의 차례 넘김이다.
+      set({ bonusNotice: null, turnBanner: bannerAfter(game, bonusNotice.player, id) });
+    },
+
+    turnBannerEnded(id) {
+      if (get().turnBanner?.id === id) set({ turnBanner: null });
     },
 
     permissions: () => judge(get()),
@@ -298,4 +373,15 @@ export function createGameStore({
     slots: () => diceSlots(get().game.dice, get().columns, { allUp: allDiceUp(get()) }),
     resultVisible: () => resultVisible(get()),
   }));
+
+  // 게임 상태나 주사위의 열이 바뀔 때마다 저장한다. 굴림 결과도 굴림 명령 때 곧바로 저장되어,
+  // 연출 도중 새로고침해도 같다. 끝난 게임은 이어 할 수 없으므로 지운다.
+  if (savedGame) {
+    store.subscribe(({ game, columns }, previous) => {
+      if (game === previous.game && columns === previous.columns) return;
+      if (game.finished) savedGame.clear();
+      else savedGame.write({ game, columns });
+    });
+  }
+  return store;
 }
