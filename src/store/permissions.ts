@@ -98,7 +98,7 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
  * - 홀드·홀드 풀기로 옮겨 가는 주사위(`movingDice`)는 막지 않는다. 그 주사위만 잠그는 짧은 이동이라
  *   차례나 굴림이 바뀌지 않기 때문이다.
  * - 보너스 알림(#13)이 떠 있는 동안: 알림이 끝나야 차례가 넘어가므로 막는다.
- * - 차례 배너(#9)가 떠 있는 동안: 배너를 놓치지 않게 막는다. 굴림은 막지 않는다.
+ * - 차례 배너(`turnBanner`)가 떠 있는 동안: 배너를 놓치지 않게 막는다. 굴림은 막지 않는다.
  */
 export function helpBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
