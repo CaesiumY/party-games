@@ -4,12 +4,39 @@ import { fitCamera, projectPoints } from "./camera-fit";
 import type { DieSlot } from "./columns";
 import { type BubbleBox, bubbleBox, layoutHoldBubbles } from "./hold-bubbles";
 
-/** 확인 크기 네 곳(4인 대전)의 판 영역 크기와 위쪽 표시 자리. 시안 v6 실측값에 가깝게. */
+/**
+ * 확인 크기 네 곳(4인 대전)의 판 영역 크기, 위쪽 표시 자리, 판 위에 겹친 것(세로 배치는 왼쪽 아래 버튼,
+ * 가로 배치는 아래 가운데의 지금 차례 표시)의 자리. 시안 v6 실측값에 가깝게.
+ */
 const BOARDS = [
-  { name: "375×667 세로", width: 343, height: 284, reserveTop: 32 },
-  { name: "667×375 가로", width: 373, height: 311, reserveTop: 32 },
-  { name: "1024×768 가로", width: 643, height: 698, reserveTop: 34 },
-  { name: "1280×720 가로", width: 812, height: 653, reserveTop: 34 },
+  {
+    name: "375×667 세로",
+    width: 343,
+    height: 284,
+    reserveTop: 32,
+    avoid: [{ left: 10, top: 238, right: 210, bottom: 274 }],
+  },
+  {
+    name: "667×375 가로",
+    width: 373,
+    height: 311,
+    reserveTop: 32,
+    avoid: [{ left: 136, top: 275, right: 236, bottom: 303 }],
+  },
+  {
+    name: "1024×768 가로",
+    width: 643,
+    height: 698,
+    reserveTop: 34,
+    avoid: [{ left: 271, top: 662, right: 371, bottom: 690 }],
+  },
+  {
+    name: "1280×720 가로",
+    width: 812,
+    height: 653,
+    reserveTop: 34,
+    avoid: [{ left: 356, top: 617, right: 456, bottom: 645 }],
+  },
 ];
 
 const slot = (id: number, column: number, row: DieSlot["row"]): DieSlot => ({
@@ -58,8 +85,8 @@ function topFace(fit: ReturnType<typeof fitCamera>, s: DieSlot): BubbleBox {
 describe("홀드 말풍선 자리", () => {
   for (const board of BOARDS) {
     for (const c of CASES) {
-      it(`${board.name}, ${c.name}: 말풍선끼리 겹치지 않고 판 영역 안·위쪽 표시 아래에 있다`, () => {
-        const fit = fitCamera({ ...board, avoid: [] });
+      it(`${board.name}, ${c.name}: 말풍선끼리 겹치지 않고 판 영역 안·위쪽 표시 아래에 있으며 판 위에 겹친 것에 가려지지 않는다`, () => {
+        const fit = fitCamera(board);
 
         const boxes = layoutHoldBubbles(fit, c.slots, board.reserveTop).map(bubbleBox);
 
@@ -69,6 +96,7 @@ describe("홀드 말풍선 자리", () => {
           expect(a.right).toBeLessThanOrEqual(board.width);
           expect(a.top).toBeGreaterThanOrEqual(board.reserveTop);
           expect(a.bottom).toBeLessThanOrEqual(board.height);
+          for (const rect of board.avoid) expect(overlaps(a, rect)).toBe(false);
         }
       });
     }
@@ -77,7 +105,7 @@ describe("홀드 말풍선 자리", () => {
   for (const board of BOARDS) {
     for (const c of CASES) {
       it(`${board.name}, ${c.name}: 말풍선은 어느 주사위의 눈(윗면)도 가리지 않는다`, () => {
-        const fit = fitCamera({ ...board, avoid: [] });
+        const fit = fitCamera(board);
         const faces = c.slots.map((s) => topFace(fit, s));
 
         for (const bubble of layoutHoldBubbles(fit, c.slots, board.reserveTop)) {
@@ -89,7 +117,7 @@ describe("홀드 말풍선 자리", () => {
 
   for (const board of BOARDS) {
     it(`${board.name}: 다른 주사위를 홀드해도 남은 주사위의 말풍선 자리는 그대로다`, () => {
-      const fit = fitCamera({ ...board, avoid: [] });
+      const fit = fitCamera(board);
       const allLineup = CASES[0]?.slots ?? [];
       const before = layoutHoldBubbles(fit, allLineup, board.reserveTop);
 
@@ -107,7 +135,7 @@ describe("홀드 말풍선 자리", () => {
   it("홀드 자리의 주사위는 '되돌리기', 정렬 줄의 주사위는 '킵'이다", () => {
     const board = BOARDS[3];
     if (!board) throw new Error("확인 크기가 없다");
-    const fit = fitCamera({ ...board, avoid: [] });
+    const fit = fitCamera(board);
 
     const labels = layoutHoldBubbles(fit, CASES[2]?.slots ?? [], board.reserveTop).map((b) => [
       b.id,
