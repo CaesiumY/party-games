@@ -81,14 +81,25 @@ function matchOneLetter(token: Eojeol, word: string): number[] {
 
 // 그 줄에서 허용 목록의 구절이 나온 자리 가운데 하나가 걸린 말을 덮으면 허용한다.
 // 위치로 보므로 '물리 시뮬레이션' 은 '물리 시뮬레이션이' 도 덮고, 같은 줄의 다른 '시뮬레이션' 은 덮지 않는다.
+// 구절은 어절 첫머리(줄 처음, 띄어쓰기나 문장부호 뒤)에서 시작해야 한다. '비물리 시뮬레이션' 은 덮지 않는다.
+// 뒤쪽은 막지 않아서 조사가 붙어도 된다.
 function allowed(allowlist: AllowEntry[], line: string, word: string, at: number): boolean {
   return allowlist.some(
     ({ word: allowedWord, phrase }) =>
       allowedWord === word &&
       positionsOf(line, phrase).some(
-        (from) => from <= at && at + word.length <= from + phrase.length,
+        (from) =>
+          startsEojeol(line, from, phrase) &&
+          from <= at &&
+          at + word.length <= from + phrase.length,
       ),
   );
+}
+
+const BOUNDARY = /[\s\p{P}\p{S}]/u;
+
+function startsEojeol(line: string, from: number, phrase: string): boolean {
+  return from === 0 || BOUNDARY.test(line[from - 1] ?? "") || BOUNDARY.test(phrase[0] ?? "");
 }
 
 function positionsOf(line: string, phrase: string): number[] {
@@ -100,7 +111,8 @@ function positionsOf(line: string, phrase: string): number[] {
 }
 
 // 문서는 마크다운 해석기(mdast)로 읽는다. 맞춰 보는 덩어리는 문단·제목·표의 칸 하나씩이고
-// (목록·인용 안의 문단도 문단이다), 코드 블록·HTML·링크 정의는 보지 않는다. 링크는 글자만 보고
+// (목록·인용 안의 문단도 문단이다), 코드 블록·HTML(<br> 은 띄어쓰기로 봄)·링크 정의·맨 앞의 YAML
+// 머리말은 보지 않는다. 링크는 글자만 보고
 // 주소는 보지 않는다. 인라인 코드의 글자는 본다(문장 속 이름도 용어를 지켜야 해서).
 type MdNode = {
   type: string;
@@ -110,7 +122,18 @@ type MdNode = {
 };
 
 const PASSAGE = new Set(["paragraph", "heading", "tableCell"]);
-const SKIPPED = new Set(["code", "html", "definition", "image", "imageReference", "yaml"]);
+const SKIPPED = new Set(["code", "html", "definition", "image", "imageReference"]);
+
+// 파일 맨 앞의 YAML 머리말(--- 로 열고 --- 나 ... 로 닫는 줄들)을 같은 길이의 공백으로 지운다.
+// 줄바꿈은 남기므로, 뒤 본문의 원문 위치(줄·칸)가 그대로다. 해석기에는 빈 줄로 보인다.
+function blankFrontmatter(source: string): string {
+  const open = /^---[ \t]*\r?\n/.exec(source);
+  if (open === null) return source;
+  const close = /^(?:---|\.\.\.)[ \t]*$/m.exec(source.slice(open[0].length));
+  if (close === null) return source;
+  const end = open[0].length + close.index + close[0].length;
+  return source.slice(0, end).replace(/[^\r\n]/g, " ") + source.slice(end);
+}
 
 // 덩어리의 글과, 그 글의 각 글자가 원문의 몇 번째 글자였는지.
 type Passage = { text: string; origin: number[] };
@@ -122,7 +145,8 @@ function parse(source: string): MdNode {
   }) as MdNode;
 }
 
-function passages(source: string): Passage[] {
+function passages(original: string): Passage[] {
+  const source = blankFrontmatter(original);
   const result: Passage[] = [];
   const walk = (node: MdNode) => {
     if (SKIPPED.has(node.type)) return;
@@ -138,10 +162,14 @@ function passages(source: string): Passage[] {
   return result;
 }
 
+// 줄을 바꾸는 인라인 HTML(<br>, <br/>, <br />). 글자 사이를 띄어 쓴 것으로 본다.
+const HTML_BREAK = /^<br\s*\/?>$/i;
+
 function addInline(node: MdNode, passage: Passage, source: string): void {
-  if (SKIPPED.has(node.type)) return;
   const start = node.position?.start.offset ?? 0;
-  if (node.type === "break") {
+  const htmlBreak = node.type === "html" && HTML_BREAK.test(node.value ?? "");
+  if (!htmlBreak && SKIPPED.has(node.type)) return;
+  if (node.type === "break" || htmlBreak) {
     passage.text += " ";
     passage.origin.push(start);
     return;

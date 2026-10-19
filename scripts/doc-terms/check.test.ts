@@ -314,5 +314,34 @@ describe("findAvoidedWords", () => {
     it("인용 깊이가 다른 줄은 잇지 않는다", () => {
       expect(check(["> 파티", ">> 모드"].join("\n"))).toEqual([]);
     });
+
+    it("<br> 로 나눈 말은 띄어쓴 것으로 보고 맞춰 본다", () => {
+      expect(check("파티<br>모드, 파티<BR/>모드, 파티<br />모드")).toEqual([
+        [1, 1, "파티 모드"],
+        [1, 11, "파티 모드"],
+        [1, 22, "파티 모드"],
+      ]);
+    });
+
+    it("맨 앞의 YAML 머리말은 보지 않고, 그 뒤 본문은 원래 줄 번호로 보고한다", () => {
+      expect(
+        check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\n")),
+      ).toEqual([[5, 5, "파티 모드"]]);
+    });
+  });
+
+  it("허용 구절은 어절 첫머리에서 시작할 때만 허용한다(뒤에 조사는 붙어도 된다)", () => {
+    const hits = findAvoidedWords({
+      glossary: `**굴림 연출 (Roll Animation)**:\n정해진 결과를 보여 주는 것.\n_Avoid_: 시뮬레이션\n`,
+      docs: [
+        {
+          path: "docs/adr/0001.md",
+          text: ["비물리 시뮬레이션을 돌린다.", "(물리 시뮬레이션이) 정한다."].join("\n\n"),
+        },
+      ],
+      allowlist: [{ word: "시뮬레이션", phrase: "물리 시뮬레이션", reason: "물리 엔진의 계산" }],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[1, 5, "시뮬레이션"]]);
   });
 });
