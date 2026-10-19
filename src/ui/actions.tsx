@@ -1,3 +1,4 @@
+import { scorePreview } from "../engine/game";
 import { useGame, usePermissions } from "../store/store-context";
 
 /** 굴림·기록 버튼. 세로 배치에서는 판 영역 왼쪽 아래에 겹치고, 가로 배치에서는 판 바로 아래에 놓인다. */
@@ -5,6 +6,8 @@ export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> 
   const rolled = useGame((s) => s.game.rollsUsed > 0);
   const roll = useGame((s) => s.roll);
   const record = useGame((s) => s.record);
+  // 고른 카테고리가 성립하지 않으면(점수 미리보기 0) 스크래치임을 알린다.
+  const scratch = useGame((s) => s.selection !== null && scorePreview(s.game, s.selection) === 0);
   const can = usePermissions();
   return (
     <div className="actions" {...overlayAttr}>
@@ -12,7 +15,7 @@ export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> 
         {rolled ? "다시 던지기" : "주사위 던지기"}
       </button>
       <button type="button" className="record" disabled={!can.canRecord} onClick={() => record()}>
-        기록
+        {scratch ? "0점으로 기록" : "기록"}
       </button>
     </div>
   );
