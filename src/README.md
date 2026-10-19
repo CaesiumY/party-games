@@ -22,7 +22,7 @@
 - **굴림 연출 입구**: `scene/roll-presenter.ts` 의 `RollPresenter` — `{ rollId, dice: {id, value, held, column}[], onStopped(rollId), onLinedUp(rollId) }` 를 받는 R3F 컴포넌트. 굴림 결과는 굴림 버튼을 누를 때 이미 정해져 있다(ADR-0001). 구현은 `scene/presenters/` 에 파일로 더하고 `presenters/index.ts` 의 `animated` 만 바꾼다(#5). '동작 줄이기'가 켜져 있으면 `choosePresenter` 가 언제나 `instant`(순간 배치)를 고른다. 물리 연출은 `presenters/physics-presenter.tsx` 이고, 미리 굴리기·면 맞추기·궤적 재생은 React 없는 순수 모듈로 `presenters/physics/` 에 있다(node 에서 테스트).
 - **열 규칙**: `layout/columns.ts`. 굴림이 끝날 때만 `lineupColumns(dice, { finalRoll })` 로 열을 다시 받고, 홀드 토글은 열을 바꾸지 않는다. 주사위가 놓이는 자리(열·줄)는 저장소의 `slots()`(화면은 `useDiceSlots()`)가 정하며, 3번째 굴림의 정렬 끝 뒤에는 다섯 개 모두 홀드 자리다(표현일 뿐 엔진의 홀드는 그대로). 보이지 않는 주사위 버튼의 순서는 `screenOrder(slots)`.
 - **홀드**: 엔진 `toggleHold(state, die)`·`holdRejection`, 저장소 `toggleHold(die)`. 3D 탭(`scene/die-hit-targets.tsx`), 홀드 말풍선(`scene/hold-bubbles.tsx`, 자리 계산은 `layout/hold-bubbles.ts`), 보이지 않는 주사위 버튼(`a11y/dice-buttons.tsx`)이 모두 같은 저장소 명령을 쓴다. 말풍선 자리는 카메라 맞춤 값과 그 주사위의 열·줄로만 정해져, 다른 주사위를 홀드해도 움직이지 않는다.
-- **카메라 맞춤**: `layout/camera-fit.ts` 의 `fitCamera({ width, height, reserveTop, avoid })`. 판 위에 겹치는 요소에 `data-board-overlay` 를 붙이면 `scene/board-3d.tsx` 가 자리를 재서 넣는다. 맨 위에 붙은 것은 판을 아래로 내려 피하고, 나머지(세로 배치의 버튼 등)는 컵·정렬 줄이 겹치지 않게 피한다.
+- **카메라 맞춤**: `layout/camera-fit.ts` 의 `fitCamera({ width, height, reserveTop, avoid })`. 판 위에 겹치는 요소에 `data-board-overlay` 를 붙이면 `scene/board-3d.tsx` 가 자리를 재서 넣는다. 맨 위에 붙은 것은 판을 아래로 내려 피하고, 나머지는 판을 위아래로 옮기고 거리를 맞춰 피한다. 판 전체가 피하느라 판이 10% 넘게 작아지면(세로 배치의 버튼) 컵·정렬 줄·홀드 자리만 피하고 판 앞쪽 테두리·펠트는 덮이게 둔다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
 
 ## 테스트

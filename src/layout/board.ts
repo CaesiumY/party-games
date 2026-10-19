@@ -55,10 +55,19 @@ export function cupCorners(): Vec3[] {
 
 /** 정렬 줄 다섯 칸의 주사위를 감싸는 상자의 꼭짓점. */
 export function lineupCorners(): Vec3[] {
+  return rowCorners(BOARD.lineupZ);
+}
+
+/** 홀드 자리 다섯 칸의 주사위를 감싸는 상자의 꼭짓점. */
+export function holdRowCorners(): Vec3[] {
+  return rowCorners(BOARD.holdRowZ);
+}
+
+function rowCorners(rowZ: number): Vec3[] {
   const half = BOARD.die / 2;
   const points: Vec3[] = [];
   for (const x of [columnX(0) - half, columnX(4) + half]) {
-    for (const z of [BOARD.lineupZ - half, BOARD.lineupZ + half]) {
+    for (const z of [rowZ - half, rowZ + half]) {
       for (const y of [0, BOARD.die]) points.push([x, y, z]);
     }
   }
