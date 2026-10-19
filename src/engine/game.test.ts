@@ -331,6 +331,22 @@ describe("게임 끝", () => {
 
     expect(playTurns(almost, 1).finished).toBe(true);
   });
+
+  it("대전 모드는 기록하면 다음 플레이어 차례가 되고, 마지막 플레이어 뒤에 턴이 오르며, 끝나면 모두 12턴씩 했다", () => {
+    const start = startGame(["플레이어 1", "플레이어 2", "플레이어 3"]);
+    const seen = [1, 2, 3, 4].map((n) => playTurns(start, n));
+
+    expect(seen.map((s) => [s.currentPlayer, s.turn])).toEqual([
+      [1, 1],
+      [2, 1],
+      [0, 2],
+      [1, 2],
+    ]);
+
+    const done = playTurns(start, 36);
+    expect(done.finished).toBe(true);
+    expect(done.players.map((p) => Object.keys(p.scores).length)).toEqual([12, 12, 12]);
+  });
 });
 
 describe("모드", () => {
