@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import { record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
+import { gameMode, record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
 import { totalScore, upperSubtotal } from "./totals";
 import {
   CATEGORIES,
@@ -281,5 +281,56 @@ describe("홀드", () => {
     const next = ok(record(held, "choice"));
 
     expect(next.dice.every((die) => !die.held)).toBe(true);
+  });
+});
+
+describe("게임 끝", () => {
+  /** 턴마다 한 번 굴리고, 지금 플레이어의 맨 위 빈 카테고리에 기록한다. */
+  function playTurns(state: GameState, turns: number): GameState {
+    const source = scriptedDiceSource(Array.from({ length: turns }, () => [6, 6, 6, 6, 6]));
+    let next = state;
+    for (let i = 0; i < turns; i++) {
+      const player = next.players[next.currentPlayer];
+      const empty = CATEGORIES.find((category) => player?.scores[category] === undefined);
+      if (!empty) throw new Error("빈 카테고리가 없다");
+      next = ok(record(ok(roll(next, source)), empty));
+    }
+    return next;
+  }
+
+  it("연습 모드에서 12턴째를 기록하면 게임이 끝나고, 그 뒤의 굴림·홀드·기록은 거부된다", () => {
+    const eleven = playTurns(startGame(["플레이어 1"]), 11);
+    expect(eleven.finished).toBe(false);
+
+    const done = playTurns(eleven, 1);
+
+    expect(done.finished).toBe(true);
+    expect(done.turn).toBe(12);
+    expect(roll(done, scriptedDiceSource([[1, 1, 1, 1, 1]]))).toEqual({
+      ok: false,
+      reason: "game-over",
+    });
+    expect(toggleHold(done, 0)).toEqual({ ok: false, reason: "game-over" });
+    expect(record(done, "choice")).toEqual({ ok: false, reason: "game-over" });
+  });
+
+  it("대전 모드는 마지막 플레이어가 12턴째를 기록해야 끝난다", () => {
+    const almost = playTurns(startGame(["플레이어 1", "플레이어 2"]), 23);
+    expect(almost.finished).toBe(false);
+    expect(almost.currentPlayer).toBe(1);
+
+    expect(playTurns(almost, 1).finished).toBe(true);
+  });
+});
+
+describe("모드", () => {
+  it("플레이어가 1명이면 연습 모드, 2~4명이면 대전 모드다", () => {
+    const names = ["플레이어 1", "플레이어 2", "플레이어 3", "플레이어 4"];
+    expect([1, 2, 3, 4].map((n) => gameMode(startGame(names.slice(0, n))))).toEqual([
+      "practice",
+      "versus",
+      "versus",
+      "versus",
+    ]);
   });
 });
