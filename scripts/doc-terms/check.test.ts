@@ -38,6 +38,16 @@ describe("findAvoidedWords", () => {
     expect(hits.map((hit) => [hit.line, hit.word])).toEqual([[2, "통"]]);
   });
 
+  it("한 글자짜리 피할 말은 조사가 붙은 어절(칸이, 통을)이면 걸리지 않는다 — 이슈 #14 의 규칙", () => {
+    const hits = findAvoidedWords({
+      glossary: `**열 (Column)**:\n세로 위치.\n_Avoid_: 칸, 통\n`,
+      docs: [{ path: "docs/specs/a.md", text: "카테고리 칸이 빛난다. 통을 흔든다." }],
+      allowlist: [],
+    });
+
+    expect(hits).toEqual([]);
+  });
+
   it("가운뎃점이나 낫표로 이어 붙인 어절 안의 말도 그 경계에서부터 맞춰 본다", () => {
     const hits = findAvoidedWords({
       glossary: `**게임 (Game)**:\n한 판.\n_Avoid_: 매치, 라운드\n`,
@@ -321,6 +331,34 @@ describe("findAvoidedWords", () => {
         [1, 11, "파티 모드"],
         [1, 22, "파티 모드"],
       ]);
+    });
+
+    it("HTML 블록은 보이는 글자를 원래 위치로 맞춰 본다", () => {
+      expect(
+        check(
+          ["<div>대전은 파티 모드</div>", "", "<div>", "  <span>파티</span> 모드", "</div>"].join(
+            "\n",
+          ),
+        ),
+      ).toEqual([
+        [1, 10, "파티 모드"],
+        [4, 9, "파티 모드"],
+      ]);
+    });
+
+    it("HTML 블록의 속성·주석·script·style 안은 보지 않고, 다른 블록 태그끼리는 잇지 않는다", () => {
+      expect(
+        check(
+          [
+            '<div title="파티 모드">',
+            "<!-- 파티 모드 -->",
+            "<script>const a = '파티 모드';</script>",
+            "<style>/* 파티 모드 */</style>",
+            "<p>파티</p><p>모드</p>",
+            "</div>",
+          ].join("\n"),
+        ),
+      ).toEqual([]);
     });
 
     it("맨 앞의 YAML 머리말은 보지 않고, 그 뒤 본문은 원래 줄 번호로 보고한다", () => {

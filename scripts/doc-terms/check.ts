@@ -111,9 +111,9 @@ function positionsOf(line: string, phrase: string): number[] {
 }
 
 // 문서는 마크다운 해석기(mdast)로 읽는다. 맞춰 보는 덩어리는 문단·제목·표의 칸 하나씩이고
-// (목록·인용 안의 문단도 문단이다), 코드 블록·HTML(<br> 은 띄어쓰기로 봄)·링크 정의·맨 앞의 YAML
-// 머리말은 보지 않는다. 링크는 글자만 보고
-// 주소는 보지 않는다. 인라인 코드의 글자는 본다(문장 속 이름도 용어를 지켜야 해서).
+// (목록·인용 안의 문단도 문단이다), HTML 블록은 보이는 글자만 본다. 코드 블록·링크 정의·맨 앞의
+// YAML 머리말은 보지 않는다. 문단 안의 인라인 HTML 태그는 건너뛰되 <br> 은 띄어쓰기로 본다.
+// 링크는 글자만 보고 주소는 보지 않는다. 인라인 코드의 글자는 본다(문장 속 이름도 용어를 지켜야 해서).
 type MdNode = {
   type: string;
   value?: string;
@@ -149,6 +149,12 @@ function passages(original: string): Passage[] {
   const source = blankFrontmatter(original);
   const result: Passage[] = [];
   const walk = (node: MdNode) => {
+    if (node.type === "html" && node.position !== undefined) {
+      result.push(
+        ...htmlPassages(source, node.position.start.offset ?? 0, node.position.end.offset),
+      );
+      return;
+    }
     if (SKIPPED.has(node.type)) return;
     if (PASSAGE.has(node.type)) {
       const passage: Passage = { text: "", origin: [] };
@@ -159,6 +165,46 @@ function passages(original: string): Passage[] {
     for (const child of node.children ?? []) walk(child);
   };
   walk(parse(source));
+  return result;
+}
+
+// HTML 블록에서 화면에 보이는 글자만 뽑는다. 태그와 속성, 주석, <script>·<style> 의 내용은 뺀다.
+// 블록 태그(<p>, <div>, <li> 같은 것)가 나오면 덩어리를 끊어, 다른 블록의 글끼리 잇지 않는다.
+// <br> 은 띄어쓰기로, 그 밖의 태그(<span>, <b> 같은 것)는 없는 것으로 본다.
+const HTML_MARKUP =
+  /<!--[\s\S]*?-->|<(script|style)\b[\s\S]*?<\/\1\s*>|<\/?([a-zA-Z][\w-]*)[^>]*>/gi;
+const HTML_BLOCK_TAGS = new Set(
+  "address article aside blockquote dd details div dl dt figcaption figure footer h1 h2 h3 h4 h5 h6 header hr li main nav ol p pre section summary table tbody td tfoot th thead tr ul".split(
+    " ",
+  ),
+);
+
+function htmlPassages(source: string, start: number, end = source.length): Passage[] {
+  const result: Passage[] = [];
+  let passage: Passage = { text: "", origin: [] };
+  const addText = (from: number, to: number) => {
+    for (let k = from; k < to; k++) {
+      const char = source[k] ?? "";
+      passage.text += /\s/.test(char) ? " " : char;
+      passage.origin.push(k);
+    }
+  };
+  let cursor = start;
+  for (const m of source.slice(start, end).matchAll(HTML_MARKUP)) {
+    const at = start + m.index;
+    addText(cursor, at);
+    cursor = at + m[0].length;
+    const tag = m[2]?.toLowerCase();
+    if (tag !== undefined && HTML_BLOCK_TAGS.has(tag)) {
+      result.push(passage);
+      passage = { text: "", origin: [] };
+    } else if (tag === "br" || m[1] !== undefined || tag === undefined) {
+      passage.text += " ";
+      passage.origin.push(at);
+    }
+  }
+  addText(cursor, end);
+  result.push(passage);
   return result;
 }
 
