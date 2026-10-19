@@ -1,10 +1,12 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera } from "three";
-import { applyFit, fitCamera, type Rect } from "../layout/camera-fit";
-import { useGame } from "../store/store-context";
+import { applyFit, type CameraFit, fitCamera, type Rect } from "../layout/camera-fit";
+import { useDiceSlots, useGame } from "../store/store-context";
 import { BoardMesh } from "./board-mesh";
 import { choosePresenter } from "./choose-presenter";
+import { DieHitTargets } from "./die-hit-targets";
+import { HoldBubbles } from "./hold-bubbles";
 import { type OverlayReserve, overlayReserve } from "./overlay-reserve";
 import { PRESENTERS } from "./presenters";
 import type { PresentedDie } from "./roll-presenter";
@@ -18,7 +20,12 @@ export const OVERLAY_ATTR = "data-board-overlay";
  */
 export function Board3D() {
   const ref = useRef<HTMLDivElement>(null);
-  const reserve = useOverlayReserve(ref);
+  const { width, height, reserveTop, avoid } = useBoardArea(ref);
+  // 카메라와 홀드 말풍선이 같은 맞춤 값을 쓴다. 말풍선 자리는 이 값으로 투영해 정한다.
+  const fit = useMemo(
+    () => (width && height ? fitCamera({ width, height, reserveTop, avoid }) : null),
+    [width, height, reserveTop, avoid],
+  );
   return (
     <div className="board" ref={ref}>
       <Canvas
@@ -30,7 +37,7 @@ export function Board3D() {
         role="img"
       >
         <color attach="background" args={["#1b120d"]} />
-        <CameraRig reserve={reserve} />
+        {fit && <CameraRig fit={fit} />}
         <hemisphereLight args={["#ffe7c4", "#2a0d08", 0.9]} />
         <directionalLight
           position={[-2, 10, 4]}
@@ -44,42 +51,60 @@ export function Board3D() {
         />
         <BoardMesh />
         <PresenterSlot />
+        <DieHitTargets />
       </Canvas>
+      {fit && <HoldBubbles fit={fit} topLimit={reserveTop} />}
     </div>
   );
 }
 
 /** 고정 카메라. 사용자가 시점을 돌릴 수 없다. 판 영역 크기나 겹친 표시가 바뀔 때만 다시 맞춘다. */
-function CameraRig({ reserve }: { reserve: OverlayReserve }) {
+function CameraRig({ fit }: { fit: CameraFit }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
+  // size 는 캔버스가 크기를 바꾼 뒤 다시 맞추려고 넣는다(R3F 가 크기를 바꿀 때 aspect 를 덮어쓴다).
   useLayoutEffect(() => {
     if (!size.width || !size.height) return;
-    applyFit(camera, fitCamera({ width: size.width, height: size.height, ...reserve }));
+    applyFit(camera, fit);
     invalidate();
-  }, [camera, size.width, size.height, reserve, invalidate]);
+  }, [camera, fit, size.width, size.height, invalidate]);
   return null;
 }
 
-/** 저장소의 굴림 결과·홀드 상태·열을 연출 입구에 넘기고, 입구가 알리는 두 시점을 저장소에 돌려준다. */
+/**
+ * 저장소의 굴림 결과·홀드 상태·열을 연출 입구에 넘기고, 입구가 알리는 두 시점을 저장소에 돌려준다.
+ * `held` 는 그 주사위가 홀드 자리에 놓이는지다. 굴림 연출 동안은 엔진의 홀드 그대로이고,
+ * 3번째 굴림의 정렬 끝 뒤에는(굴림이 아닌 갱신으로) 다섯 개 모두 홀드 자리가 된다.
+ */
 function PresenterSlot() {
   const reducedMotion = useGame((s) => s.reducedMotion);
   const rollId = useGame((s) => s.rollId);
   const gameDice = useGame((s) => s.game.dice);
-  const columns = useGame((s) => s.columns);
+  const slots = useDiceSlots();
   const onStopped = useGame((s) => s.presenterStopped);
   const onLinedUp = useGame((s) => s.presenterLinedUp);
   const dice = useMemo<PresentedDie[]>(
-    () => gameDice.map((die) => ({ ...die, column: columns[die.id] ?? die.id })),
-    [gameDice, columns],
+    () =>
+      gameDice.map((die) => {
+        const slot = slots[die.id];
+        return { ...die, held: slot?.row === "hold", column: slot?.column ?? die.id };
+      }),
+    [gameDice, slots],
   );
   const Presenter = choosePresenter(reducedMotion, PRESENTERS);
   return <Presenter rollId={rollId} dice={dice} onStopped={onStopped} onLinedUp={onLinedUp} />;
 }
 
-function useOverlayReserve(ref: RefObject<HTMLDivElement | null>): OverlayReserve {
-  const [reserve, setReserve] = useState<OverlayReserve>({ reserveTop: 0, avoid: [] });
+interface BoardArea extends OverlayReserve {
+  /** 판 영역 크기(px). */
+  width: number;
+  height: number;
+}
+
+/** 판 영역의 크기와, 그 위에 겹친 표시들이 차지한 자리. */
+function useBoardArea(ref: RefObject<HTMLDivElement | null>): BoardArea {
+  const [area, setArea] = useState<BoardArea>({ width: 0, height: 0, reserveTop: 0, avoid: [] });
   useLayoutEffect(() => {
     const container = ref.current;
     if (!container) return;
@@ -97,8 +122,8 @@ function useOverlayReserve(ref: RefObject<HTMLDivElement | null>): OverlayReserv
           bottom: Math.min(r.bottom, base.bottom) - base.top,
         };
       });
-      const next = overlayReserve(rects);
-      setReserve((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+      const next = { width: base.width, height: base.height, ...overlayReserve(rects) };
+      setArea((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -110,5 +135,5 @@ function useOverlayReserve(ref: RefObject<HTMLDivElement | null>): OverlayReserv
       window.removeEventListener("resize", measure);
     };
   }, [ref]);
-  return reserve;
+  return area;
 }

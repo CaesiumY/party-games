@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { DiceButtons } from "../a11y/dice-buttons";
 import { Actions } from "./actions";
 import { CurrentPlayer, RollsLeft } from "./board-overlays";
 import { Scorecard } from "./scorecard";
@@ -19,6 +20,7 @@ export function GameScreen({ Board }: { Board: ComponentType }) {
       <CurrentPlayer overlayAttr={overlay} />
       <Actions overlayAttr={overlay} />
       <Scorecard />
+      <DiceButtons />
     </main>
   );
 }

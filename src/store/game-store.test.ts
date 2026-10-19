@@ -109,6 +109,117 @@ describe("조작 잠금", () => {
   });
 });
 
+describe("홀드", () => {
+  /** 화면 순서(홀드 자리 → 정렬 줄, 각각 왼쪽 열부터)로 읽은 [눈, 줄]. */
+  const view = (store: ReturnType<typeof storeWith>) => {
+    const { game } = store.getState();
+    const slots = store.getState().slots();
+    return [...slots]
+      .sort((a, b) => (a.row === b.row ? a.column - b.column : a.row === "hold" ? -1 : 1))
+      .map((s) => `${game.dice[s.id]?.value}${s.row === "hold" ? "↑" : ""}`)
+      .join(" ");
+  };
+
+  it("정렬이 끝난 뒤 홀드하면 그 주사위만 같은 열의 홀드 자리로 가고, 다른 주사위는 제자리다", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+    const before = store.getState().slots();
+
+    expect(store.getState().toggleHold(4)).toEqual({ ok: true });
+
+    const after = store.getState().slots();
+    expect(after[4]).toEqual({ ...before[4], row: "hold" });
+    expect(after.filter((_, id) => id !== 4)).toEqual(before.filter((_, id) => id !== 4));
+  });
+
+  it("연달아 두 주사위를 홀드하면 둘 다 홀드되고, 다시 누르면 같은 열의 정렬 줄로 내려온다", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+    expect(view(store)).toBe("1 1 3 4 5");
+
+    store.getState().toggleHold(0);
+    store.getState().toggleHold(2);
+    expect(store.getState().game.dice.map((d) => d.held)).toEqual([
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
+    expect(store.getState().slots()[0]).toEqual({ id: 0, column: 4, row: "hold" });
+
+    store.getState().toggleHold(0);
+    expect(store.getState().slots()[0]).toEqual({ id: 0, column: 4, row: "lineup" });
+  });
+
+  it("다시 굴리면 홀드 자리는 왼쪽 열부터, 다시 굴린 주사위는 그 오른쪽 열부터 각각 오름차순이다", () => {
+    const store = storeWith([
+      [6, 1, 6, 2, 3],
+      [4, 1, 5],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    store.getState().toggleHold(2);
+    store.getState().toggleHold(0);
+
+    store.getState().roll();
+    finishPresentation(store);
+
+    expect(view(store)).toBe("6↑ 6↑ 1 4 5");
+  });
+
+  it("3번째 굴림이 끝나면 다섯 개가 모두 홀드 자리에 오름차순으로 모이지만, 엔진의 홀드는 그대로다", () => {
+    const store = storeWith([
+      [5, 3, 6, 4, 5],
+      [3, 4],
+      [1, 2],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    for (const id of [0, 2, 4] as const) store.getState().toggleHold(id);
+    store.getState().roll();
+    finishPresentation(store);
+
+    store.getState().roll();
+    // 연출 입구는 굴림 동안 엔진의 홀드 그대로 받는다(홀드한 것만 컵에 넣지 않는다).
+    expect(
+      store
+        .getState()
+        .slots()
+        .map((s) => s.row),
+    ).toEqual(["hold", "lineup", "hold", "lineup", "hold"]);
+    finishPresentation(store);
+
+    expect(view(store)).toBe("1↑ 2↑ 5↑ 5↑ 6↑");
+    expect(store.getState().game.dice.map((d) => d.held)).toEqual([true, false, true, false, true]);
+    expect(store.getState().permissions().canHold(1)).toBe(false);
+    expect(store.getState().toggleHold(1)).toEqual({ ok: false, reason: "no-rolls-left" });
+  });
+
+  it("굴림 연출 중과 첫 굴림 전에는 홀드가 거부된다", () => {
+    const store = storeWith([[1, 2, 3, 4, 5]]);
+    expect(store.getState().toggleHold(0)).toEqual({ ok: false, reason: "not-rolled-yet" });
+
+    store.getState().roll();
+
+    expect(store.getState().toggleHold(0)).toEqual({ ok: false, reason: "presenting" });
+    expect(store.getState().game.dice[0]?.held).toBe(false);
+  });
+
+  it("다섯 개를 모두 홀드하면 굴림 버튼이 막힌다", () => {
+    const store = storeWith([[1, 2, 3, 4, 5]]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    for (const id of [0, 1, 2, 3, 4] as const) store.getState().toggleHold(id);
+
+    expect(store.getState().permissions().canRoll).toBe(false);
+    expect(store.getState().roll()).toEqual({ ok: false, reason: "all-held" });
+  });
+});
+
 describe("점수 미리보기가 보이는 때", () => {
   it("굴러가는 동안에는 숨고, 멈춤부터 보인다", () => {
     const store = storeWith([[1, 1, 1, 1, 1]]);
