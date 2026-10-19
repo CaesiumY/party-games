@@ -431,8 +431,9 @@ describe("보너스 알림", () => {
     expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", false);
   });
 
-  it("윗칸을 다 채웠는데 63 미만이면 「+0」만 뜬다", async () => {
-    const user = userEvent.setup();
+  it("윗칸을 다 채웠는데 63 미만이면 「+0」만 뜨고, 알림 내내(약 2초) 한 번의 연출로 보인다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderGame(Array.from({ length: 6 }, () => [1, 2, 3, 4, 6] as DieValue[]));
     for (const name of ["에이스", "듀스", "트레이", "포", "파이브", "식스"]) {
       await user.click(screen.getByRole("button", { name: /던지기/ }));
@@ -440,7 +441,32 @@ describe("보너스 알림", () => {
       await user.click(screen.getByRole("button", { name: /기록/ }));
     }
 
+    const text = screen.getByText("+0");
     expect(screen.getByRole("status").textContent).toBe("+0");
+    // 나타났다 사라지는 연출 길이가 알림 길이와 같아야 끝나기 전에 사라지지 않는다.
+    expect(text.style.animationDuration).toBe("2000ms");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByText("+0")).toBe(text);
+  });
+
+  it("「보너스!」와 「+35」는 각각 떠 있는 1초 동안의 연출로 보인다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderGame(Array.from({ length: 6 }, (_, i) => Array(5).fill(i + 1) as DieValue[]));
+    for (const name of ["에이스", "듀스", "트레이", "포", "파이브"]) {
+      await user.click(screen.getByRole("button", { name: /던지기/ }));
+      await user.click(sheet().getByRole("button", { name }));
+      await user.click(screen.getByRole("button", { name: /기록/ }));
+    }
+
+    expect(screen.getByText("보너스!").style.animationDuration).toBe("1000ms");
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText("+35").style.animationDuration).toBe("1000ms");
   });
 });
 
