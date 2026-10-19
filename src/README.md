@@ -24,6 +24,10 @@
 - **홀드**: 엔진 `toggleHold(state, die)`·`holdRejection`, 저장소 `toggleHold(die)`. 3D 탭(`scene/die-hit-targets.tsx`), 홀드 말풍선(`scene/hold-bubbles.tsx`, 자리 계산은 `layout/hold-bubbles.ts`), 보이지 않는 주사위 버튼(`a11y/dice-buttons.tsx`)이 모두 같은 저장소 명령을 쓴다. 말풍선 자리는 카메라 맞춤 값과 그 주사위의 열·줄로만 정해져, 다른 주사위를 홀드해도 움직이지 않는다.
 - **카메라 맞춤**: `layout/camera-fit.ts` 의 `fitCamera({ width, height, reserveTop, avoid })`. 판 위에 겹치는 요소에 `data-board-overlay` 를 붙이면 `scene/board-3d.tsx` 가 자리를 재서 넣는다. 맨 위에 붙은 것은 판을 아래로 내려 피하고, 나머지(세로 배치의 버튼 등)는 컵·정렬 줄이 겹치지 않게 피한다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
+- **기여 주사위**: 점수 계산 표(`engine/scoring.ts`)가 점수와 함께 기여 주사위도 낸다(`contributingFor`). 엔진 조회는 `contributingDice(state, category)`, 화면은 `useContributingDice()`(선택한 카테고리 기준). 3D 빛은 `scene/contributing-glow.tsx` 가 정렬 줄·홀드 자리의 열 위치에 겹쳐 그려서, 연출 구현(#5·#11)은 몰라도 된다.
+- **성립 알림**: 엔진 `comboCallout(state)` 가 띄울 카테고리를 정하고, 저장소가 정렬 끝(`presenterLinedUp`)에 `callout` 으로 들고 있다가 `calloutEnded(rollId)`·다시 굴림·기록에 지운다. 화면은 `ui/notices.tsx`.
+- **색종이**: `ui/confetti.tsx` 의 `<Confetti onDone? />`. 붙이면 한 번 터지고, 다시 터뜨리려면 `key` 를 바꾼다. '동작 줄이기'면 스스로 아무것도 그리지 않으므로 쓰는 쪽이 따로 막지 않아도 된다(결과 화면 #9 도 그대로 쓴다).
+- **차례 넘김 미루기(보너스 알림)**: 엔진은 기록과 함께 바로 다음 차례로 넘어간다(저장·복원도 그 상태). 기록이 보너스 알림(엔진 `bonusNotice(before, after)`: "+35"/"+0")을 낳으면 저장소가 `bonusNotice` 를 들고, 그동안 화면의 지금 차례는 방금 기록한 플레이어다(`shownPlayer()`, 화면은 `useShownPlayer()`). 굴림과 "?"(`canOpenHelp`)는 잠긴다. 알림 표시가 끝나면(`bonusNoticeEnded(id)`) `bonusNotice` 가 지워지고 `shownPlayer` 가 엔진의 지금 차례로 바뀐다 — **이 순간이 화면의 차례 넘김**이다. 차례 배너(#9)는 `useShownPlayer()` 가 바뀔 때 띄우고, 결과 화면은 게임이 끝났고 `bonusNotice` 가 없을 때 띄운다. 차례 배너 동안의 "?" 잠금은 `helpBlocker` 에 더한다.
 
 ## 테스트
 
