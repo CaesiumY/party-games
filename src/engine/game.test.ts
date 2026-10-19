@@ -198,6 +198,51 @@ describe("저장과 복원", () => {
     expect(continueFrom(restored)).toEqual(continueFrom(midGame));
     expect(continueFrom(restored).players.map((p) => p.scores.choice)).toEqual([20, 26]);
   });
+
+  it("홀드한 채 저장했다 복원한 게임을 끝까지 진행하면, 끊기지 않은 게임과 같은 결과다", () => {
+    // 굴림 요청만으로 눈이 정해지는 공급원이라, 끊긴 게임과 끊기지 않은 게임이 같은 눈을 받는다.
+    const source: DiceSource = ({ player, turn, rollNumber, count }) =>
+      Array.from(
+        { length: count },
+        (_, i) => (((player + turn * 3 + rollNumber + i) % 6) + 1) as DieValue,
+      );
+    /** 한 턴: 굴리고, 첫 주사위를 홀드하고, 다시 굴린 뒤 맨 위 빈 카테고리에 기록한다. */
+    const playTurn = (state: GameState) => {
+      const held = ok(toggleHold(ok(roll(state, source)), 0));
+      const rolled = ok(roll(held, source));
+      const scores = rolled.players[rolled.currentPlayer]?.scores ?? {};
+      const empty = CATEGORIES.find((category) => scores[category] === undefined);
+      if (!empty) throw new Error("빈 카테고리가 없다");
+      return ok(record(rolled, empty));
+    };
+    const playToEnd = (state: GameState) => {
+      let s = state;
+      while (!s.finished) s = playTurn(s);
+      return s;
+    };
+
+    // 7턴째 둘째 플레이어가 한 번 굴리고 홀드한 순간에 끊긴다.
+    let midGame = startGame(["가", "나"]);
+    for (let i = 0; i < 13; i++) midGame = playTurn(midGame);
+    midGame = ok(toggleHold(ok(roll(midGame, source)), 2));
+    expect(midGame).toMatchObject({ turn: 7, currentPlayer: 1, rollsUsed: 1 });
+
+    const restored: GameState = JSON.parse(JSON.stringify(midGame));
+    const finishFrom = (state: GameState) => {
+      const rolled = ok(roll(state, source));
+      const scores = rolled.players[rolled.currentPlayer]?.scores ?? {};
+      const empty = CATEGORIES.find((category) => scores[category] === undefined);
+      if (!empty) throw new Error("빈 카테고리가 없다");
+      return playToEnd(ok(record(rolled, empty)));
+    };
+
+    const uninterrupted = finishFrom(midGame);
+    expect(uninterrupted.finished).toBe(true);
+    expect(finishFrom(restored)).toEqual(uninterrupted);
+    expect(finishFrom(restored).players.map(totalScore)).toEqual(
+      uninterrupted.players.map(totalScore),
+    );
+  });
 });
 
 describe("주사위 정체성", () => {

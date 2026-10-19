@@ -715,6 +715,14 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* 시작 화면의 이어 하기·새 게임 고르기(#10). */
+.resume {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
 /* 시작 화면의 인원·이름 입력. */
 .setup {
   display: flex;
