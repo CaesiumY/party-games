@@ -617,3 +617,53 @@ describe("'동작 줄이기'가 켜져 있으면 옮겨 가는 이동이 없다"
     expect(store.getState().permissions().canSelect("choice")).toBe(true);
   });
 });
+
+describe('플레이 방법("?") 잠금', () => {
+  it("첫 굴림 전과 정렬 끝 뒤에는 열 수 있고, 굴림 버튼을 누른 때부터 정렬 끝까지는 열 수 없다", () => {
+    const store = storeWith([[1, 2, 3, 4, 5]]);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+
+    store.getState().roll();
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+    const { presentation } = store.getState();
+    if (presentation.phase !== "idle") store.getState().presenterStopped(presentation.rollId);
+    expect(store.getState().presentation.phase).toBe("stopped");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    const stopped = store.getState().presentation;
+    if (stopped.phase !== "idle") store.getState().presenterLinedUp(stopped.rollId);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+
+  it("3번째 굴림 뒤 다섯 개가 홀드 자리로 올라가는 동안 열 수 없고, 다 올라가면 열 수 있다", () => {
+    const store = storeWith([
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      store.getState().roll();
+      expect(store.getState().permissions().canOpenHelp).toBe(false);
+      finishPresentation(store);
+    }
+
+    expect(store.getState().presentation.phase).toBe("auto-moving");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    for (const die of [0, 1, 2, 3, 4] as const) store.getState().presenterDieSettled(die);
+
+    expect(store.getState().presentation.phase).toBe("idle");
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+
+  it("홀드·홀드 풀기로 주사위가 옮겨 가는 동안에는 막지 않는다", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    store.getState().toggleHold(0);
+
+    expect(store.getState().movingDice).toEqual([0]);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+});
