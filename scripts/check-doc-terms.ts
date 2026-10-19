@@ -7,8 +7,10 @@ import { type AllowEntry, type Doc, findAvoidedWords } from "./doc-terms/check.t
 const root = join(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
+// 하위 폴더까지 모두 훑는다. 경로는 운영체제와 상관없이 / 로 적는다.
 function markdownIn(dir: string): Doc[] {
-  return readdirSync(join(root, dir))
+  return readdirSync(join(root, dir), { recursive: true, encoding: "utf8" })
+    .map((name) => name.replaceAll("\\", "/"))
     .filter((name) => name.endsWith(".md"))
     .sort()
     .map((name) => {

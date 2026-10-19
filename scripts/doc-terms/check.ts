@@ -110,6 +110,40 @@ function prose(line: string): { text: string; origin: number[] } {
   return { text: origin.map((k) => line[k]).join(""), origin };
 }
 
+// 맞춰 보는 덩어리. 한 문단의 줄들을 띄어쓰기 하나로 이은 글과, 그 글의 각 글자가 원래 몇 번째
+// 줄(0부터)의 몇 번째 글자였는지를 함께 든다.
+type Passage = { text: string; origin: { line: number; column: number }[] };
+
+// 다음 줄과 이어질 수 없는 줄(제목·표의 줄)과, 앞 줄에 이어지지 않고 새 블록을 여는 줄(제목·목록
+// 항목·표의 줄·인용).
+const STANDALONE = /^\s*(#{1,6}\s|\|)/;
+const BLOCK_START = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\||>)/;
+const FENCE = /^\s*(```|~~~)/;
+
+// 마크다운의 부드러운 줄바꿈(빈 줄 없이 이어 쓴 줄)은 한 문단이라 이어서 맞춰 본다. 빈 줄·제목·
+// 목록 항목·표의 줄·코드 블록에서는 잇지 않는다. 코드 블록 안의 줄은 한 줄씩 따로 본다.
+function passages(lines: string[]): Passage[] {
+  const result: Passage[] = [];
+  let open: Passage | null = null;
+  let inFence = false;
+  lines.forEach((line, index) => {
+    const fence = FENCE.test(line);
+    const alone = inFence || fence || line.trim() === "" || STANDALONE.test(line);
+    if (fence) inFence = !inFence;
+    const plain = prose(line);
+    const origin = plain.origin.map((column) => ({ line: index, column }));
+    if (open !== null && !alone && !BLOCK_START.test(line)) {
+      open.origin.push({ line: index, column: 0 }, ...origin);
+      open.text += ` ${plain.text}`;
+    } else {
+      open = { text: plain.text, origin };
+      result.push(open);
+    }
+    if (alone) open = null;
+  });
+  return result;
+}
+
 export function findAvoidedWords(input: {
   glossary: string;
   docs: Doc[];
@@ -118,21 +152,27 @@ export function findAvoidedWords(input: {
   const avoided = readGlossary(input.glossary);
   const hits: Hit[] = [];
   for (const doc of input.docs) {
-    doc.text.split(/\r?\n/).forEach((text, index) => {
-      // 맞춰 보기와 허용 목록은 표시를 걷어 낸 글에서, 보고하는 위치는 원래 줄에서.
-      const plain = prose(text);
-      const tokens = eojeols(plain.text);
+    const lines = doc.text.split(/\r?\n/);
+    // 맞춰 보기와 허용 목록은 표시를 걷어 내고 문단을 이은 글에서, 보고하는 위치는 원래 줄에서.
+    for (const passage of passages(lines)) {
+      const tokens = eojeols(passage.text);
       tokens.forEach((_, i) => {
         for (const { word, term } of avoided) {
           for (const at of matchesAt(tokens, i, word)) {
-            if (!allowed(input.allowlist, plain.text, word, at)) {
-              const column = (plain.origin[at] ?? at) + 1;
-              hits.push({ path: doc.path, line: index + 1, column, word, term, text });
-            }
+            const where = passage.origin[at];
+            if (where === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
+            hits.push({
+              path: doc.path,
+              line: where.line + 1,
+              column: where.column + 1,
+              word,
+              term,
+              text: lines[where.line] ?? "",
+            });
           }
         }
       });
-    });
+    }
   }
   return hits;
 }
