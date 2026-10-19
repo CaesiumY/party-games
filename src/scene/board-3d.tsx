@@ -5,6 +5,7 @@ import { applyFit, type CameraFit, fitCamera, type Rect } from "../layout/camera
 import { useDiceSlots, useGame } from "../store/store-context";
 import { BoardMesh } from "./board-mesh";
 import { choosePresenter } from "./choose-presenter";
+import { ContributingGlow } from "./contributing-glow";
 import { DieHitTargets } from "./die-hit-targets";
 import { HoldBubbles } from "./hold-bubbles";
 import { type OverlayReserve, overlayReserve } from "./overlay-reserve";
@@ -38,23 +39,39 @@ export function Board3D() {
       >
         <color attach="background" args={["#1b120d"]} />
         {fit && <CameraRig fit={fit} />}
-        <hemisphereLight args={["#ffe7c4", "#2a0d08", 0.9]} />
-        <directionalLight
-          position={[-2, 10, 4]}
-          intensity={2.2}
-          castShadow
-          shadow-mapSize={[1024, 1024]}
-          shadow-camera-left={-6}
-          shadow-camera-right={6}
-          shadow-camera-top={6}
-          shadow-camera-bottom={-6}
-        />
+        <SceneLights />
         <BoardMesh />
         <PresenterSlot />
+        <ContributingGlow />
         <DieHitTargets />
       </Canvas>
       {fit && <HoldBubbles fit={fit} topLimit={reserveTop} />}
     </div>
+  );
+}
+
+/**
+ * 조명(카지노 펠트 룩): 따뜻한 하늘빛 약하게 + 판 위 왼쪽 앞에서 비추는 스포트라이트 하나.
+ * 스포트라이트 가장자리가 판 바깥으로 갈수록 어두워져 테이블 조명 느낌을 낸다.
+ * 그림자는 이 조명 하나만 만들고 그림자 지도는 1024² 로 둔다(중급 휴대폰 부담을 줄이려고).
+ */
+function SceneLights() {
+  return (
+    <>
+      <hemisphereLight args={["#ffe7c4", "#2a0d08", 0.55]} />
+      <spotLight
+        color="#fff1d8"
+        position={[-1.5, 11, 3]}
+        intensity={220}
+        distance={30}
+        angle={0.62}
+        penumbra={0.55}
+        decay={1.6}
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-bias={-0.0004}
+      />
+    </>
   );
 }
 
