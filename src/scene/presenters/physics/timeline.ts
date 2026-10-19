@@ -125,7 +125,10 @@ export function rollFrame(script: RollScript, t: number): RollFrame {
 
   const held = script.held.map((die) => ({
     id: die.id,
-    ...(rise > 0 ? tween(die.from, die.to, rise, SHIFT_LIFT) : die.from),
+    // 열이 그대로면 제자리에 둔다(포물선으로 들썩이지 않게).
+    ...(rise > 0 && !samePose(die.from, die.to)
+      ? tween(die.from, die.to, rise, SHIFT_LIFT)
+      : die.from),
     visible: true,
   }));
 
@@ -135,6 +138,10 @@ export function rollFrame(script: RollScript, t: number): RollFrame {
     stopped: stopAt !== null && t >= stopAt,
     linedUp: riseStart !== null && rise >= 1,
   };
+}
+
+function samePose(a: ShownPose, b: ShownPose): boolean {
+  return a.position.every((v, i) => v === b.position[i]) && a.quaternion.equals(b.quaternion);
 }
 
 /** 컵 입구 바로 안쪽. 주사위는 여기까지 날아가 숨는다. */

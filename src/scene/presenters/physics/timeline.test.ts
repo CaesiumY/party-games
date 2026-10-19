@@ -89,6 +89,14 @@ describe("굴림 연출 시간표", () => {
     expect(poseOf(rollFrame(s, lineupEnd(s)), 4)?.position).toEqual(heldDie.to.position);
   });
 
+  it("열이 그대로인 홀드 자리의 주사위는 정렬 때도 움직이지 않는다", () => {
+    const stays: DieScript = { id: 3, from: heldDie.to, to: heldDie.to };
+    const s: RollScript = { ...script(fakePlan([0, 1])), held: [stays] };
+    for (const t of [stopAt(s) + STOPPED_HOLD_S + TIMING.rise / 2, lineupEnd(s)]) {
+      expect(poseOf(rollFrame(s, t), 3)?.position).toEqual(stays.from.position);
+    }
+  });
+
   it("굴린 주사위는 컵에 들어가 숨었다가, 컵이 다 누운 순간 궤적의 첫 자세로 나온다", () => {
     const s = script(fakePlan([0, 1]));
     expect(poseOf(rollFrame(s, s.start), 0)?.position).toEqual(lineupDie(0, 0).from.position);
