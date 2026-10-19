@@ -346,6 +346,20 @@ describe("findAvoidedWords", () => {
       ]);
     });
 
+    it("HTML 블록의 문자 참조(이름·10진·16진)를 풀어 일반 문단과 같게 맞춰 본다", () => {
+      expect(
+        check(
+          ["<p>파티&nbsp;모드</p>", "", "<p>파티&#32;모드</p>", "", "<p>파티&#x20;모드</p>"].join(
+            "\n",
+          ),
+        ),
+      ).toEqual([
+        [1, 4, "파티 모드"],
+        [3, 4, "파티 모드"],
+        [5, 4, "파티 모드"],
+      ]);
+    });
+
     it("HTML 블록의 속성·주석·script·style 안은 보지 않고, 다른 블록 태그끼리는 잇지 않는다", () => {
       expect(
         check(
@@ -381,5 +395,32 @@ describe("findAvoidedWords", () => {
     });
 
     expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[1, 5, "시뮬레이션"]]);
+  });
+
+  it("허용 구절은 원문의 띄어쓰기가 두 칸 이상이어도 한 칸으로 보고 맞춰 본다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**홀드 (Hold)**:\n주사위를 남겨 두는 것.\n_Avoid_: 잠금\n`,
+      docs: [{ path: "docs/specs/a.md", text: "이 구간은 조작  잠금 이다. 잠금 은 안 된다." }],
+      allowlist: [{ word: "잠금", phrase: "조작 잠금", reason: "조작을 막는 구간" }],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[1, 18, "잠금"]]);
+  });
+
+  describe("물결표", () => {
+    const glossary = `**윗칸 (Upper Section)**:\n1~6 눈 카테고리.\n_Avoid_: 원즈~식시즈, 1~6칸\n`;
+    const check = (text: string) =>
+      findAvoidedWords({ glossary, docs: [{ path: "docs/specs/a.md", text }], allowlist: [] }).map(
+        (hit) => [hit.line, hit.column, hit.word],
+      );
+
+    it("한 개짜리 물결표는 취소선으로 읽지 않아, 같은 문단에 다른 ~ 가 있어도 걸린다", () => {
+      expect(check("1~6칸을 채운다. 플레이어는 1~4명이다.")).toEqual([[1, 1, "1~6칸"]]);
+      expect(check("원즈~식시즈를 쓴다. 1~4명.")).toEqual([[1, 1, "원즈~식시즈"]]);
+    });
+
+    it("두 개짜리 물결표 취소선 안의 글은 그대로 검사한다", () => {
+      expect(check("~~1~6칸은 옛 이름~~이다.")).toEqual([[1, 3, "1~6칸"]]);
+    });
   });
 });

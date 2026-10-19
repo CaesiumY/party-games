@@ -82,18 +82,38 @@ function matchOneLetter(token: Eojeol, word: string): number[] {
 // 그 줄에서 허용 목록의 구절이 나온 자리 가운데 하나가 걸린 말을 덮으면 허용한다.
 // 위치로 보므로 '물리 시뮬레이션' 은 '물리 시뮬레이션이' 도 덮고, 같은 줄의 다른 '시뮬레이션' 은 덮지 않는다.
 // 구절은 어절 첫머리(줄 처음, 띄어쓰기나 문장부호 뒤)에서 시작해야 한다. '비물리 시뮬레이션' 은 덮지 않는다.
-// 뒤쪽은 막지 않아서 조사가 붙어도 된다.
+// 뒤쪽은 막지 않아서 조사가 붙어도 된다. 피할 말을 찾을 때처럼 띄어쓰기는 몇 칸이든 한 칸으로 본다
+// ('조작  잠금' 도 '조작 잠금' 이다).
 function allowed(allowlist: AllowEntry[], line: string, word: string, at: number): boolean {
-  return allowlist.some(
-    ({ word: allowedWord, phrase }) =>
-      allowedWord === word &&
-      positionsOf(line, phrase).some(
-        (from) =>
-          startsEojeol(line, from, phrase) &&
-          from <= at &&
-          at + word.length <= from + phrase.length,
-      ),
-  );
+  const { text, toCollapsed } = collapseSpaces(line);
+  const start = toCollapsed[at] ?? at;
+  return allowlist.some(({ word: allowedWord, phrase }) => {
+    if (allowedWord !== word) return false;
+    const wanted = phrase.replace(/\s+/g, " ");
+    return positionsOf(text, wanted).some(
+      (from) =>
+        startsEojeol(text, from, wanted) &&
+        from <= start &&
+        start + word.length <= from + wanted.length,
+    );
+  });
+}
+
+// 띄어쓰기가 이어진 곳을 한 칸으로 줄인 글과, 원래 글의 각 위치가 줄인 글의 몇 번째인지.
+function collapseSpaces(line: string): { text: string; toCollapsed: number[] } {
+  let text = "";
+  const toCollapsed: number[] = [];
+  for (let k = 0; k < line.length; k++) {
+    const char = line[k] ?? "";
+    const space = /\s/.test(char);
+    if (space && /\s/.test(line[k - 1] ?? "")) {
+      toCollapsed.push(text.length - 1);
+      continue;
+    }
+    toCollapsed.push(text.length);
+    text += space ? " " : char;
+  }
+  return { text, toCollapsed };
 }
 
 const BOUNDARY = /[\s\p{P}\p{S}]/u;
@@ -140,7 +160,10 @@ type Passage = { text: string; origin: number[] };
 
 function parse(source: string): MdNode {
   return fromMarkdown(source, {
-    extensions: [gfm()],
+    // 한 개짜리 ~ 는 취소선으로 읽지 않는다. 스펙에 흔한 '1~4명' 과 피할 말 '1~6칸' 이 한 문단에
+    // 있으면 그 사이를 취소선으로 읽어 ~ 를 지워 버리기 때문이다. ~~두 개~~ 는 취소선 그대로다.
+    // mdast 쪽(gfmFromMarkdown)은 해석된 표시를 옮기기만 해서 따로 맞출 설정이 없다.
+    extensions: [gfm({ singleTilde: false })],
     mdastExtensions: [gfmFromMarkdown()],
   }) as MdNode;
 }
@@ -179,14 +202,38 @@ const HTML_BLOCK_TAGS = new Set(
   ),
 );
 
+// HTML 블록 안의 문자 참조(이름 &nbsp;, 10진 &#32;, 16진 &#x20;). 해석기는 일반 문단의 참조만 풀어
+// 주므로, 블록 안의 것은 참조 하나를 해석기에 따로 넣어 푼다(새 라이브러리 없이 같은 규칙을 쓰려고).
+// 풀리지 않는 것(없는 이름)은 그대로 둔다.
+const CHARACTER_REFERENCE = /^&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{0,31});/;
+const decodedReferences = new Map<string, string | undefined>();
+
+function decodeReference(reference: string): string | undefined {
+  if (!decodedReferences.has(reference)) {
+    const paragraph = (fromMarkdown(reference) as MdNode).children?.[0];
+    const value = paragraph?.children?.[0]?.value;
+    decodedReferences.set(
+      reference,
+      value !== undefined && value !== reference ? value : undefined,
+    );
+  }
+  return decodedReferences.get(reference);
+}
+
 function htmlPassages(source: string, start: number, end = source.length): Passage[] {
   const result: Passage[] = [];
   let passage: Passage = { text: "", origin: [] };
   const addText = (from: number, to: number) => {
     for (let k = from; k < to; k++) {
-      const char = source[k] ?? "";
-      passage.text += /\s/.test(char) ? " " : char;
-      passage.origin.push(k);
+      const reference = CHARACTER_REFERENCE.exec(source.slice(k, to))?.[0];
+      const decoded = reference === undefined ? undefined : decodeReference(reference);
+      const chars = decoded ?? source[k] ?? "";
+      // 문자 참조(&nbsp; 같은 것)는 푼 글자를 모두 그 참조가 시작한 자리에 붙인다.
+      for (const char of chars) {
+        passage.text += /\s/.test(char) ? " " : char;
+        for (let u = 0; u < char.length; u++) passage.origin.push(k);
+      }
+      if (decoded !== undefined && reference !== undefined) k += reference.length - 1;
     }
   };
   let cursor = start;
