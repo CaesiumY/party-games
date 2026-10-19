@@ -26,6 +26,7 @@ import {
   rollBlocker,
   selectBlocker,
   shownPlayer,
+  type TurnBanner,
 } from "./permissions";
 import type { StoredValue } from "./stored-value";
 
@@ -62,9 +63,14 @@ export interface GameStoreState {
   callout: Callout | null;
   /**
    * 떠 있는 보너스 알림. 있는 동안 화면의 차례 넘김을 미룬다(`shownPlayer`). 저장하지 않는다.
-   * 차례 배너(#9)와 결과 화면은 이것이 지워진 뒤에 띄운다(src/README.md 「차례 넘김 미루기」).
+   * 결과 화면은 이것이 지워진 뒤에 띄우고(src/README.md 「차례 넘김 미루기」), 차례 배너도 그때 띄운다(「차례 배너」).
    */
   bonusNotice: HandOffNotice | null;
+  /**
+   * 떠 있는 차례 배너("다음은 ○○ 차례"). 대전 모드에서 화면의 차례가 다음 플레이어로 넘어갈 때(기록 뒤, 보너스 알림이
+   * 있으면 그 알림이 끝난 뒤) 뜬다. 조작은 막지 않고 "?" 만 막는다. 저장하지 않는다.
+   */
+  turnBanner: TurnBanner | null;
 
   roll(): ActionResult;
   /** 홀드 토글. 3D 탭·홀드 말풍선·보이지 않는 주사위 버튼이 모두 이것을 쓴다. 열은 바꾸지 않는다. */
@@ -88,6 +94,8 @@ export interface GameStoreState {
   calloutEnded(rollId: number): void;
   /** 보너스 알림 표시가 끝남(약 2초). 그 알림일 때만 지운다. 이때 화면의 차례가 다음 플레이어로 넘어간다. */
   bonusNoticeEnded(id: number): void;
+  /** 차례 배너 표시가 끝남. 그 배너일 때만 지운다. */
+  turnBannerEnded(id: number): void;
 
   permissions(): Permissions;
   /** 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림 동안은 방금 기록한 플레이어다. */
@@ -126,6 +134,15 @@ export function resultVisible(s: {
   return s.screen === "game" && s.game.finished && s.bonusNotice === null;
 }
 
+/**
+ * 화면의 차례가 `from` 에서 넘어갈 때 띄울 차례 배너. 게임이 끝났거나 차례가 그대로면(연습 모드) 없다.
+ * 엔진은 게임이 끝나면 지금 차례를 마지막 플레이어에 둔다.
+ */
+function bannerAfter(game: GameState, from: number, id: number): TurnBanner | null {
+  if (game.finished || game.currentPlayer === from) return null;
+  return { id, player: game.currentPlayer };
+}
+
 export type GameStore = ReturnType<typeof createGameStore>;
 
 export function createGameStore({
@@ -146,6 +163,7 @@ export function createGameStore({
     columns: initialColumns(),
     outcome: null,
     movingDice: [] as readonly DieId[],
+    turnBanner: null,
   });
 
   /** 연습 모드 판이 끝났으면 최고 점수와 견주고, 넘었으면 저장한다. */
@@ -222,6 +240,8 @@ export function createGameStore({
         callout: null,
         // 한 기록에는 굴림이 적어도 한 번 있으므로 지금 굴림 번호가 알림마다 다르다.
         bonusNotice: notice ? { id: state.rollId, player, notice } : null,
+        // 보너스 알림이 있으면 배너는 알림이 끝날 때 띄운다.
+        turnBanner: notice ? null : bannerAfter(result.state, player, state.rollId),
       });
       return { ok: true };
     },
@@ -281,7 +301,7 @@ export function createGameStore({
     },
 
     goHome() {
-      set({ screen: "start" });
+      set({ screen: "start", turnBanner: null });
     },
 
     calloutEnded(rollId) {
@@ -289,7 +309,14 @@ export function createGameStore({
     },
 
     bonusNoticeEnded(id) {
-      if (get().bonusNotice?.id === id) set({ bonusNotice: null });
+      const { bonusNotice, game } = get();
+      if (bonusNotice?.id !== id) return;
+      // 이 순간이 화면의 차례 넘김이다.
+      set({ bonusNotice: null, turnBanner: bannerAfter(game, bonusNotice.player, id) });
+    },
+
+    turnBannerEnded(id) {
+      if (get().turnBanner?.id === id) set({ turnBanner: null });
     },
 
     permissions: () => judge(get()),

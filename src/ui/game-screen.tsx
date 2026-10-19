@@ -4,6 +4,7 @@ import { Actions } from "./actions";
 import { CurrentPlayer, RollsLeft } from "./board-overlays";
 import { BonusNoticeView, ComboCallout } from "./notices";
 import { Scorecard } from "./scorecard";
+import { TurnBannerView } from "./turn-banner";
 
 /** 판 영역 위에 겹치는 요소의 표시. src/scene/board-3d.tsx 의 OVERLAY_ATTR 와 같다. */
 const overlay = { "data-board-overlay": "" };
@@ -22,6 +23,7 @@ export function GameScreen({ Board }: { Board: ComponentType }) {
       <Actions overlayAttr={overlay} />
       <ComboCallout />
       <BonusNoticeView />
+      <TurnBannerView />
       <Scorecard />
       <DiceButtons />
     </main>

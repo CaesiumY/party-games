@@ -6,7 +6,8 @@
   --ink: #1f1a14;
   --rule: #d9cfb8;
   --band: #3b3531;
-  --yellow: #f6d24a;
+  /* 지금 차례 세로줄(원작 노랑)과 주 버튼. 디자인 초안의 --turn. */
+  --yellow: #fee267;
   --preview: #6b5300;
   --selected: #ffd39b;
   --accent: #c8102e;
@@ -181,11 +182,34 @@ button:focus-visible {
   pointer-events: none;
 }
 
-.current-player .dot {
+/* 플레이어 색 점(src/ui/player-dot.tsx). 어두운 바탕 위에서는 흰 테두리, 노란 강조 위에서는 진한 테두리. */
+.player-dot {
+  display: inline-block;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-right: 4px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.player-dot.large {
   width: 18px;
   height: 18px;
-  border-radius: 50%;
-  background: var(--fg);
+  margin-right: 0;
+}
+
+/* 점수표 머리의 색 점. 4인 세로줄이 좁아도 이름이 보이게 작게 둔다. */
+.player-dot.small {
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  border-width: 1.5px;
+}
+
+.now .player-dot {
+  border-color: #2b2a27;
 }
 
 .actions {
@@ -303,6 +327,13 @@ button:focus-visible {
   width: 40%;
 }
 
+/* 가로 배치: 4인 세로줄 머리의 이름이 보이도록 카테고리 열을 조금 줄인다. */
+@media (orientation: landscape) {
+  .scorecard col.name-col {
+    width: 36%;
+  }
+}
+
 .scorecard th,
 .scorecard td {
   height: var(--row);
@@ -327,6 +358,10 @@ button:focus-visible {
   color: var(--fg);
   font-size: 0.85em;
   font-weight: 600;
+}
+
+.scorecard thead th {
+  padding: 0 2px;
 }
 
 .scorecard thead th.turn {
@@ -542,6 +577,56 @@ button:focus-visible {
   }
 }
 
+/* 차례 배너(src/ui/turn-banner.tsx). 판 가운데를 가로지르는 띠. 조작을 막지 않는다. */
+.turn-banner {
+  grid-area: stage;
+  align-self: center;
+  justify-self: stretch;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgb(64 64 64 / 92%);
+  color: #fff;
+  font-size: clamp(18px, 5vw, 26px);
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  /* 길이는 TURN_BANNER_MS(src/ui/turn-banner.tsx)와 같다. */
+  animation: banner-in 2s ease-out forwards;
+}
+
+.turn-banner .player-dot {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+@keyframes banner-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-12%);
+  }
+  15% {
+    opacity: 1;
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner {
+    animation: none;
+  }
+}
+
 /* ---------- WebGL 미지원 안내 ---------- */
 
 .no-webgl {
@@ -555,16 +640,30 @@ button:focus-visible {
 
 /* ---------- 시작 화면·결과 화면 (최소판, 디자인은 #16) ---------- */
 
+/* 화면보다 길면(짧은 가로 화면에서 4인 입력, 화면 키보드) 이 영역만 세로로 스크롤한다. 게임 화면의
+   body 스크롤 잠금은 그대로다. 남는 높이가 있으면 첫·끝 요소의 auto 여백으로 가운데에 모으고,
+   모자라면 위에서부터 놓아 제목이 잘리지 않는다. */
 .start,
 .result {
   height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 16px;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   text-align: center;
+}
+
+.start > :first-child,
+.result > :first-child {
+  margin-top: auto;
+}
+
+.start > :last-child,
+.result > :last-child {
+  margin-bottom: auto;
 }
 
 .start h1,
@@ -614,6 +713,161 @@ button:focus-visible {
   border-color: var(--yellow);
   background: var(--yellow);
   color: var(--ink);
+}
+
+/* 시작 화면의 인원·이름 입력. */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 320px);
+}
+
+.setup .count {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.setup .count legend {
+  width: 100%;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.setup .count input {
+  position: absolute;
+  opacity: 0;
+}
+
+.setup .count span {
+  display: grid;
+  place-items: center;
+  min-width: 56px;
+  min-height: 40px;
+  border: 2px solid var(--fg);
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setup .count input:checked + span {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.setup .count input:focus-visible + span {
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.setup .names {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup .names li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setup .names .player-dot {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.setup .names input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 2px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+/* 승자 화면과 순위 표(대전 모드 결과). */
+.winners {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 32px;
+}
+
+.result .winners li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.result .winners .player-dot {
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+}
+
+.winners .winner-name {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.winners .winner-total {
+  font-size: 1.25rem;
+}
+
+.result.winner h1 {
+  color: var(--yellow);
+}
+
+.ranks {
+  border-collapse: collapse;
+  min-width: min(100%, 320px);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranks > * > tr > * {
+  padding: 8px 14px;
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+
+.ranks > thead > tr > * {
+  background: var(--band);
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.ranks > tbody > tr > .name {
+  text-align: left;
+}
+
+.ranks > tbody > .first > * {
+  background: var(--yellow);
+  font-weight: 700;
+}
+
+/* 밝은 표 바탕 위라 색 점 테두리는 진한 색이다. */
+.result .ranks .player-dot {
+  border-color: #2b2a27;
 }
 
 /* ---------- 플레이 방법 (최소판, 디자인은 #16) ---------- */
