@@ -3,6 +3,7 @@ import { totalScore, UPPER_BONUS_THRESHOLD, upperBonus, upperSubtotal } from "..
 import { CATEGORIES, type Category } from "../engine/types";
 import { useGame, usePermissions, usePreviewVisible } from "../store/store-context";
 import { CATEGORY_NAMES } from "./category-names";
+import { HowToPlayButton } from "./how-to-play";
 
 const UPPER = CATEGORIES.slice(0, 6);
 const LOWER = CATEGORIES.slice(6);
@@ -76,7 +77,10 @@ export function Scorecard() {
         <thead>
           <tr>
             <th scope="col" className="turn">
-              턴 {Math.min(game.turn, 12)}/12
+              <span>턴 {Math.min(game.turn, 12)}/12</span>
+              <HowToPlayButton className="help" disabled={!can.canOpenHelp}>
+                ?
+              </HowToPlayButton>
             </th>
             {game.players.map((p, i) => (
               <th key={p.name} scope="col" className={i === game.currentPlayer ? "now" : undefined}>

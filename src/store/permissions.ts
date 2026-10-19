@@ -62,11 +62,27 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
   return holdRejection(s.game, die);
 }
 
+/**
+ * 플레이 방법("?" 버튼)을 열 수 있는지(스펙 「게임 상태 저장소」). 연 사이에 화면이 바뀌면
+ * 닫았을 때 연 때와 다른 화면이 되므로, 무엇이 움직이고 있는 동안에는 막는다.
+ *
+ * - 굴림 연출(rolling·stopped)과 3번째 굴림 뒤 자동 이동(auto-moving): 연출 단계가 idle 이 아니면 막는다.
+ * - 홀드·홀드 풀기로 옮겨 가는 주사위(`movingDice`)는 막지 않는다. 그 주사위만 잠그는 짧은 이동이라
+ *   차례나 굴림이 바뀌지 않기 때문이다.
+ * - 보너스 알림(#13)·차례 배너(#9)가 떠 있는 동안: 그 표시 상태가 JudgeInput 에 생기면 여기에 더한다.
+ */
+export function helpBlocker(s: JudgeInput): StoreRejection | null {
+  if (s.presentation.phase !== "idle") return "presenting";
+  return null;
+}
+
 export interface Permissions {
   canRoll: boolean;
   canRecord: boolean;
   canSelect(category: Category): boolean;
   canHold(die: DieId): boolean;
+  /** 점수표 머리의 "?" 버튼으로 플레이 방법을 열 수 있는지. */
+  canOpenHelp: boolean;
 }
 
 export function judge(s: JudgeInput): Permissions {
@@ -75,6 +91,7 @@ export function judge(s: JudgeInput): Permissions {
     canRecord: recordBlocker(s) === null,
     canSelect: (category) => selectBlocker(s, category) === null,
     canHold: (die) => holdBlocker(s, die) === null,
+    canOpenHelp: helpBlocker(s) === null,
   };
 }
 
