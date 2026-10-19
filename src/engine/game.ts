@@ -1,5 +1,5 @@
 import type { DiceSource } from "./dice-source";
-import { scoreFor } from "./scoring";
+import { contributingFor, scoreFor } from "./scoring";
 import {
   type Category,
   type CommandResult,
@@ -89,6 +89,41 @@ export function currentValues(state: GameState): DieValue[] {
  */
 export function scorePreview(state: GameState, category: Category): number {
   return scoreFor(category, currentValues(state));
+}
+
+/**
+ * 기여 주사위: 지금 다섯 눈으로 이 카테고리 점수에 보태는 주사위들. 점수 미리보기와 같은 계산에서 나온다.
+ * 스크래치면 빈 배열이다.
+ */
+export function contributingDice(state: GameState, category: Category): DieId[] {
+  // currentValues 는 DieId 순서라 눈 배열의 자리가 곧 DieId 다.
+  return contributingFor(category, currentValues(state)) as DieId[];
+}
+
+/** 성립 알림 후보. 점수가 같으면 앞의 것을 띄운다(요트 > L. 스트레이트 > 포 다이스 > 풀 하우스 > S. 스트레이트). */
+const CALLOUT_CATEGORIES: readonly Category[] = [
+  "yacht",
+  "lStraight",
+  "fourDice",
+  "fullHouse",
+  "sStraight",
+];
+
+/**
+ * 성립 알림에 띄울 카테고리: 지금 다섯 눈으로 성립하는 아랫칸 카테고리(초이스 빼고) 가운데 점수가 가장 높은 하나.
+ * 이미 기록한 카테고리여도 띄운다(굴림 결과를 축하하는 표시). 아무것도 성립하지 않으면 null.
+ */
+export function comboCallout(state: GameState): Category | null {
+  let best: Category | null = null;
+  let bestPoints = 0;
+  for (const category of CALLOUT_CATEGORIES) {
+    const points = scorePreview(state, category);
+    if (points > bestPoints) {
+      best = category;
+      bestPoints = points;
+    }
+  }
+  return best;
 }
 
 /** 기록. 현재 플레이어의 빈 카테고리에 점수 미리보기 값을 적는다. */

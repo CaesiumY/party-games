@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import { record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
+import {
+  comboCallout,
+  contributingDice,
+  record,
+  roll,
+  rollsLeft,
+  scorePreview,
+  startGame,
+  toggleHold,
+} from "./game";
 import { totalScore, upperSubtotal } from "./totals";
 import {
   CATEGORIES,
@@ -281,5 +290,47 @@ describe("홀드", () => {
     const next = ok(record(held, "choice"));
 
     expect(next.dice.every((die) => !die.held)).toBe(true);
+  });
+});
+
+describe("기여 주사위와 성립 알림", () => {
+  const rolled = (values: DieValue[]) =>
+    ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([values])));
+
+  it("기여 주사위는 주사위 정체성(DieId)으로 알려 준다. 홀드해도 같은 주사위다", () => {
+    const held = ok(toggleHold(rolled([3, 1, 6, 1, 2]), 3));
+
+    expect(contributingDice(held, "aces")).toEqual([1, 3]);
+  });
+
+  it("성립 알림: 요트가 나오면 요트", () => {
+    expect(comboCallout(rolled([5, 5, 5, 5, 5]))).toBe("yacht");
+  });
+
+  it("성립 알림: 12345 는 S. 스트레이트도 성립하지만 L. 스트레이트만 띄운다", () => {
+    expect(comboCallout(rolled([3, 1, 5, 2, 4]))).toBe("lStraight");
+  });
+
+  it("성립 알림: 포 다이스·풀 하우스·S. 스트레이트는 각각 그 이름을 띄운다", () => {
+    expect(comboCallout(rolled([2, 2, 1, 2, 2]))).toBe("fourDice");
+    expect(comboCallout(rolled([1, 6, 1, 6, 1]))).toBe("fullHouse");
+    expect(comboCallout(rolled([1, 1, 2, 3, 4]))).toBe("sStraight");
+  });
+
+  it("성립 알림: 아랫칸 카테고리가 아무것도 성립하지 않으면 없다(초이스는 띄우지 않는다)", () => {
+    expect(comboCallout(rolled([1, 2, 3, 5, 6]))).toBeNull();
+    expect(comboCallout(rolled([6, 6, 6, 5, 4]))).toBeNull();
+  });
+
+  it("성립 알림: 이미 기록한 카테고리여도 띄운다", () => {
+    const source = scriptedDiceSource([
+      [4, 4, 4, 4, 4],
+      [3, 3, 3, 3, 3],
+    ]);
+    const turn2 = ok(
+      roll(ok(record(ok(roll(startGame(["플레이어 1"]), source)), "yacht")), source),
+    );
+
+    expect(comboCallout(turn2)).toBe("yacht");
   });
 });
