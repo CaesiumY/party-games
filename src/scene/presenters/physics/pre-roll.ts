@@ -41,6 +41,8 @@ export type RestProblem = "out" | "stacked" | "edge";
 /** 시뮬레이션 한 스텝의 길이(초). 재생도 이 간격으로 프레임을 읽는다. */
 export const STEP_SECONDS = 1 / 60;
 
+/** 한 스텝 기록의 값 개수(위치 3 + 자세 4). */
+const FRAME = 7;
 const GRAVITY = -9.81 * 2;
 /** 주사위 모델(RoundedBoxGeometry)의 모서리 반지름. die-mesh.tsx 와 같다. */
 const DIE_CORNER = 0.1;
@@ -123,20 +125,23 @@ function simulateOnce(rapier: Rapier, input: PreRollInput, seed: number): RollPl
     }
     if (still < STILL_STEPS) return null;
 
+    // 멈춤을 확인하느라 더 돌린 구간은 재생하지 않는다. 궤적은 모든 주사위가 처음 멈춘 스텝에서 끝나고,
+    // 멈춘 자세 검사와 면 맞추기도 화면에 마지막으로 보이는 그 프레임으로 한다.
+    const shownSteps = steps - STILL_STEPS + 1;
+    const end = shownSteps * FRAME;
     const tracks: DieTrack[] = [];
     for (const [i, die] of input.rolling.entries()) {
-      const body = bodies[i];
-      if (!body) return null;
-      const r = body.rotation();
-      const rest = new Quaternion(r.x, r.y, r.z, r.w);
-      if (restProblem(body.translation(), rest)) return null;
+      const shown = Float32Array.from((frames[i] ?? []).slice(0, end));
+      const at = (k: number) => shown[end - FRAME + k] ?? 0;
+      const rest = new Quaternion(at(3), at(4), at(5), at(6));
+      if (restProblem({ x: at(0), y: at(1), z: at(2) }, rest)) return null;
       tracks.push({
         id: die.id,
-        frames: Float32Array.from(frames[i] ?? []),
+        frames: shown,
         fix: faceFix(die.value, rest, Math.floor(random() * 4)),
       });
     }
-    return { steps, tracks };
+    return { steps: shownSteps, tracks };
   } finally {
     world.free();
   }
