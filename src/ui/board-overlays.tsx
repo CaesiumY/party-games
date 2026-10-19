@@ -1,0 +1,23 @@
+import { rollsLeft } from "../engine/game";
+import { useGame } from "../store/store-context";
+
+/** 남은 굴림 표시. 판 영역 오른쪽 위에 겹친다. */
+export function RollsLeft({ overlayAttr }: { overlayAttr: Record<string, string> }) {
+  const left = useGame((s) => rollsLeft(s.game));
+  return (
+    <div className="rolls-left" {...overlayAttr}>
+      앞으로 {left}번
+    </div>
+  );
+}
+
+/** 지금 차례 표시. 세로 배치는 판 영역 왼쪽 위, 가로 배치는 아래 가운데. 플레이어 색은 #9 에서 더한다. */
+export function CurrentPlayer({ overlayAttr }: { overlayAttr: Record<string, string> }) {
+  const name = useGame((s) => s.game.players[s.game.currentPlayer]?.name ?? "");
+  return (
+    <div className="current-player" {...overlayAttr}>
+      <span className="dot" aria-hidden="true" />
+      {name}
+    </div>
+  );
+}
