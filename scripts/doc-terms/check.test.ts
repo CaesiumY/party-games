@@ -192,7 +192,8 @@ describe("findAvoidedWords", () => {
             "- 모드",
             "# 파티", // 8: 제목 다음
             "모드",
-            "| 파티 |", // 10: 표의 줄끼리
+            "| 파티 |", // 10: 표의 칸끼리
+            "| --- |",
             "| 모드 |",
             "```",
             "파티", // 13: 코드 블록 안
@@ -234,7 +235,7 @@ describe("findAvoidedWords", () => {
     ]);
   });
 
-  it("인용 블록 안의 한 문단도 줄바꿈을 이어 맞춰 보고, 빈 인용 줄이나 인용 밖 줄에서 끊는다", () => {
+  it("인용 블록 안의 한 문단도 줄바꿈을 이어 맞춰 보고, 빈 인용 줄이나 빈 줄에서 끊는다", () => {
     const hits = findAvoidedWords({
       glossary: `**대전 모드 (Versus Mode)**:\n여러 명이 하는 게임.\n_Avoid_: 파티 모드\n`,
       docs: [
@@ -246,7 +247,9 @@ describe("findAvoidedWords", () => {
             "> 파티", // 3: 빈 인용 줄 너머
             ">",
             "> 모드",
-            "> 파티", // 6: 인용 밖 줄 너머
+            "",
+            "> 파티", // 7: 빈 줄 너머의 인용 밖 줄
+            "",
             "모드",
           ].join("\n"),
         },
@@ -283,5 +286,33 @@ describe("findAvoidedWords", () => {
     });
 
     expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[11, 5, "파티 모드"]]);
+  });
+
+  describe("마크다운 구조", () => {
+    const glossary = `**대전 모드 (Versus Mode)**:\n여러 명이 하는 게임.\n_Avoid_: 파티 모드\n`;
+    const check = (text: string) =>
+      findAvoidedWords({ glossary, docs: [{ path: "docs/specs/a.md", text }], allowlist: [] }).map(
+        (hit) => [hit.line, hit.column, hit.word],
+      );
+
+    it("링크 주소에 괄호 짝이 있어도 링크 글자 뒤의 말과 이어 맞춰 본다", () => {
+      expect(check("[파티](https://e.x/a_(b)) 모드는 없다.")).toEqual([[1, 2, "파티 모드"]]);
+    });
+
+    it("인용 블록 안의 코드 블록은 보지 않고, 그 뒤 인용 문단은 본다", () => {
+      expect(
+        check(
+          ["> ```", "> 파티", "> 모드", "> ```", ">", "> 대전은 파티", "> 모드로 한다."].join("\n"),
+        ),
+      ).toEqual([[6, 7, "파티 모드"]]);
+    });
+
+    it("가로줄(***, ___)을 사이에 둔 줄은 잇지 않는다", () => {
+      expect(check(["파티", "***", "모드", "", "파티", "___", "모드"].join("\n"))).toEqual([]);
+    });
+
+    it("인용 깊이가 다른 줄은 잇지 않는다", () => {
+      expect(check(["> 파티", ">> 모드"].join("\n"))).toEqual([]);
+    });
   });
 });

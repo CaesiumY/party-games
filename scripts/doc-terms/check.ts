@@ -1,3 +1,7 @@
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { gfmFromMarkdown } from "mdast-util-gfm";
+import { gfm } from "micromark-extension-gfm";
+
 export type Doc = { path: string; text: string };
 
 export type AllowEntry = { word: string; phrase: string; reason: string };
@@ -95,99 +99,85 @@ function positionsOf(line: string, phrase: string): number[] {
   return positions;
 }
 
-// 링크 정의 줄(`[이름]: 주소`). 글이 아니라 주소라서 검사하지 않고, 이름은 참조 링크를 알아보는 데 쓴다.
-const LINK_DEFINITION = /^\s{0,3}\[([^\]]+)\]:\s*\S/;
+// 문서는 마크다운 해석기(mdast)로 읽는다. 맞춰 보는 덩어리는 문단·제목·표의 칸 하나씩이고
+// (목록·인용 안의 문단도 문단이다), 코드 블록·HTML·링크 정의는 보지 않는다. 링크는 글자만 보고
+// 주소는 보지 않는다. 인라인 코드의 글자는 본다(문장 속 이름도 용어를 지켜야 해서).
+type MdNode = {
+  type: string;
+  value?: string;
+  children?: MdNode[];
+  position?: { start: { offset?: number }; end: { offset?: number } };
+};
 
-function linkReferences(lines: string[]): Set<string> {
-  const refs = new Set<string>();
-  for (const line of lines) {
-    const ref = LINK_DEFINITION.exec(line)?.[1];
-    if (ref !== undefined) refs.add(ref.toLowerCase());
-  }
-  return refs;
+const PASSAGE = new Set(["paragraph", "heading", "tableCell"]);
+const SKIPPED = new Set(["code", "html", "definition", "image", "imageReference", "yaml"]);
+
+// 덩어리의 글과, 그 글의 각 글자가 원문의 몇 번째 글자였는지.
+type Passage = { text: string; origin: number[] };
+
+function parse(source: string): MdNode {
+  return fromMarkdown(source, {
+    extensions: [gfm()],
+    mdastExtensions: [gfmFromMarkdown()],
+  }) as MdNode;
 }
 
-// 줄에서 인라인 마크다운 표시(강조 *·_, 코드 `, 링크의 괄호와 주소·참조 이름)를 걷어 낸 글과,
-// 걷어 낸 글의 각 글자가 원래 줄의 몇 번째 글자였는지를 돌려준다. `파티 **모드**` 도 `파티 모드` 로
-// 맞춰 보고, 보고하는 위치는 원래 줄 기준으로 남기기 위해서다.
-// 링크는 [글](주소), [글][참조], [글][] 이고, [글] 하나만 쓴 것은 같은 이름의 링크 정의가 있을 때만 링크다.
-function prose(line: string, refs: Set<string>): { text: string; origin: number[] } {
-  const dropped = new Array<boolean>(line.length).fill(false);
-  for (const m of line.matchAll(/\[([^\]]*)\](\([^)]*\)|\[[^\]]*\])?/g)) {
-    const label = m[1] ?? "";
-    if (m[2] === undefined && !refs.has(label.toLowerCase())) continue;
-    dropped[m.index] = true;
-    for (let k = m.index + 1 + label.length; k < m.index + m[0].length; k++) dropped[k] = true;
-  }
-  for (const m of line.matchAll(/[*_`]/g)) dropped[m.index] = true;
-  const origin = Array.from({ length: line.length }, (_, k) => k).filter((k) => !dropped[k]);
-  return { text: origin.map((k) => line[k]).join(""), origin };
-}
-
-// 맞춰 보는 덩어리. 한 문단의 줄들을 띄어쓰기 하나로 이은 글과, 그 글의 각 글자가 원래 몇 번째
-// 줄(0부터)의 몇 번째 글자였는지를 함께 든다.
-type Passage = { text: string; origin: { line: number; column: number }[] };
-
-// 다음 줄과 이어질 수 없는 줄(제목·표의 줄)과, 앞 줄에 이어지지 않고 새 블록을 여는 줄(제목·목록
-// 항목·표의 줄). 인용 표시(>)는 먼저 걷어 낸 뒤 그 안의 글에 이 규칙을 쓴다.
-const STANDALONE = /^\s*(#{1,6}\s|\|)/;
-const BLOCK_START = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\|)/;
-const QUOTE = /^(?:\s{0,3}>\s?)+/;
-const FENCE = /^\s{0,3}(`{3,}|~{3,})(.*)$/;
-
-// 코드 블록을 여는 표시라면 그 표시를, 아니면 null 을 돌려준다.
-function fenceOpening(line: string): string | null {
-  return FENCE.exec(line)?.[1] ?? null;
-}
-
-// 열린 코드 블록(opening)을 닫는 줄인지. 같은 글자로 같거나 더 길게 쓰고 뒤에 다른 글이 없어야 한다.
-function closesFence(line: string, opening: string): boolean {
-  const m = FENCE.exec(line);
-  const run = m?.[1];
-  return (
-    run !== undefined &&
-    run[0] === opening[0] &&
-    run.length >= opening.length &&
-    (m?.[2] ?? "").trim() === ""
-  );
-}
-
-// 마크다운의 부드러운 줄바꿈(빈 줄 없이 이어 쓴 줄)은 한 문단이라 이어서 맞춰 본다. 빈 줄·제목·
-// 목록 항목·표의 줄·코드 블록에서는 잇지 않는다. 코드 블록 안의 줄은 한 줄씩 따로 본다.
-// 인용 블록은 표시를 걷어 내고 인용 줄끼리만 잇는다. 빈 인용 줄(>)이나 인용 밖 줄에서 끊는다.
-function passages(lines: string[]): Passage[] {
+function passages(source: string): Passage[] {
   const result: Passage[] = [];
-  let open: { passage: Passage; quoted: boolean } | null = null;
-  // 열려 있는 코드 블록의 여는 표시(``` 나 ~~~ 의 줄). 없으면 null.
-  let fence: string | null = null;
-  const refs = linkReferences(lines);
-  lines.forEach((line, index) => {
-    const inFence = fence !== null;
-    if (fence !== null) {
-      if (closesFence(line, fence)) fence = null;
-    } else {
-      fence = fenceOpening(line);
-    }
-    if (!inFence && LINK_DEFINITION.test(line)) {
-      open = null;
+  const walk = (node: MdNode) => {
+    if (SKIPPED.has(node.type)) return;
+    if (PASSAGE.has(node.type)) {
+      const passage: Passage = { text: "", origin: [] };
+      for (const child of node.children ?? []) addInline(child, passage, source);
+      result.push(passage);
       return;
     }
-    const marker = inFence ? "" : (QUOTE.exec(line)?.[0] ?? "");
-    const quoted = marker !== "";
-    const body = line.slice(marker.length);
-    const alone = inFence || fence !== null || body.trim() === "" || STANDALONE.test(body);
-    const plain = prose(body, refs);
-    const origin = plain.origin.map((k) => ({ line: index, column: marker.length + k }));
-    if (open !== null && open.quoted === quoted && !alone && !BLOCK_START.test(body)) {
-      open.passage.origin.push({ line: index, column: 0 }, ...origin);
-      open.passage.text += ` ${plain.text}`;
-    } else {
-      open = { passage: { text: plain.text, origin }, quoted };
-      result.push(open.passage);
-    }
-    if (alone) open = null;
-  });
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(parse(source));
   return result;
+}
+
+function addInline(node: MdNode, passage: Passage, source: string): void {
+  if (SKIPPED.has(node.type)) return;
+  const start = node.position?.start.offset ?? 0;
+  if (node.type === "break") {
+    passage.text += " ";
+    passage.origin.push(start);
+    return;
+  }
+  if (node.value !== undefined) {
+    addValue(node.value, start, node.position?.end.offset ?? source.length, passage, source);
+    return;
+  }
+  for (const child of node.children ?? []) addInline(child, passage, source);
+}
+
+// 글 조각의 글자를 원문에서 앞으로 찾아 가며 위치를 붙인다. 원문에는 조각 글에 없는 것(인용 표시 >,
+// 탈출 문자 \, 줄 앞 들여쓰기)이 끼어 있을 수 있어서다. 줄바꿈은 띄어쓰기로 바꿔, 줄을 넘는 구절도
+// 허용 목록과 맞춰 본다.
+function addValue(value: string, start: number, end: number, passage: Passage, source: string) {
+  let cursor = start;
+  for (const char of value) {
+    const found = source.indexOf(char, cursor);
+    const at = found !== -1 && found < end ? found : cursor;
+    passage.text += char === "\n" ? " " : char;
+    for (let k = 0; k < char.length; k++) passage.origin.push(at + k);
+    cursor = at + char.length;
+  }
+}
+
+// 원문 위치를 1부터 세는 줄·칸으로 바꾼다.
+function lineStarts(source: string): number[] {
+  const starts = [0];
+  for (let k = source.indexOf("\n"); k !== -1; k = source.indexOf("\n", k + 1)) starts.push(k + 1);
+  return starts;
+}
+
+function locate(starts: number[], offset: number): { line: number; column: number } {
+  let line = 0;
+  while (line + 1 < starts.length && (starts[line + 1] ?? 0) <= offset) line++;
+  return { line, column: offset - (starts[line] ?? 0) };
 }
 
 export function findAvoidedWords(input: {
@@ -199,14 +189,15 @@ export function findAvoidedWords(input: {
   const hits: Hit[] = [];
   for (const doc of input.docs) {
     const lines = doc.text.split(/\r?\n/);
-    // 맞춰 보기와 허용 목록은 표시를 걷어 내고 문단을 이은 글에서, 보고하는 위치는 원래 줄에서.
-    for (const passage of passages(lines)) {
+    const starts = lineStarts(doc.text);
+    for (const passage of passages(doc.text)) {
       const tokens = eojeols(passage.text);
       tokens.forEach((_, i) => {
         for (const { word, term } of avoided) {
           for (const at of matchesAt(tokens, i, word)) {
-            const where = passage.origin[at];
-            if (where === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
+            const offset = passage.origin[at];
+            if (offset === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
+            const where = locate(starts, offset);
             hits.push({
               path: doc.path,
               line: where.line + 1,
