@@ -98,9 +98,44 @@ export interface RollFrame {
   linedUp: boolean;
 }
 
+/** 컵이 다 누워 궤적 재생을 시작하는 시각. 미리 굴리기 결과가 나오기 전에는 null. */
+function replayStartOf(script: RollScript): number | null {
+  return script.pourAt === null ? null : script.pourAt + TIMING.pour;
+}
+
+/** 컵이 흔들리기 시작하는 시각. 마지막 주사위가 컵에 다 들어가기 조금 전이다. */
+function shakeStart(script: RollScript): number {
+  return gatherEnd(script) - TIMING.gather * 0.4;
+}
+
+/** 한 번의 굴림에서 효과음을 낼 시각(초, 시간표와 같은 시계). */
+export interface SoundCues {
+  /** 컵 흔드는 소리를 시작하는 시각. */
+  shakeFrom: number;
+  /** 흔드는 소리를 그치는 시각(컵이 다 누워 주사위가 쏟아질 때). 미리 굴리기 결과가 나오기 전에는 null. */
+  shakeUntil: number | null;
+  /** 충돌음. 미리 굴리기에서 기록한 부딪힘을 재생 시각으로 옮긴 것. 시각 순서. */
+  hits: { at: number; strength: number }[];
+}
+
+export function soundCues(script: RollScript): SoundCues {
+  const replayStart = replayStartOf(script);
+  return {
+    shakeFrom: shakeStart(script),
+    shakeUntil: replayStart,
+    hits:
+      replayStart === null || !script.plan
+        ? []
+        : script.plan.collisions.map((c) => ({
+            at: replayStart + c.step * STEP_SECONDS,
+            strength: c.strength,
+          })),
+  };
+}
+
 export function rollFrame(script: RollScript, t: number): RollFrame {
-  const { plan, pourAt } = script;
-  const replayStart = pourAt === null ? null : pourAt + TIMING.pour;
+  const { plan } = script;
+  const replayStart = replayStartOf(script);
   const duration = plan ? Math.max(plan.steps - 1, 0) * STEP_SECONDS : 0;
   const stopAt = replayStart === null ? null : replayStart + duration;
   const riseStart = stopAt === null ? null : stopAt + STOPPED_HOLD_S;
@@ -154,7 +189,7 @@ function intoCup(from: ShownPose): ShownPose {
 
 function cupAt(script: RollScript, t: number): CupPose {
   const still = { forward: 0, side: 0, lift: 0 };
-  const shakeFrom = gatherEnd(script) - TIMING.gather * 0.4;
+  const shakeFrom = shakeStart(script);
   if (t < shakeFrom) return cupPose(0, still);
   if (script.pourAt === null || t < script.pourAt) return cupPose(0, shake(t - shakeFrom));
   const tip = progress(t, script.pourAt, TIMING.pour);

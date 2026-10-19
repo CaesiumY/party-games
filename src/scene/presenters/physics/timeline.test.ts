@@ -12,12 +12,14 @@ import {
   rollFrame,
   STOPPED_HOLD_S,
   slotPose,
+  soundCues,
   TIMING,
 } from "./timeline";
 
 /** 한 곳에서 다른 곳으로 미끄러지는 세 스텝짜리 가짜 궤적. 정렬 자리와 다른 곳에 멈춘다. */
-function fakePlan(ids: number[]): RollPlan {
+function fakePlan(ids: number[], collisions: RollPlan["collisions"] = []): RollPlan {
   return {
+    collisions,
     steps: 3,
     tracks: ids.map((id) => ({
       id: id as 0,
@@ -144,5 +146,33 @@ describe("홀드 이동", () => {
     const end = moveFrame(move, 1 + TIMING.move);
     expect(end.done).toBe(true);
     expect(end.pose.position).toEqual([columnX(3), BOARD.die / 2, BOARD.holdRowZ]);
+  });
+});
+
+describe("효과음 시점", () => {
+  it("컵은 주사위가 다 들어가기 조금 전부터 흔드는 소리를 내고, 미리 굴리기가 끝나기 전에는 언제 그칠지 모른다", () => {
+    const cues = soundCues(script(null));
+    // 주사위 둘: 둘째가 0.05초 뒤 출발해 0.35초 동안 날아가 10.4초에 다 들어간다. 그보다 0.14초 앞에서 흔든다.
+    expect(cues.shakeFrom).toBeCloseTo(10.26, 6);
+    expect(cues.shakeUntil).toBeNull();
+    expect(cues.hits).toEqual([]);
+  });
+
+  it("흔드는 소리는 컵이 다 누울 때 그치고, 충돌음은 재생하는 궤적의 부딪힌 스텝에 맞춰 난다", () => {
+    const s = script(
+      fakePlan(
+        [0, 1],
+        [
+          { die: 0, step: 0, strength: 1.5 },
+          { die: 1, step: 2, strength: 4 },
+        ],
+      ),
+    );
+    const cues = soundCues(s);
+    expect(cues.shakeUntil).toBeCloseTo(replayStart(s), 6);
+    expect(cues.hits.map((h) => h.at)).toEqual([replayStart(s), replayStart(s) + 2 / 60]);
+    expect(cues.hits.map((h) => h.strength)).toEqual([1.5, 4]);
+    // 마지막 충돌음은 멈춤 알림보다 늦지 않다.
+    expect(cues.hits.at(-1)?.at).toBeLessThanOrEqual(stopAt(s) + 1e-9);
   });
 });

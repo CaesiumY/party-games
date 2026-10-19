@@ -134,6 +134,45 @@ describe("미리 굴리기", () => {
     }
   });
 
+  it("주사위가 부딪힌 시점(충돌음을 낼 스텝)과 세기를 재생하는 구간 안에서 기록한다", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const plan = preRoll(rapier, { seed, rolling: outcome(seed, ALL), heldColumns: [] });
+      expect(plan).not.toBeNull();
+      if (!plan) continue;
+      const steps = plan.collisions.map((c) => c.step);
+      expect(steps).toEqual([...steps].sort((a, b) => a - b));
+      for (const c of plan.collisions) {
+        expect(Number.isInteger(c.step)).toBe(true);
+        expect(c.step).toBeGreaterThanOrEqual(0);
+        expect(c.step).toBeLessThan(plan.steps);
+        expect(c.strength).toBeGreaterThan(0);
+      }
+      // 컵에서 나온 주사위는 공중에 떠 있다가 바닥에 처음 닿는다. 그때나 그 전(다른 주사위·벽)에 부딪힌 기록이 있다.
+      for (const track of plan.tracks) {
+        let landed = -1;
+        for (let s = 0; s < plan.steps; s++) {
+          if ((track.frames[s * FRAME + 1] ?? 0) <= BOARD.die / 2 + 0.05) {
+            landed = s;
+            break;
+          }
+        }
+        const first = plan.collisions.find((c) => c.die === track.id);
+        expect(first, `시드 ${seed} 주사위 ${track.id}`).toBeDefined();
+        expect(first?.step ?? Infinity).toBeLessThanOrEqual(landed + 2);
+      }
+    }
+  });
+
+  it("한 주사위가 굴러 멈추는 동안 스텝마다 울리지 않는다(구르며 바닥을 스치는 것은 부딪힘이 아니다)", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const plan = preRoll(rapier, { seed, rolling: outcome(seed, [0]), heldColumns: [] });
+      expect(plan).not.toBeNull();
+      if (!plan) continue;
+      expect(plan.collisions.length).toBeGreaterThan(0);
+      expect(plan.collisions.length, `시드 ${seed}`).toBeLessThan(plan.steps / 4);
+    }
+  });
+
   it("정해진 시간 안에 멈추지 못하면 새 시드로 다시 해 보고, 끝내 안 되면 물리 없이 놓도록 알린다", () => {
     const plan = preRoll(rapier, {
       seed: 3,
