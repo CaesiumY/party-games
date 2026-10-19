@@ -206,4 +206,82 @@ describe("findAvoidedWords", () => {
 
     expect(hits.map((hit) => [hit.line, hit.column, hit.text])).toEqual([[1, 5, "대전은 파티"]]);
   });
+
+  it("참조 링크도 글자만 남겨 맞춰 보고, 링크 정의 줄은 보지 않는다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**대전 모드 (Versus Mode)**:\n여러 명이 하는 게임.\n_Avoid_: 파티 모드, 멀티\n`,
+      docs: [
+        {
+          path: "docs/specs/a.md",
+          text: [
+            "[파티][mode] 모드는 없다.",
+            "[파티][] 모드도 없다.",
+            "[파티] 모드도 없다.",
+            "[대전] 은 정의가 없는 대괄호라 그대로다.",
+            "",
+            "[mode]: https://e.x/멀티",
+            "[파티]: https://e.x/멀티",
+          ].join("\n"),
+        },
+      ],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([
+      [1, 2, "파티 모드"],
+      [2, 2, "파티 모드"],
+      [3, 2, "파티 모드"],
+    ]);
+  });
+
+  it("인용 블록 안의 한 문단도 줄바꿈을 이어 맞춰 보고, 빈 인용 줄이나 인용 밖 줄에서 끊는다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**대전 모드 (Versus Mode)**:\n여러 명이 하는 게임.\n_Avoid_: 파티 모드\n`,
+      docs: [
+        {
+          path: "docs/specs/a.md",
+          text: [
+            "> 대전은 파티", // 1: 다음 인용 줄과 한 문단
+            "> 모드로 한다.",
+            "> 파티", // 3: 빈 인용 줄 너머
+            ">",
+            "> 모드",
+            "> 파티", // 6: 인용 밖 줄 너머
+            "모드",
+          ].join("\n"),
+        },
+      ],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[1, 7, "파티 모드"]]);
+  });
+
+  it("코드 블록은 연 표시와 같은 글자로, 같거나 더 긴 줄이 나와야 닫힌다", () => {
+    const hits = findAvoidedWords({
+      glossary: `**대전 모드 (Versus Mode)**:\n여러 명이 하는 게임.\n_Avoid_: 파티 모드\n`,
+      docs: [
+        {
+          path: "docs/specs/a.md",
+          text: [
+            "````md",
+            "```", // 더 짧아서 닫지 않는다
+            "파티",
+            "모드",
+            "````",
+            "~~~",
+            "```", // 다른 글자라 닫지 않는다
+            "파티",
+            "모드",
+            "~~~~",
+            "대전은 파티", // 11: 코드 블록이 다 닫힌 뒤의 문단
+            "모드로 한다.",
+          ].join("\n"),
+        },
+      ],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[11, 5, "파티 모드"]]);
+  });
 });

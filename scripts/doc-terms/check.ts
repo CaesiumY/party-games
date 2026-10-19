@@ -95,14 +95,28 @@ function positionsOf(line: string, phrase: string): number[] {
   return positions;
 }
 
-// 줄에서 인라인 마크다운 표시(강조 *·_, 코드 `, 링크 [글](주소) 의 괄호와 주소)를 걷어 낸 글과,
+// 링크 정의 줄(`[이름]: 주소`). 글이 아니라 주소라서 검사하지 않고, 이름은 참조 링크를 알아보는 데 쓴다.
+const LINK_DEFINITION = /^\s{0,3}\[([^\]]+)\]:\s*\S/;
+
+function linkReferences(lines: string[]): Set<string> {
+  const refs = new Set<string>();
+  for (const line of lines) {
+    const ref = LINK_DEFINITION.exec(line)?.[1];
+    if (ref !== undefined) refs.add(ref.toLowerCase());
+  }
+  return refs;
+}
+
+// 줄에서 인라인 마크다운 표시(강조 *·_, 코드 `, 링크의 괄호와 주소·참조 이름)를 걷어 낸 글과,
 // 걷어 낸 글의 각 글자가 원래 줄의 몇 번째 글자였는지를 돌려준다. `파티 **모드**` 도 `파티 모드` 로
 // 맞춰 보고, 보고하는 위치는 원래 줄 기준으로 남기기 위해서다.
-function prose(line: string): { text: string; origin: number[] } {
+// 링크는 [글](주소), [글][참조], [글][] 이고, [글] 하나만 쓴 것은 같은 이름의 링크 정의가 있을 때만 링크다.
+function prose(line: string, refs: Set<string>): { text: string; origin: number[] } {
   const dropped = new Array<boolean>(line.length).fill(false);
-  for (const m of line.matchAll(/\[([^\]]*)\]\([^)]*\)/g)) {
-    dropped[m.index] = true;
+  for (const m of line.matchAll(/\[([^\]]*)\](\([^)]*\)|\[[^\]]*\])?/g)) {
     const label = m[1] ?? "";
+    if (m[2] === undefined && !refs.has(label.toLowerCase())) continue;
+    dropped[m.index] = true;
     for (let k = m.index + 1 + label.length; k < m.index + m[0].length; k++) dropped[k] = true;
   }
   for (const m of line.matchAll(/[*_`]/g)) dropped[m.index] = true;
@@ -115,29 +129,61 @@ function prose(line: string): { text: string; origin: number[] } {
 type Passage = { text: string; origin: { line: number; column: number }[] };
 
 // 다음 줄과 이어질 수 없는 줄(제목·표의 줄)과, 앞 줄에 이어지지 않고 새 블록을 여는 줄(제목·목록
-// 항목·표의 줄·인용).
+// 항목·표의 줄). 인용 표시(>)는 먼저 걷어 낸 뒤 그 안의 글에 이 규칙을 쓴다.
 const STANDALONE = /^\s*(#{1,6}\s|\|)/;
-const BLOCK_START = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\||>)/;
-const FENCE = /^\s*(```|~~~)/;
+const BLOCK_START = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\|)/;
+const QUOTE = /^(?:\s{0,3}>\s?)+/;
+const FENCE = /^\s{0,3}(`{3,}|~{3,})(.*)$/;
+
+// 코드 블록을 여는 표시라면 그 표시를, 아니면 null 을 돌려준다.
+function fenceOpening(line: string): string | null {
+  return FENCE.exec(line)?.[1] ?? null;
+}
+
+// 열린 코드 블록(opening)을 닫는 줄인지. 같은 글자로 같거나 더 길게 쓰고 뒤에 다른 글이 없어야 한다.
+function closesFence(line: string, opening: string): boolean {
+  const m = FENCE.exec(line);
+  const run = m?.[1];
+  return (
+    run !== undefined &&
+    run[0] === opening[0] &&
+    run.length >= opening.length &&
+    (m?.[2] ?? "").trim() === ""
+  );
+}
 
 // 마크다운의 부드러운 줄바꿈(빈 줄 없이 이어 쓴 줄)은 한 문단이라 이어서 맞춰 본다. 빈 줄·제목·
 // 목록 항목·표의 줄·코드 블록에서는 잇지 않는다. 코드 블록 안의 줄은 한 줄씩 따로 본다.
+// 인용 블록은 표시를 걷어 내고 인용 줄끼리만 잇는다. 빈 인용 줄(>)이나 인용 밖 줄에서 끊는다.
 function passages(lines: string[]): Passage[] {
   const result: Passage[] = [];
-  let open: Passage | null = null;
-  let inFence = false;
+  let open: { passage: Passage; quoted: boolean } | null = null;
+  // 열려 있는 코드 블록의 여는 표시(``` 나 ~~~ 의 줄). 없으면 null.
+  let fence: string | null = null;
+  const refs = linkReferences(lines);
   lines.forEach((line, index) => {
-    const fence = FENCE.test(line);
-    const alone = inFence || fence || line.trim() === "" || STANDALONE.test(line);
-    if (fence) inFence = !inFence;
-    const plain = prose(line);
-    const origin = plain.origin.map((column) => ({ line: index, column }));
-    if (open !== null && !alone && !BLOCK_START.test(line)) {
-      open.origin.push({ line: index, column: 0 }, ...origin);
-      open.text += ` ${plain.text}`;
+    const inFence = fence !== null;
+    if (fence !== null) {
+      if (closesFence(line, fence)) fence = null;
     } else {
-      open = { text: plain.text, origin };
-      result.push(open);
+      fence = fenceOpening(line);
+    }
+    if (!inFence && LINK_DEFINITION.test(line)) {
+      open = null;
+      return;
+    }
+    const marker = inFence ? "" : (QUOTE.exec(line)?.[0] ?? "");
+    const quoted = marker !== "";
+    const body = line.slice(marker.length);
+    const alone = inFence || fence !== null || body.trim() === "" || STANDALONE.test(body);
+    const plain = prose(body, refs);
+    const origin = plain.origin.map((k) => ({ line: index, column: marker.length + k }));
+    if (open !== null && open.quoted === quoted && !alone && !BLOCK_START.test(body)) {
+      open.passage.origin.push({ line: index, column: 0 }, ...origin);
+      open.passage.text += ` ${plain.text}`;
+    } else {
+      open = { passage: { text: plain.text, origin }, quoted };
+      result.push(open.passage);
     }
     if (alone) open = null;
   });
