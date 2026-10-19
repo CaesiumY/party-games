@@ -1,9 +1,11 @@
 import type { ComponentType } from "react";
 import { Board3D } from "./scene/board-3d";
-import type { GameStore } from "./store/game-store";
-import { GameStoreProvider } from "./store/store-context";
+import { type GameStore, resultVisible } from "./store/game-store";
+import { GameStoreProvider, useGame } from "./store/store-context";
 import { GameScreen } from "./ui/game-screen";
 import { NoWebGL } from "./ui/no-webgl";
+import { ResultScreen } from "./ui/result-screen";
+import { StartScreen } from "./ui/start-screen";
 
 export interface AppProps {
   store: GameStore;
@@ -17,7 +19,16 @@ export function App({ store, webgl, Board = Board3D }: AppProps) {
   if (!webgl) return <NoWebGL />;
   return (
     <GameStoreProvider store={store}>
-      <GameScreen Board={Board} />
+      <Screens Board={Board} />
     </GameStoreProvider>
   );
+}
+
+/** 시작 화면 → 게임 화면 → (게임이 끝나면) 결과 화면. */
+function Screens({ Board }: { Board: ComponentType }) {
+  const screen = useGame((s) => s.screen);
+  const showResult = useGame(resultVisible);
+  if (screen === "start") return <StartScreen />;
+  if (showResult) return <ResultScreen />;
+  return <GameScreen Board={Board} />;
 }
