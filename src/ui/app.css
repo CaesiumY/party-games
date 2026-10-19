@@ -152,11 +152,43 @@ button:focus-visible {
   z-index: 1;
 }
 
-.rolls-left {
+/* 판 영역 오른쪽 위: 음소거 버튼과 남은 굴림 표시를 한 줄에 둔다. */
+.board-corner {
   grid-area: stage;
   justify-self: end;
   align-self: start;
-  margin: 10px 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 12px 0 0;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.mute-slot {
+  display: flex;
+  pointer-events: auto;
+}
+
+.mute {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--fg);
+  background: rgb(18 12 8 / 82%);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.mute[aria-pressed="true"] {
+  opacity: 0.75;
+}
+
+.rolls-left {
   font-weight: 700;
   font-size: clamp(14px, 3vh, 20px);
   line-height: 1.2;

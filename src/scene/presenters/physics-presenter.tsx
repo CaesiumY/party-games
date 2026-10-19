@@ -2,6 +2,9 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Group } from "three";
 import type { DieId } from "../../engine/types";
+import { hitSchedule } from "../../sound/hit-schedule";
+import type { RollSound, Voice } from "../../sound/sound";
+import { useRollSound } from "../../sound/sound-context";
 import { CupShape } from "../cup-mesh";
 import { DieMesh } from "../die-mesh";
 import type { PresentedDie, RollPresenterProps } from "../roll-presenter";
@@ -16,6 +19,7 @@ import {
   rollFrame,
   type ShownPose,
   slotPose,
+  soundCues,
 } from "./physics/timeline";
 
 const IDS: readonly DieId[] = [0, 1, 2, 3, 4];
@@ -36,6 +40,15 @@ const sameSlot = (a: ShownSlot | undefined, b: ShownSlot) =>
   a?.held === b.held && a.column === b.column && a.value === b.value;
 
 const now = () => performance.now() / 1000;
+
+/** 물리 없이 바로 놓을 때(미리 굴리기 실패) 주사위가 판에 닿는 소리의 세기. */
+const LANDING_STRENGTH = 3;
+
+/** 연출 시계의 시각들을 효과음에 넘길 "지금부터 몇 초 뒤"로 바꿔 충돌음을 낸다. */
+function playHits(sound: RollSound, hits: readonly { at: number; strength: number }[]): Voice {
+  const t = now();
+  return sound.hits(hitSchedule(hits).map((hit) => ({ delay: hit.at - t, gain: hit.gain })));
+}
 
 type Shown = Map<DieId, { pose: ShownPose; visible: boolean; slot: ShownSlot }>;
 
@@ -67,7 +80,11 @@ function placeCup(cup: Group | null, pose = cupPose(0, { forward: 0, side: 0, li
  * 굴림이 아닌 자리 바뀜(홀드·홀드 풀기, 3번째 굴림 뒤 올라감, 다음 턴에 내려옴)은 짧게 옮기고
  * 다 옮기면 주사위마다 알린다.
  *
- * 미리 굴리기가 끝내 알맞은 멈춤을 얻지 못하거나 물리 엔진을 불러오지 못하면 순간 배치처럼 바로 놓는다.
+ * 효과음: 컵이 흔들리는 동안 흔드는 소리를, 궤적을 재생하며 미리 굴리기에서 기록한 부딪힘마다 충돌음을 낸다.
+ * 굴림이 바뀌거나 이 연출이 사라지면('동작 줄이기'를 켜 순간 배치로 바뀐 때 등) 아직 안 난 소리를 거둔다.
+ *
+ * 미리 굴리기가 끝내 알맞은 멈춤을 얻지 못하거나 물리 엔진을 불러오지 못하면 순간 배치처럼 바로 놓고,
+ * 놓는 순간 충돌음을 낸다.
  * 처음 그릴 때 이미 있던 굴림(다른 연출에서 바꿔 끼운 경우)은 연출하지 않고 정렬된 채로 둔다.
  */
 export function PhysicsPresenter({
@@ -78,8 +95,9 @@ export function PhysicsPresenter({
   onDieSettled,
 }: RollPresenterProps) {
   const invalidate = useThree((s) => s.invalidate);
-  const latest = useRef({ dice, onStopped, onLinedUp, onDieSettled });
-  latest.current = { dice, onStopped, onLinedUp, onDieSettled };
+  const sound = useRollSound();
+  const latest = useRef({ dice, onStopped, onLinedUp, onDieSettled, sound });
+  latest.current = { dice, onStopped, onLinedUp, onDieSettled, sound };
 
   const groups = useRef<(Group | null)[]>([]);
   const cup = useRef<Group>(null);
@@ -105,8 +123,18 @@ export function PhysicsPresenter({
   // 굴림: 새 rollId 면 컵 → 굴러감 → 정렬을 시작한다.
   useEffect(() => {
     const { onStopped: stopped, onLinedUp: linedUp } = latest.current;
+    const voices: Voice[] = [];
     /** 굴림 연출을 건너뛰고 정렬 자리에 바로 놓는다. */
     const placeNow = () => {
+      // 흔드는 소리를 그치고, 굴린 주사위가 판에 놓이는 지금 충돌음을 낸다.
+      for (const voice of voices) voice.stop();
+      const landing = latest.current.dice.filter((die) => !die.held);
+      voices.push(
+        playHits(
+          latest.current.sound,
+          landing.map(() => ({ at: now(), strength: LANDING_STRENGTH })),
+        ),
+      );
       script.current = null;
       presented.current = rollId;
       for (const die of latest.current.dice) {
@@ -140,6 +168,8 @@ export function PhysicsPresenter({
     };
     script.current = { rollId, roll, stoppedSent: false };
     invalidate();
+    const shake = latest.current.sound.shake(soundCues(roll).shakeFrom - t);
+    voices.push(shake);
 
     let cancelled = false;
     loadRapier()
@@ -153,6 +183,9 @@ export function PhysicsPresenter({
         if (!plan) return placeNow();
         roll.plan = plan;
         roll.pourAt = pourTime(roll, now());
+        const cues = soundCues(roll);
+        shake.stop((cues.shakeUntil ?? now()) - now());
+        voices.push(playHits(latest.current.sound, cues.hits));
         invalidate();
       })
       .catch(() => {
@@ -160,6 +193,7 @@ export function PhysicsPresenter({
       });
     return () => {
       cancelled = true;
+      for (const voice of voices) voice.stop();
     };
   }, [rollId, invalidate]);
 

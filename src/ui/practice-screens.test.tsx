@@ -111,5 +111,6 @@ describe("연습 모드 한 판", () => {
 
     expect(screen.getByRole("button", { name: "혼자 시작" })).toBeTruthy();
     expect(screen.getByText("최고 점수 300")).toBeTruthy();
-  });
+    // 두 판(24턴)을 탭으로 진행해 기본 제한 5초에 가깝다. 느린 기기에서 시간 초과로 떨어지지 않게 늘린다.
+  }, 15_000);
 });

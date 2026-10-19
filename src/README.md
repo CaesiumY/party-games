@@ -1,17 +1,18 @@
 # src 구조 — 무엇을 어디에 두나
 
-요트 앱의 코드는 다섯 칸으로 나뉜다. 위 칸일수록 아래 칸을 모른다(엔진은 아무것도 모르고, 화면은 저장소를 통해서만 엔진을 쓴다). 새 기능은 되도록 **기존 파일을 고치기보다 파일을 더해서** 넣는다.
+요트 앱의 코드는 일곱 칸으로 나뉜다. 위 칸일수록 아래 칸을 모른다(엔진은 아무것도 모르고, 화면은 저장소를 통해서만 엔진을 쓴다). 새 기능은 되도록 **기존 파일을 고치기보다 파일을 더해서** 넣는다.
 
 | 폴더 | 하는 일 | 기대도 되는 것 |
 |---|---|---|
 | `engine/` | 게임 엔진. 점수 규칙과 턴 진행. 순수 TypeScript | 엔진 안의 파일만 (`boundary.test.ts` 가 검사) |
 | `store/` | zustand 상태 저장소. 엔진을 화면에 잇고, **조작 가능 여부를 한 곳에서 판정**. 지금 보이는 화면(시작/게임)과 브라우저 저장도 여기 | engine, layout |
 | `layout/` | 화면 표현을 정하는 순수 계산. 열 규칙, 주사위 자리, 카메라 거리 맞춤 | engine 의 타입, three.js 의 수학(WebGL·DOM 없이) |
-| `scene/` | 3D 장면(React Three Fiber). 판, 주사위, **굴림 연출 입구** | store, layout |
-| `ui/` | 2D 화면. 시작 화면, 점수표, 버튼, 판 위 겹침 표시, 결과 화면, WebGL 미지원 안내 | store, engine 의 조회 함수 |
+| `scene/` | 3D 장면(React Three Fiber). 판, 주사위, **굴림 연출 입구** | store, layout, sound |
+| `ui/` | 2D 화면. 시작 화면, 점수표, 버튼, 판 위 겹침 표시(음소거 버튼 포함), 결과 화면, WebGL 미지원 안내 | store, engine 의 조회 함수, sound |
+| `sound/` | 효과음. Web Audio 재생, 충돌음 일정(겹침 제한), 음원 목록 | store |
 | `a11y/` | 접근성. '동작 줄이기' 감지, 보이지 않는 주사위 버튼 | store, layout |
 
-`main.tsx` 는 시작점(주사위 공급원·저장소·브라우저 저장 항목을 만들고 설정을 잇는다), `app.tsx` 는 WebGL 유무와 저장소의 `screen` 으로 화면(시작 → 게임 → 결과)을 고른다.
+`main.tsx` 는 시작점(주사위 공급원·저장소·브라우저 저장 항목·효과음을 만들고 설정을 잇는다), `app.tsx` 는 WebGL 유무와 저장소의 `screen` 으로 화면(시작 → 게임 → 결과)을 고른다.
 
 ## 이음매 (다른 티켓이 끼우는 자리)
 
@@ -27,6 +28,8 @@
 - **화면 전환**: 저장소의 `screen`(`"start" | "game"`)과 명령 `newGame(players)`·`restart()`(같은 멤버로 다시)·`goHome()`(처음으로). 결과 화면을 띄울지는 `resultVisible`(`store/game-store.ts`) 한 곳에서 정한다. 보너스 알림이 끝날 때까지 결과 화면을 미루는 조건은 여기에 더한다.
 - **브라우저 저장 도우미**: `store/stored-value.ts` 의 `createStoredValue({ storage, key, version, parse })` → `{ read, write, clear }`. 저장 항목(키)마다 버전을 두고, 읽을 수 없거나 버전이 다르거나 `parse` 가 null 을 돌려주면 그 키만 지운다. 저장소 접근이 막혀도 예외를 던지지 않는다. 운영은 `browserStorage()`, 테스트는 `memoryStorage()`. 이어 하기(#10)·음소거(#12)는 `best-score.ts` 처럼 항목 파일을 하나 더하고 `main.tsx` 에서 저장소에 넣는다.
 - **최고 점수**: `store/best-score.ts` 의 `bestScoreValue(storage)`(키 `yacht.best-score`). 연습 모드 판이 끝나는 기록에서 저장소가 지난 최고 점수와 견주어(`settleBest`) 넘었을 때만 쓰고, 결과는 `outcome` 에 둔다.
+- **효과음**: `sound/sound.ts` 의 `createSound({ clips, load, createContext })` → `{ unlock, setMuted, shake(delay), hits([{ delay, gain }]) }`. 오디오는 굴림 버튼 탭(`ui/actions.tsx`)의 `unlock` 에서 처음 만들고, 그 전의 재생 요청은 아무 일도 하지 않는다. 시각은 "지금부터 몇 초 뒤"로 받고, 돌려받은 `Voice.stop()` 으로 아직 안 난 소리를 거둔다. 화면과 3D 장면은 `sound/sound-context.tsx` 의 `useSound()`·`useRollSound()` 로 쓰며, `useRollSound()` 는 '동작 줄이기'면 소리 없는 것을 돌려준다. 물리 연출은 미리 굴리기가 기록한 부딪힘(`RollPlan.collisions`)을 시간표의 `soundCues` 로 재생 시각에 옮기고, `sound/hit-schedule.ts` 의 `hitSchedule` 이 겹쳐 울리는 개수를 `MAX_VOICES` 로 제한한다. 순간 배치 연출은 소리를 내지 않는다. 음원 파일 목록은 `sound/clips.ts`, 파일과 출처·라이선스는 `public/sounds/`.
+- **음소거**: `store/muted.ts` 의 `mutedValue(storage)`(키 `yacht.muted`). 저장소의 `muted`·`toggleMuted()` 가 쓰고, `SoundProvider` 가 효과음에 옮긴다. 이 기기의 설정이라 새 게임을 열어도 그대로다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
 
 ## 테스트
