@@ -1,6 +1,7 @@
 import type { DiceSource } from "./dice-source";
 import { contributingFor, scoreFor } from "./scoring";
 import {
+  CATEGORIES,
   type Category,
   type CommandResult,
   DIE_IDS,
@@ -33,6 +34,7 @@ export function rollsLeft(state: GameState): number {
 
 /** 지금 굴릴 수 없는 이유. 굴릴 수 있으면 null. */
 export function rollRejection(state: GameState): Rejection | null {
+  if (state.finished) return "game-over";
   if (rollsLeft(state) <= 0) return "no-rolls-left";
   if (state.dice.every((die) => die.held)) return "all-held";
   return null;
@@ -40,6 +42,7 @@ export function rollRejection(state: GameState): Rejection | null {
 
 /** 지금 이 주사위의 홀드를 바꿀 수 없는 이유. 바꿀 수 있으면 null. */
 export function holdRejection(state: GameState, _die: DieId): Rejection | null {
+  if (state.finished) return "game-over";
   if (state.rollsUsed === 0) return "not-rolled-yet";
   if (rollsLeft(state) <= 0) return "no-rolls-left";
   return null;
@@ -73,6 +76,7 @@ export function roll(state: GameState, source: DiceSource): CommandResult {
 
 /** 지금 이 카테고리에 기록할 수 없는 이유. 기록할 수 있으면 null. */
 export function recordRejection(state: GameState, category: Category): Rejection | null {
+  if (state.finished) return "game-over";
   if (state.rollsUsed === 0) return "not-rolled-yet";
   if (state.players[state.currentPlayer]?.scores[category] !== undefined) return "category-filled";
   return null;
@@ -136,7 +140,21 @@ export function record(state: GameState, category: Category): CommandResult {
       ? { ...player, scores: { ...player.scores, [category]: points } }
       : player,
   );
-  return { ok: true, state: nextTurn({ ...state, players }) };
+  const recorded = { ...state, players };
+  if (allScorecardsFull(recorded)) return { ok: true, state: { ...recorded, finished: true } };
+  return { ok: true, state: nextTurn(recorded) };
+}
+
+/** 모든 플레이어의 점수표가 다 찼는지. 다 차면 게임이 끝난다. */
+function allScorecardsFull(state: GameState): boolean {
+  return state.players.every((player) =>
+    CATEGORIES.every((category) => player.scores[category] !== undefined),
+  );
+}
+
+/** 게임 모드. 따로 저장하지 않고 플레이어 수로 정한다(1명이면 연습 모드, 2~4명이면 대전 모드). */
+export function gameMode(state: GameState): "practice" | "versus" {
+  return state.players.length === 1 ? "practice" : "versus";
 }
 
 /** 기록 뒤 다음 차례로 넘긴다. 마지막 플레이어까지 돌면 턴 번호가 오른다. 홀드는 모두 풀린다. */

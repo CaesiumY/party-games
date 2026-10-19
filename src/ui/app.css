@@ -550,3 +550,66 @@ button:focus-visible {
   text-align: center;
   font-size: 18px;
 }
+
+/* ---------- 시작 화면·결과 화면 (최소판, 디자인은 #16) ---------- */
+
+.start,
+.result {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  text-align: center;
+}
+
+.start h1,
+.result h1 {
+  margin: 0;
+  font-size: 2.5rem;
+}
+
+.start p,
+.result p,
+.result ul {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.result ul {
+  padding: 0;
+  list-style: none;
+}
+
+.result .new-best {
+  color: var(--yellow);
+  font-weight: 700;
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.start button,
+.result button {
+  min-width: 160px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 2px solid var(--fg);
+  border-radius: 12px;
+  background: transparent;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start button.primary,
+.result button.primary {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--ink);
+}
