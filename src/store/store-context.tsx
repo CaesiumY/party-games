@@ -22,7 +22,11 @@ export function usePermissions(): Permissions {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
   const selection = useGame((s) => s.selection);
-  return useMemo(() => judge({ game, presentation, selection }), [game, presentation, selection]);
+  const movingDice = useGame((s) => s.movingDice);
+  return useMemo(
+    () => judge({ game, presentation, selection, movingDice }),
+    [game, presentation, selection, movingDice],
+  );
 }
 
 /** 주사위마다 놓이는 자리(DieId 순서). 3번째 굴림의 정렬이 끝나면 다섯 개 모두 홀드 자리다. */
@@ -31,8 +35,7 @@ export function useDiceSlots(): DieSlot[] {
   const presentation = useGame((s) => s.presentation);
   const columns = useGame((s) => s.columns);
   return useMemo(
-    () =>
-      diceSlots(game.dice, columns, { allUp: allDiceUp({ game, presentation, selection: null }) }),
+    () => diceSlots(game.dice, columns, { allUp: allDiceUp({ game, presentation }) }),
     [game, presentation, columns],
   );
 }
@@ -41,12 +44,12 @@ export function useDiceSlots(): DieSlot[] {
 export function useAllDiceUp(): boolean {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
-  return allDiceUp({ game, presentation, selection: null });
+  return allDiceUp({ game, presentation });
 }
 
 /** 점수 미리보기를 보일지. */
 export function usePreviewVisible(): boolean {
   const game = useGame((s) => s.game);
   const presentation = useGame((s) => s.presentation);
-  return previewVisible({ game, presentation, selection: null });
+  return previewVisible({ game, presentation });
 }
