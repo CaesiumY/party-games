@@ -51,6 +51,7 @@ async function playTwelveTurns(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
     const empty = sheet()
       .getAllByRole("button")
+      .filter((button) => button.closest("tbody"))
       .find((button) => !(button as HTMLButtonElement).disabled);
     if (!empty) throw new Error("고를 수 있는 카테고리가 없다");
     await user.click(empty);

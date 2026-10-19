@@ -233,3 +233,42 @@ describe("점수 미리보기가 보이는 때", () => {
     expect(store.getState().previewVisible()).toBe(true);
   });
 });
+
+describe('플레이 방법("?") 잠금', () => {
+  it("첫 굴림 전과 정렬 끝 뒤에는 열 수 있고, 굴림 버튼을 누른 때부터 정렬 끝까지는 열 수 없다", () => {
+    const store = storeWith([[1, 2, 3, 4, 5]]);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+
+    store.getState().roll();
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+    const { presentation } = store.getState();
+    if (presentation.phase !== "idle") store.getState().presenterStopped(presentation.rollId);
+    expect(store.getState().presentation.phase).toBe("stopped");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    const stopped = store.getState().presentation;
+    if (stopped.phase !== "idle") store.getState().presenterLinedUp(stopped.rollId);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+
+  it("3번째 굴림은 다섯 개가 홀드 자리로 올라가는 정렬 끝까지 열 수 없고, 그 뒤에는 열 수 있다", () => {
+    const store = storeWith([
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      store.getState().roll();
+      expect(store.getState().permissions().canOpenHelp).toBe(false);
+      finishPresentation(store);
+    }
+
+    expect(
+      store
+        .getState()
+        .slots()
+        .every((slot) => slot.row === "hold"),
+    ).toBe(true);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+});

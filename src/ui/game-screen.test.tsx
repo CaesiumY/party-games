@@ -48,6 +48,7 @@ describe("게임 화면", () => {
 
     const names = sheet()
       .getAllByRole("button")
+      .filter((b) => b.closest("tbody"))
       .map((b) => b.textContent);
     expect(names).toEqual([
       "에이스",
@@ -66,11 +67,12 @@ describe("게임 화면", () => {
     for (const label of ["소계", "보너스+35", "총합 득점", "턴 1/12"]) {
       expect(sheet().getByText(label)).toBeTruthy();
     }
+    // 머리 첫 칸에는 턴 표시와 플레이 방법 "?" 버튼이 함께 있다.
     expect(
       sheet()
         .getAllByRole("columnheader")
         .map((h) => h.textContent),
-    ).toEqual(["턴 1/12", "플레이어 1", "플레이어 2", "플레이어 3", "플레이어 4"]);
+    ).toEqual(["턴 1/12?", "플레이어 1", "플레이어 2", "플레이어 3", "플레이어 4"]);
   });
 
   it("주사위를 던지고 초이스를 골라 기록하면 다섯 눈의 합이 점수표에 적힌다", async () => {
