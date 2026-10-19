@@ -24,15 +24,21 @@
 - **홀드**: 엔진 `toggleHold(state, die)`·`holdRejection`, 저장소 `toggleHold(die)`. 3D 탭(`scene/die-hit-targets.tsx`), 홀드 말풍선(`scene/hold-bubbles.tsx`, 자리 계산은 `layout/hold-bubbles.ts`), 보이지 않는 주사위 버튼(`a11y/dice-buttons.tsx`)이 모두 같은 저장소 명령을 쓴다. 말풍선 자리는 카메라 맞춤 값과 그 주사위의 열·줄로만 정해져, 다른 주사위를 홀드해도 움직이지 않는다.
 - **카메라 맞춤**: `layout/camera-fit.ts` 의 `fitCamera({ width, height, reserveTop, avoid })`. 판 위에 겹치는 요소에 `data-board-overlay` 를 붙이면 `scene/board-3d.tsx` 가 자리를 재서 넣는다. 맨 위에 붙은 것은 판을 아래로 내려 피하고, 나머지는 판을 위아래로 옮기고 거리를 맞춰 피한다. 판 전체가 피하느라 판이 10% 넘게 작아지면(세로 배치의 버튼) 컵·정렬 줄·홀드 자리만 피하고 판 앞쪽 테두리·펠트는 덮이게 둔다.
 - **게임 끝**: 모든 점수표가 차면 엔진이 `finished` 를 켜고, 그 뒤 명령은 모두 `"game-over"` 로 거부한다. 모드는 저장하지 않고 `gameMode(state)`(플레이어 수)로 계산한다.
-- **화면 전환**: 저장소의 `screen`(`"start" | "game"`)과 명령 `newGame(players)`·`restart()`(같은 멤버로 다시)·`goHome()`(처음으로). 결과 화면을 띄울지는 `resultVisible`(`store/game-store.ts`) 한 곳에서 정한다. 보너스 알림이 끝날 때까지 결과 화면을 미루는 조건은 여기에 더한다.
+- **화면 전환**: 저장소의 `screen`(`"start" | "game"`)과 명령 `newGame(players)`·`restart()`(같은 멤버로 다시)·`goHome()`(처음으로). 결과 화면을 띄울지는 `resultVisible`(`store/game-store.ts`) 한 곳에서 정한다(게임이 끝났고 보너스 알림이 없을 때).
 - **브라우저 저장 도우미**: `store/stored-value.ts` 의 `createStoredValue({ storage, key, version, parse })` → `{ read, write, clear }`. 저장 항목(키)마다 버전을 두고, 읽을 수 없거나 버전이 다르거나 `parse` 가 null 을 돌려주면 그 키만 지운다. 저장소 접근이 막혀도 예외를 던지지 않는다. 운영은 `browserStorage()`, 테스트는 `memoryStorage()`. 이어 하기(#10)·음소거(#12)는 `best-score.ts` 처럼 항목 파일을 하나 더하고 `main.tsx` 에서 저장소에 넣는다.
 - **최고 점수**: `store/best-score.ts` 의 `bestScoreValue(storage)`(키 `yacht.best-score`). 연습 모드 판이 끝나는 기록에서 저장소가 지난 최고 점수와 견주어(`settleBest`) 넘었을 때만 쓰고, 결과는 `outcome` 에 둔다.
 - **3D 장면 룩(카지노 펠트)**: 재질은 그리는 파일마다 둔다 — 판 `scene/board-mesh.tsx`(펠트·테두리·홀드 자리), 주사위 `scene/die-mesh.tsx`, 컵 `scene/cup-mesh.tsx`, 조명 `scene/board-3d.tsx` 의 `SceneLights`. 펠트·가죽의 결 같은 캔버스 텍스처는 `scene/textures.ts` 로 만들고, 재질은 처음 쓸 때 한 번만 만들어 공유한다. 주사위 모서리 반지름을 바꾸면 물리 충돌체(`presenters/physics/pre-roll.ts` 의 `DIE_CORNER`)도 함께 바꾼다.
 - **플레이 방법**: `ui/how-to-play.tsx` 의 `HowToPlayButton`(여는 버튼 + 모달 대화상자). 문구는 `ui/how-to-play-content.ts`, 족보 예시 주사위와 점수는 `engine/rule-examples.ts`(점수는 점수 계산 표로 셈한다). 열고 닫기는 화면 상태라 저장소의 게임 상태를 건드리지 않는다.
 - **화면 배치**: `ui/app.css` 의 `@media (orientation: portrait | landscape)`. 정사각형은 세로 배치다.
+- **기여 주사위**: 점수 계산 표(`engine/scoring.ts`)가 점수와 함께 기여 주사위도 낸다(`contributingFor`). 엔진 조회는 `contributingDice(state, category)`, 화면은 `useContributingDice()`(선택한 카테고리 기준). 3D 빛은 `scene/contributing-glow.tsx` 가 정렬 줄·홀드 자리의 열 위치에 겹쳐 그려서, 연출 구현(#5·#11)은 몰라도 된다.
+- **성립 알림**: 엔진 `comboCallout(state)` 가 띄울 카테고리를 정하고, 저장소가 정렬 끝(`presenterLinedUp`)에 `callout` 으로 들고 있다가 `calloutEnded(rollId)`·다시 굴림·기록에 지운다. 화면은 `ui/notices.tsx`.
+- **색종이**: `ui/confetti.tsx` 의 `<Confetti onDone? />`. 붙이면 한 번 터지고, 다시 터뜨리려면 `key` 를 바꾼다. '동작 줄이기'면 스스로 아무것도 그리지 않으므로 쓰는 쪽이 따로 막지 않아도 된다(결과 화면 #9 도 그대로 쓴다).
+- **차례 넘김 미루기(보너스 알림)**: 엔진은 기록과 함께 바로 다음 차례로 넘어간다(저장·복원도 그 상태). 기록이 보너스 알림(엔진 `bonusNotice(before, after)`: "+35"/"+0")을 낳으면 저장소가 `bonusNotice` 를 들고, 그동안 화면의 지금 차례는 방금 기록한 플레이어다(`shownPlayer()`, 화면은 `useShownPlayer()`). 굴림과 "?"(`canOpenHelp`)는 잠긴다. 알림 표시가 끝나면(`bonusNoticeEnded(id)`) `bonusNotice` 가 지워지고 `shownPlayer` 가 엔진의 지금 차례로 바뀐다 — **이 순간이 화면의 차례 넘김**이다. 결과 화면은 마지막 기록의 보너스 알림이 끝난 뒤에 뜬다(`resultVisible` 이 `bonusNotice` 가 없기를 함께 본다. 최고 점수는 기록 때 한 번만 정한다).
+- **차례 배너**: 대전 모드에서 화면의 차례가 넘어가는 순간(기록 뒤, 보너스 알림이 있으면 `bonusNoticeEnded` 때) 저장소가 `turnBanner`(`{ id, player }`)를 들고, `ui/turn-banner.tsx` 가 「다음은 ○○ 차례」를 띄웠다가 `turnBannerEnded(id)` 로 지운다. 게임이 끝난 기록이나 연습 모드에는 없다. 조작은 막지 않고 "?"(`helpBlocker`)만 막는다.
+- **순위**: 엔진 `ranking(state)`(`engine/ranking.ts`) → `{ player, total, rank }[]`, 총합 득점 순서. 동점이면 같은 순위이고 다음 순위는 그 인원만큼 건너뛴다(1·1·3). 결과 화면(`ui/result-screen.tsx`)은 대전 모드면 순위 표 → 「다음」 → 승자 화면(공동 1등 모두, 색종이), 연습 모드면 최고 점수 비교다.
+- **플레이어 이름과 색**: 시작 화면이 인원(1~4)과 이름을 받고 `playerNames(inputs)`(`ui/player-names.ts`: 앞뒤 공백 제거, 비면 「플레이어 n」, 같은 이름이면 뒤에 " 2")로 `newGame` 에 넘긴다. 플레이어 색은 저장하지 않고 자리 순번으로 정한다(`ui/player-dot.tsx` 의 `playerColor(i)`·`<PlayerDot player />`). 그래서 「같은 멤버로 다시」는 이름 순서만 지키면 색도 그대로다.
 
 ## 테스트
 
 - `pnpm test` — Vitest. 엔진·저장소·배치 계산은 node 환경, 화면 테스트(`*.test.tsx`)만 파일 첫 줄에 `// @vitest-environment jsdom` 을 적는다. 3D 캔버스는 테스트에서 그리지 않는다(`App` 의 `Board` 자리에 대역을 넣는다).
 - `pnpm typecheck`, `pnpm check`(Biome), `pnpm build`.
-- 임시: 대전 모드의 시작 화면(#9)이 오기 전까지 `?players=1..4` 로 열면 시작 화면을 건너뛰고 그 인원으로 바로 게임을 연다. 화면 배치 확인용이다.

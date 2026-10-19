@@ -6,7 +6,8 @@
   --ink: #1f1a14;
   --rule: #d9cfb8;
   --band: #3b3531;
-  --yellow: #f6d24a;
+  /* 지금 차례 세로줄(원작 노랑)과 주 버튼. 디자인 초안의 --turn. */
+  --yellow: #fee267;
   --preview: #6b5300;
   --selected: #ffd39b;
   --accent: #c8102e;
@@ -181,11 +182,34 @@ button:focus-visible {
   pointer-events: none;
 }
 
-.current-player .dot {
+/* 플레이어 색 점(src/ui/player-dot.tsx). 어두운 바탕 위에서는 흰 테두리, 노란 강조 위에서는 진한 테두리. */
+.player-dot {
+  display: inline-block;
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-right: 4px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  vertical-align: -1px;
+}
+
+.player-dot.large {
   width: 18px;
   height: 18px;
-  border-radius: 50%;
-  background: var(--fg);
+  margin-right: 0;
+}
+
+/* 점수표 머리의 색 점. 4인 세로줄이 좁아도 이름이 보이게 작게 둔다. */
+.player-dot.small {
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  border-width: 1.5px;
+}
+
+.now .player-dot {
+  border-color: #2b2a27;
 }
 
 .actions {
@@ -303,6 +327,13 @@ button:focus-visible {
   width: 40%;
 }
 
+/* 가로 배치: 4인 세로줄 머리의 이름이 보이도록 카테고리 열을 조금 줄인다. */
+@media (orientation: landscape) {
+  .scorecard col.name-col {
+    width: 36%;
+  }
+}
+
 .scorecard th,
 .scorecard td {
   height: var(--row);
@@ -327,6 +358,10 @@ button:focus-visible {
   color: var(--fg);
   font-size: 0.85em;
   font-weight: 600;
+}
+
+.scorecard thead th {
+  padding: 0 2px;
 }
 
 .scorecard thead th.turn {
@@ -393,6 +428,202 @@ button:focus-visible {
   box-shadow:
     inset 4px 0 0 #e8731c,
     inset 0 -1px 0 var(--rule);
+}
+
+/* ---------- 성립 알림·보너스 알림·점수표 빛 (#13) ----------
+   판 위에 겹치지만 카메라 맞춤이 피할 자리가 아니라서 data-board-overlay 를 붙이지 않는다.
+   '동작 줄이기'면 크기 변화 없이 나타났다 사라진다. */
+
+.notice {
+  grid-area: stage;
+  justify-self: center;
+  align-self: start;
+  z-index: 2;
+  margin-top: 44px;
+  padding: 0 8px;
+  max-width: 100%;
+  color: #fff;
+  /* 휴대폰 세로 폭에서도 「L. 스트레이트」가 판 폭 안에 들어가게 줄인다. */
+  font-size: clamp(26px, 9vw, 38px);
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+  -webkit-text-stroke: 6px #2b2a27;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 8px rgb(0 0 0 / 45%);
+  pointer-events: none;
+}
+
+.callout-text {
+  animation: notice-pop 1.3s ease-out forwards;
+}
+
+.callout-text.yacht {
+  color: #f5c542;
+}
+
+.bonus-text {
+  align-self: center;
+  margin-top: 0;
+  color: #ff6fb1;
+}
+
+/* 길이는 글자마다 떠 있는 시간(src/ui/notices.tsx 의 BONUS_STEPS)을 style 로 덮어쓴다. */
+.bonus-text span {
+  display: inline-block;
+  animation: notice-pop 1s ease-out forwards;
+}
+
+@keyframes notice-pop {
+  0% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+  12% {
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* 성립 알림 동안 지금 플레이어의 그 카테고리 칸(원작 주황, 요트는 금색). */
+.scorecard tr.cat td.callout {
+  background: #ff9a2e;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    0 0 10px #ff9a2e;
+  animation: cell-glow 0.45s ease-in-out infinite alternate;
+}
+
+.scorecard tr.cat td.callout.yacht {
+  background: #f5c542;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    0 0 12px #f5c542;
+}
+
+/* 보너스 알림 동안 방금 기록한 플레이어의 소계 칸(원작 분홍). */
+.scorecard tr.sub td.bonus {
+  background: #ff6fb1;
+  color: #fff;
+  font-weight: 700;
+  animation: cell-glow 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes cell-glow {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callout-text,
+  .bonus-text span,
+  .scorecard tr.cat td.callout,
+  .scorecard tr.sub td.bonus {
+    animation: none;
+  }
+}
+
+/* 색종이(src/ui/confetti.tsx). 화면 전체 위에 겹치고 조작을 막지 않는다. */
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.confetti i {
+  position: absolute;
+  top: -20px;
+  left: var(--x);
+  width: var(--w);
+  height: calc(var(--w) * 0.45);
+  background: var(--c);
+  border-radius: 1px;
+  opacity: 0;
+  animation: confetti-fall var(--t) cubic-bezier(0.25, 0.6, 0.45, 1) var(--d) forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), 105vh, 0) rotate(var(--r));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
+}
+
+/* 차례 배너(src/ui/turn-banner.tsx). 판 가운데를 가로지르는 띠. 조작을 막지 않는다. */
+.turn-banner {
+  grid-area: stage;
+  align-self: center;
+  justify-self: stretch;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgb(64 64 64 / 92%);
+  color: #fff;
+  font-size: clamp(18px, 5vw, 26px);
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: banner-in 1.6s ease-out forwards;
+}
+
+.turn-banner .player-dot {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+@keyframes banner-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-12%);
+  }
+  15% {
+    opacity: 1;
+    transform: none;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-banner {
+    animation: none;
+  }
 }
 
 /* ---------- WebGL 미지원 안내 ---------- */
@@ -640,4 +871,159 @@ button:focus-visible {
 .how-to-play .example .score {
   margin-left: 6px;
   font-weight: 700;
+}
+
+/* 시작 화면의 인원·이름 입력(대전 모드 #9). */
+.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(100%, 320px);
+}
+
+.setup .count {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.setup .count legend {
+  width: 100%;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.setup .count input {
+  position: absolute;
+  opacity: 0;
+}
+
+.setup .count span {
+  display: grid;
+  place-items: center;
+  min-width: 56px;
+  min-height: 40px;
+  border: 2px solid var(--fg);
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setup .count input:checked + span {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--ink);
+}
+
+.setup .count input:focus-visible + span {
+  outline: 3px solid var(--fg);
+  outline-offset: 2px;
+}
+
+.setup .names {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup .names li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setup .names .player-dot {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.setup .names input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 2px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+/* 승자 화면과 순위 표(대전 모드 결과, #9). */
+.winners {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 32px;
+}
+
+.result .winners li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.result .winners .player-dot {
+  width: 44px;
+  height: 44px;
+  border-width: 3px;
+}
+
+.winners .winner-name {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.winners .winner-total {
+  font-size: 1.25rem;
+}
+
+.result.winner h1 {
+  color: var(--yellow);
+}
+
+.ranks {
+  border-collapse: collapse;
+  min-width: min(100%, 320px);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranks > * > tr > * {
+  padding: 8px 14px;
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+
+.ranks > thead > tr > * {
+  background: var(--band);
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.ranks > tbody > tr > .name {
+  text-align: left;
+}
+
+.ranks > tbody > .first > * {
+  background: var(--yellow);
+  font-weight: 700;
+}
+
+/* 밝은 표 바탕 위라 색 점 테두리는 진한 색이다. */
+.result .ranks .player-dot {
+  border-color: #2b2a27;
 }

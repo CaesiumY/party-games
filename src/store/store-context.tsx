@@ -1,8 +1,10 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { useStore } from "zustand";
+import { contributingDice } from "../engine/game";
+import type { DieId } from "../engine/types";
 import { type DieSlot, diceSlots } from "../layout/columns";
 import type { GameStore, GameStoreState } from "./game-store";
-import { allDiceUp, judge, type Permissions, previewVisible } from "./permissions";
+import { allDiceUp, judge, type Permissions, previewVisible, shownPlayer } from "./permissions";
 
 const StoreContext = createContext<GameStore | null>(null);
 
@@ -23,9 +25,29 @@ export function usePermissions(): Permissions {
   const presentation = useGame((s) => s.presentation);
   const selection = useGame((s) => s.selection);
   const movingDice = useGame((s) => s.movingDice);
+  const bonusNotice = useGame((s) => s.bonusNotice);
+  const turnBanner = useGame((s) => s.turnBanner);
   return useMemo(
-    () => judge({ game, presentation, selection, movingDice }),
-    [game, presentation, selection, movingDice],
+    () => judge({ game, presentation, selection, movingDice, bonusNotice, turnBanner }),
+    [game, presentation, selection, movingDice, bonusNotice, turnBanner],
+  );
+}
+
+/**
+ * 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림 동안은 방금 기록한 플레이어이고, 알림이 끝나면 엔진의 지금 차례다.
+ * 점수표의 차례 강조·지금 차례 표시·차례 배너(#9)가 모두 이것을 쓴다.
+ */
+export function useShownPlayer(): number {
+  return useGame((s) => shownPlayer(s));
+}
+
+/** 선택한 카테고리의 기여 주사위(DieId). 선택이 없으면 빈 배열이다. 점수 계산과 같은 곳에서 나온다. */
+export function useContributingDice(): readonly DieId[] {
+  const game = useGame((s) => s.game);
+  const selection = useGame((s) => s.selection);
+  return useMemo(
+    () => (selection === null ? [] : contributingDice(game, selection)),
+    [game, selection],
   );
 }
 

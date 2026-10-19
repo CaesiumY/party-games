@@ -1,4 +1,5 @@
 import { holdRejection, recordRejection, rollRejection, rollsLeft } from "../engine/game";
+import type { BonusNotice } from "../engine/totals";
 import type { Category, DieId, GameState, Rejection } from "../engine/types";
 
 /**
@@ -13,11 +14,25 @@ export type Presentation =
   | { phase: "rolling" | "stopped" | "auto-moving"; rollId: number };
 
 /**
+ * 떠 있는 보너스 알림(스펙 「보너스 알림」). 기록이 윗칸 보너스를 정한 순간 생기고, 알림 표시가 끝나면 지워진다.
+ * 엔진은 기록과 함께 이미 다음 차례로 넘어갔지만, 화면은 이것이 있는 동안 차례 넘김을 미룬다:
+ * 방금 기록한 플레이어(`player`)를 지금 차례로 보여 주고, 굴림 버튼과 "?" 버튼을 잠근다.
+ */
+export interface HandOffNotice {
+  /** 알림마다 다른 번호. 알림 표시가 끝났다고 알릴 때 쓴다. */
+  id: number;
+  /** 방금 기록한 플레이어의 순번. */
+  player: number;
+  notice: BonusNotice;
+}
+
+/**
  * 저장소가 거부한 이유. 엔진의 거부 이유에 화면 쪽 이유를 더한 것이다.
  * - presenting: 굴림 연출 중
  * - moving: 홀드·홀드 풀기로 주사위가 옮겨 가는 중
+ * - handing-off: 보너스 알림이 끝나기를 기다리는 중(화면의 차례 넘김 전)
  */
-export type StoreRejection = Rejection | "presenting" | "moving" | "no-selection";
+export type StoreRejection = Rejection | "presenting" | "moving" | "no-selection" | "handing-off";
 
 export type ActionResult = { ok: true } | { ok: false; reason: StoreRejection };
 
@@ -27,6 +42,18 @@ export interface JudgeInput {
   selection: Category | null;
   /** 홀드·홀드 풀기로 자리를 옮겨 가는 중인 주사위. 연출 입구가 다 옮겼다고 알리면 빠진다. */
   movingDice: readonly DieId[];
+  /** 떠 있는 보너스 알림. 없거나 null 이면 차례 넘김을 미루지 않는다. */
+  bonusNotice?: HandOffNotice | null;
+  /** 떠 있는 차례 배너. 조작은 막지 않고 "?" 만 막는다. */
+  turnBanner?: TurnBanner | null;
+}
+
+/** 떠 있는 차례 배너(스펙 「차례 배너」). 화면의 차례 넘김 때 뜨고, 표시가 끝나면 지워진다. */
+export interface TurnBanner {
+  /** 배너마다 다른 번호. 표시가 끝났다고 알릴 때 쓴다. */
+  id: number;
+  /** 이제 차례인 플레이어의 순번. */
+  player: number;
 }
 
 /**
@@ -37,6 +64,7 @@ export interface JudgeInput {
 export function rollBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
   if (s.movingDice.length > 0) return "moving";
+  if (s.bonusNotice) return "handing-off";
   return rollRejection(s.game);
 }
 
@@ -67,12 +95,13 @@ export function holdBlocker(s: JudgeInput, die: DieId): StoreRejection | null {
  * 닫았을 때 연 때와 다른 화면이 되므로, 무엇이 움직이고 있는 동안에는 막는다.
  *
  * - 굴림 연출(rolling·stopped)과 3번째 굴림 뒤 자동 이동(auto-moving): 연출 단계가 idle 이 아니면 막는다.
+ * - 보너스 알림·차례 배너가 떠 있는 동안: 연 사이에 차례가 넘어가 버리면 차례 배너도 놓친다.
  * - 홀드·홀드 풀기로 옮겨 가는 주사위(`movingDice`)는 막지 않는다. 그 주사위만 잠그는 짧은 이동이라
  *   차례나 굴림이 바뀌지 않기 때문이다.
- * - 보너스 알림(#13)·차례 배너(#9)가 떠 있는 동안: 그 표시 상태가 JudgeInput 에 생기면 여기에 더한다.
  */
 export function helpBlocker(s: JudgeInput): StoreRejection | null {
   if (s.presentation.phase !== "idle") return "presenting";
+  if (s.bonusNotice || s.turnBanner) return "handing-off";
   return null;
 }
 
@@ -105,6 +134,14 @@ export function allDiceUp(s: Pick<JudgeInput, "game" | "presentation">): boolean
   return (
     s.game.rollsUsed > 0 && rollsLeft(s.game) <= 0 && (phase === "idle" || phase === "auto-moving")
   );
+}
+
+/**
+ * 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림이 떠 있는 동안은 방금 기록한 플레이어이고,
+ * 그 밖에는 엔진의 지금 차례다. 이 값이 엔진의 지금 차례로 바뀌는 때가 화면의 차례 넘김이다.
+ */
+export function shownPlayer(s: Pick<JudgeInput, "game" | "bonusNotice">): number {
+  return s.bonusNotice ? s.bonusNotice.player : s.game.currentPlayer;
 }
 
 /** 점수 미리보기는 주사위가 멈추는 순간부터 보인다. 조작 잠금은 정렬 끝에 풀린다. */
