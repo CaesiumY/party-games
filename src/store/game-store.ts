@@ -110,9 +110,16 @@ export interface GameStoreOptions {
   bestScore?: StoredValue<number>;
 }
 
-/** 결과 화면을 띄울지: 게임 화면에서 게임이 끝났을 때. */
-export function resultVisible(s: { screen: Screen; game: GameState }): boolean {
-  return s.screen === "game" && s.game.finished;
+/**
+ * 결과 화면을 띄울지: 게임 화면에서 게임이 끝났을 때. 마지막 기록이 보너스 알림을 띄웠으면
+ * 알림이 끝난 뒤에 띄운다(스펙 「보너스 알림」).
+ */
+export function resultVisible(s: {
+  screen: Screen;
+  game: GameState;
+  bonusNotice: HandOffNotice | null;
+}): boolean {
+  return s.screen === "game" && s.game.finished && s.bonusNotice === null;
 }
 
 export type GameStore = ReturnType<typeof createGameStore>;
