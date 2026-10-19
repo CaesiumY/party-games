@@ -59,6 +59,8 @@ describe("브라우저 저장 도우미", () => {
     expect(item.read()).toBeNull();
     expect(() => item.write(7)).not.toThrow();
     expect(() => item.clear()).not.toThrow();
-    expect(createStoredValue({ storage: null, key: "count", version: 1, parse: isCount }).read()).toBeNull();
+    expect(
+      createStoredValue({ storage: null, key: "count", version: 1, parse: isCount }).read(),
+    ).toBeNull();
   });
 });
