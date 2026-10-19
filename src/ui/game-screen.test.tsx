@@ -9,7 +9,10 @@ import type { DieValue } from "../engine/types";
 import { createGameStore } from "../store/game-store";
 import { useGame } from "../store/store-context";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 /** 캔버스 없는 판 영역 대역. 순간 배치 연출처럼 굴림마다 멈춤과 정렬 끝을 곧바로 알린다. */
 function FakeBoard() {
@@ -208,7 +211,6 @@ describe("점수 미리보기와 기록", () => {
         vi.advanceTimersByTime(2000);
       });
     }
-    vi.useRealTimers();
 
     expect(rowOf("소계").getByText("105/63")).toBeTruthy();
     expect(rowOf("보너스+35").getByText("35")).toBeTruthy();
@@ -307,10 +309,6 @@ describe("보이지 않는 주사위 버튼", () => {
 });
 
 describe("성립 알림", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("정렬 끝에 성립한 카테고리 이름이 뜨고, 그동안 점수표의 그 칸이 빛나다가 1~1.5초 뒤 사라진다", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -385,10 +383,6 @@ describe("성립 알림", () => {
 });
 
 describe("보너스 알림", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("소계가 처음 63 이상이 되면 「보너스!」→「+35」가 뜨고, 끝날 때까지 방금 기록한 플레이어의 차례로 보이며 굴릴 수 없다", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
