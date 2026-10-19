@@ -351,7 +351,7 @@ describe("3번째 굴림 뒤 자동 이동 중 잠금", () => {
   it("올라간 주사위를 모두 다 옮겼다고 알리면 카테고리를 골라 기록할 수 있다", () => {
     const store = afterThirdLineup();
 
-    for (const die of [1, 2, 3]) store.getState().presenterDieSettled(die);
+    for (const die of [1, 2, 3] as const) store.getState().presenterDieSettled(die);
     expect(store.getState().permissions().canSelect("yacht")).toBe(false);
     store.getState().presenterDieSettled(4);
 
