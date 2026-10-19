@@ -64,38 +64,40 @@ function SetupForm({ best }: { best: number | null }) {
         newGame(playerNames(inputs.slice(0, count)));
       }}
     >
-      <fieldset className="count">
-        <legend>인원</legend>
-        {PLAYER_COUNTS.map((n) => (
-          <label key={n}>
-            <input
-              type="radio"
-              name="count"
-              value={n}
-              checked={count === n}
-              onChange={() => setCount(n)}
-            />
-            <span>{n}명</span>
-          </label>
-        ))}
-      </fieldset>
-      <ol className="names">
-        {inputs.slice(0, count).map((value, i) => (
-          // 자리 순서가 곧 플레이어이고 칸 수만 바뀐다.
-          // biome-ignore lint/suspicious/noArrayIndexKey: 이름 칸은 자리(순번)로 구분한다.
-          <li key={i}>
-            <PlayerDot player={i} />
-            <input
-              type="text"
-              aria-label={`플레이어 ${i + 1} 이름`}
-              placeholder={defaultName(i)}
-              maxLength={NAME_MAX_LENGTH}
-              value={value}
-              onChange={(event) => setInput(i, event.target.value)}
-            />
-          </li>
-        ))}
-      </ol>
+      <div className="setup-card">
+        <fieldset className="count">
+          <legend>인원</legend>
+          {PLAYER_COUNTS.map((n) => (
+            <label key={n}>
+              <input
+                type="radio"
+                name="count"
+                value={n}
+                checked={count === n}
+                onChange={() => setCount(n)}
+              />
+              <span>{n}명</span>
+            </label>
+          ))}
+        </fieldset>
+        <ol className="names">
+          {inputs.slice(0, count).map((value, i) => (
+            // 자리 순서가 곧 플레이어이고 칸 수만 바뀐다.
+            // biome-ignore lint/suspicious/noArrayIndexKey: 이름 칸은 자리(순번)로 구분한다.
+            <li key={i}>
+              <PlayerDot player={i} />
+              <input
+                type="text"
+                aria-label={`플레이어 ${i + 1} 이름`}
+                placeholder={defaultName(i)}
+                maxLength={NAME_MAX_LENGTH}
+                value={value}
+                onChange={(event) => setInput(i, event.target.value)}
+              />
+            </li>
+          ))}
+        </ol>
+      </div>
       <p className="best">최고 점수 {best ?? "없음"}</p>
       <button type="submit" className="primary">
         {count === 1 ? "혼자 시작" : "대전 시작"}

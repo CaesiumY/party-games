@@ -1,19 +1,12 @@
-/* 기본 도형과 무난한 색. 디자인 체계는 디자인 ①(#16)에서 정한다. */
+/*
+ * 2D UI 스타일(루트 DESIGN.md, 고른 시안 A「원작 그대로」). 색·글꼴 값은 src/ui/tokens.css 의 토큰만 쓴다.
+ * 그림자·덮개의 반투명 검정만 여기 둔다.
+ */
 :root {
-  --bg: #2a1d14;
-  --fg: #f3e7d3;
-  --paper: #fbf7ec;
-  --ink: #1f1a14;
-  --rule: #d9cfb8;
-  --band: #3b3531;
-  /* 지금 차례 세로줄(원작 노랑)과 주 버튼. 디자인 초안의 --turn. */
-  --yellow: #fee267;
-  --preview: #6b5300;
-  --selected: #ffd39b;
-  --accent: #c8102e;
+  /* 점수표 카테고리 줄 높이(누르는 영역). WCAG 2.2 최소 크기 24px(스펙 「화면 배치」). */
   --row: 24px;
-  color-scheme: dark;
-  font-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: light;
+  font-family: var(--font-ui);
 }
 
 * {
@@ -28,18 +21,19 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--page);
+  color: var(--text);
   overflow: hidden;
 }
 
-button {
+button,
+input {
   font: inherit;
   color: inherit;
 }
 
 button:focus-visible {
-  outline: 3px solid var(--fg);
+  outline: 3px solid var(--sel-ring);
   outline-offset: 2px;
 }
 
@@ -57,31 +51,111 @@ button:focus-visible {
   border: 0;
 }
 
+/* ---------- 버튼 (DESIGN.md 「Components」) ----------
+   주 버튼: 노란 알약 + 진한 테두리 + 아래 그림자. 보조 버튼: 크림색 알약, 나머지는 같다. */
+
+.actions button,
+.start button,
+.result button,
+.how-to-play .close {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 2px solid var(--text);
+  border-radius: 999px;
+  background: var(--cell);
+  color: var(--text);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--text);
+}
+
+.actions button.primary,
+.start button.primary,
+.result button.primary {
+  background: var(--turn);
+}
+
+.actions button:active:not(:disabled),
+.start button:active,
+.result button:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--text);
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 순위 표(대전 모드 결과). 칸 규칙은 :where 로 우선순위를 낮춰 두고 적은 순서대로 덮는다. */
+.ranks {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: min(100%, 320px);
+  background: var(--cell);
+  border: 2px solid var(--band);
+  border-radius: 2px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ranks :where(th, td) {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--band);
+}
+
+.ranks :where(thead th) {
+  background: var(--band);
+  color: var(--on-band);
+  font-size: 0.85rem;
+}
+
+.ranks :where(td.name) {
+  text-align: left;
+}
+
+.ranks :where(td:last-child) {
+  font-family: var(--font-num);
+  font-weight: 800;
+}
+
+.ranks :where(tr.first td) {
+  background: var(--turn);
+}
+
+.ranks :where(tbody tr:last-child td) {
+  border-bottom: 0;
+}
+
 /* ---------- 게임 화면 배치 (스펙 「화면 배치」) ---------- */
 
 .game {
   height: 100dvh;
   margin: 0 auto;
   display: grid;
-  gap: 8px;
-  padding: max(8px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
-    max(8px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  gap: 6px;
+  padding: max(6px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
+/* 3D 판 영역. 캔버스는 투명이라 앱 바탕(나무 탁자)이 판 둘레에 보인다. */
 .board {
   grid-area: stage;
   position: relative;
   min-width: 0;
   min-height: 0;
-  border-radius: 12px;
   overflow: hidden;
   touch-action: manipulation;
   /* 판 안의 말풍선이 판 위에 겹친 버튼·표시보다 위로 올라오지 않게 한다. */
   isolation: isolate;
 }
 
-/* 홀드 말풍선: 기준점(주사위 윗면 뒤쪽 모서리 위, 또는 앞쪽 아래)의 가로 가운데에 놓인다.
-   크기와 자리는 src/layout/hold-bubbles.ts 의 BUBBLE 과 같다. */
+/* 홀드 말풍선: 흰 알약 + 진한 테두리(원작 안내 말풍선). 기준점(주사위 윗면 뒤쪽 모서리 위, 또는 앞쪽 아래)의
+   가로 가운데에 놓인다. 높이·테두리·폭은 src/layout/hold-bubbles.ts 의 BUBBLE 과 같다. */
 .hold-bubbles {
   position: absolute;
   inset: 0;
@@ -93,23 +167,23 @@ button:focus-visible {
   position: absolute;
   height: 24px;
   padding: 0 3px;
-  border: 2px solid #ffd21f;
-  border-radius: 8px;
-  background: rgb(18 12 8 / 88%);
-  color: #ffe27a;
-  font-weight: 700;
+  border: 2px solid var(--text);
+  border-radius: 999px;
+  background: var(--on-band);
+  color: var(--text);
+  font-weight: 800;
   line-height: 20px;
   white-space: nowrap;
   text-align: center;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 35%);
   transform: translate(-50%, calc(-100% - 6px));
 }
 
+/* 홀드 자리 주사위의 「되돌리기」는 크림색으로 「킵」과 구별한다. */
 .hold-bubble.release {
-  border-color: #f3e7d3;
-  color: #f3e7d3;
+  background: var(--cell);
 }
 
 .hold-bubble.below {
@@ -153,95 +227,78 @@ button:focus-visible {
   z-index: 1;
 }
 
-.rolls-left {
-  grid-area: stage;
-  justify-self: end;
-  align-self: start;
-  margin: 10px 12px 0 0;
-  font-weight: 700;
-  font-size: clamp(14px, 3vh, 20px);
-  line-height: 1.2;
-  color: #fff;
-  text-shadow: 0 2px 6px rgb(0 0 0 / 60%);
-  pointer-events: none;
-}
-
+/* 판 위 겹침 칩(남은 굴림·지금 차례): 반투명 진한 바탕, 흰 글자, 알약. */
+.rolls-left,
 .current-player {
   grid-area: stage;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 10px 3px 4px;
   border-radius: 999px;
-  background: rgb(18 12 8 / 82%);
-  border: 2px solid var(--fg);
-  font-weight: 700;
-  font-size: 13px;
-  line-height: 18px;
+  background: var(--chip-bg);
+  color: var(--on-band);
+  font-weight: 800;
   white-space: nowrap;
   pointer-events: none;
 }
 
-/* 플레이어 색 점(src/ui/player-dot.tsx). 어두운 바탕 위에서는 흰 테두리, 노란 강조 위에서는 진한 테두리. */
+.rolls-left {
+  justify-self: end;
+  align-self: start;
+  gap: 2px;
+  margin: 8px 8px 0 0;
+  padding: 4px 12px;
+  font-size: clamp(14px, 2.6vh, 20px);
+  line-height: 1.2;
+}
+
+.rolls-left {
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.current-player {
+  padding: 4px 12px 4px 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* 플레이어 색 점(src/ui/player-dot.tsx). 어두운 바탕 위에서는 흰 테두리, 밝은 바탕·노란 강조 위에서는 진한 테두리. */
 .player-dot {
   display: inline-block;
   flex: none;
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   margin-right: 4px;
-  border: 2px solid #fff;
+  border: 2px solid var(--on-band);
   border-radius: 50%;
   vertical-align: -1px;
 }
 
 .player-dot.large {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin-right: 0;
 }
 
-/* 점수표 머리의 색 점. 4인 세로줄이 좁아도 이름이 보이게 작게 둔다. */
+/* 점수표 머리의 색 점. 4인 세로줄이 좁아서 작게, 이름 위에 둔다. */
 .player-dot.small {
+  display: block;
   width: 9px;
   height: 9px;
-  margin-right: 2px;
+  margin: 0 auto 2px;
   border-width: 1.5px;
 }
 
 .now .player-dot {
-  border-color: #2b2a27;
+  border-color: var(--text);
 }
 
 .actions {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.actions button {
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 0;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 3px 0 rgb(0 0 0 / 35%);
-}
-
-.actions .roll {
-  background: var(--accent);
-  color: #fff;
-}
-
-.actions .record {
-  background: var(--yellow);
-  color: var(--ink);
-}
-
-.actions button:disabled {
-  opacity: 0.45;
-  cursor: default;
 }
 
 /* 세로 배치: 위 판, 아래 점수표. 버튼·지금 차례·남은 굴림은 판 위에 겹친다. 정사각형도 세로 배치다. */
@@ -256,15 +313,22 @@ button:focus-visible {
   .current-player {
     justify-self: start;
     align-self: start;
-    margin: 10px 0 0 12px;
+    margin: 8px 0 0 8px;
   }
 
-  /* 컵이 판 오른쪽 아래에 있어서 버튼은 왼쪽 아래에 둔다. */
+  /* 컵이 판 오른쪽 아래에 있어서 버튼은 판 왼쪽 아래에 나란히 둔다. */
   .actions {
     grid-area: stage;
     justify-self: start;
     align-self: end;
-    margin: 0 0 10px 10px;
+    gap: 6px;
+    margin: 0 0 10px 8px;
+  }
+
+  /* 버튼 줄이 오른쪽 아래의 컵 쪽으로 넓어지면 카메라 맞춤이 판을 줄이므로 좁게 둔다. */
+  .actions button {
+    padding: 0 12px;
+    font-size: 14px;
   }
 }
 
@@ -272,16 +336,18 @@ button:focus-visible {
 @media (orientation: landscape) {
   .game {
     max-width: 1280px;
-    grid-template-columns: minmax(250px, 34%) minmax(0, 1fr);
+    grid-template-columns: minmax(312px, 34%) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas: "sheet stage" "sheet actions";
-    gap: 8px 12px;
+    gap: 6px 12px;
+    padding-top: max(6px, env(safe-area-inset-top));
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
   }
 
   .current-player {
     justify-self: center;
     align-self: end;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .actions {
@@ -290,60 +356,76 @@ button:focus-visible {
   }
 
   .actions button {
-    min-height: clamp(36px, 6vh, 52px);
-    min-width: clamp(96px, 13vh, 150px);
-    font-size: clamp(14px, 2.4vh, 19px);
+    min-height: clamp(40px, 6vh, 52px);
+    min-width: clamp(104px, 13vh, 150px);
+    font-size: clamp(15px, 2.4vh, 19px);
   }
 }
 
-/* ---------- 점수표 ---------- */
+/* ---------- 점수표 (원작 한국어판 점수표) ----------
+   크림색 칸과 진한 괘선, 진회색 머리줄·총합 득점 줄, 회색 소계·보너스 줄, 지금 차례 세로줄은 노랑.
+   덩어리(윗칸 · 초이스 · 아랫칸 · 총합) 사이에 3px 틈을 둔다(세로 배치만, 가로는 높이가 빠듯하다). */
 
 .sheet {
   grid-area: sheet;
   min-width: 0;
   min-height: 0;
-  background: var(--paper);
-  color: var(--ink);
-  border-radius: 8px;
-  overflow: hidden;
+  color: var(--text);
 }
 
 .scorecard {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
+  background: var(--cell);
+  border: 2px solid var(--band);
+  border-radius: 2px;
+  font-size: 13px;
 }
 
 @media (orientation: landscape) {
   .scorecard {
     height: 100%;
-    font-size: clamp(12px, 2.2vh, 16px);
+    font-size: clamp(12px, 2vh, 16px);
   }
 }
 
 .scorecard col.name-col {
-  width: 40%;
+  width: 110px;
 }
 
-/* 가로 배치: 4인 세로줄 머리의 이름이 보이도록 카테고리 열을 조금 줄인다. */
 @media (orientation: landscape) {
   .scorecard col.name-col {
-    width: 36%;
+    width: 96px;
   }
 }
 
 .scorecard th,
 .scorecard td {
   height: var(--row);
-  padding: 0 4px;
+  padding: 0 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
-  font-weight: 400;
-  box-shadow: inset 0 -1px 0 var(--rule);
+  font-weight: 700;
+  /* 가로 괘선은 그림자로 그려 줄 높이(누르는 영역 24px)에 더하지 않는다. */
+  box-shadow: inset 0 -1px 0 var(--band);
+}
+
+.scorecard td {
+  border-left: 1px solid var(--band);
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (orientation: landscape) {
+  .scorecard td {
+    font-size: clamp(14px, 2.4vh, 20px);
+  }
 }
 
 .scorecard tbody th {
@@ -351,88 +433,218 @@ button:focus-visible {
   padding: 0;
 }
 
-.scorecard thead th {
-  /* 플레이 방법 "?" 버튼의 누르는 영역(24px)이 들어가는 높이. */
-  height: 24px;
-  background: var(--band);
-  color: var(--fg);
-  font-size: 0.85em;
-  font-weight: 600;
+/* 덩어리 사이 틈: 다음 덩어리의 첫 줄 위에 크림색 띠를 두고, 그 아래에 다시 괘선을 긋는다.
+   높이가 넉넉한 세로 화면에서만 둔다. 휴대폰 세로(667px)에서는 판 영역에 높이를 양보한다. */
+@media (orientation: portrait) and (min-height: 720px) {
+  .scorecard tbody + tbody > tr:first-child > * {
+    height: calc(var(--row) + 4px);
+    border-top: 4px solid var(--cell);
+    box-shadow:
+      inset 0 1px 0 var(--band),
+      inset 0 -1px 0 var(--band);
+  }
+
+  .scorecard tbody + tbody > tr.total:first-child > * {
+    height: 30px;
+  }
 }
 
 .scorecard thead th {
+  /* 플레이 방법 "?" 버튼의 누르는 영역(24px)과 색 점 + 이름 한 줄이 들어가는 높이. */
+  height: 25px;
   padding: 0 2px;
+  background: var(--band);
+  color: var(--on-band);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+@media (orientation: landscape) {
+  .scorecard thead th {
+    height: 24px;
+    font-size: 11px;
+  }
+}
+
+/* 플레이어 이름 머리: 4인 세로줄은 좁아서 색 점을 이름 위에 두고, 이름은 한 줄에 쓴다.
+   점과 이름을 한 줄에 두면 「플레이어 1」의 번호가 말줄임에 가려져 누구인지 모르게 된다. */
+.scorecard thead th + th {
+  padding: 0 1px;
+  border-left: 1px solid var(--band);
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.scorecard .player-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (orientation: landscape) {
+  .scorecard thead th + th {
+    font-size: 10px;
+    letter-spacing: -0.03em;
+  }
 }
 
 .scorecard thead th.turn {
   text-align: left;
-  padding-left: 6px;
+  padding: 0 2px 0 6px;
+  line-height: 22px;
 }
 
-.scorecard thead th.now {
-  background: var(--yellow);
-  color: var(--ink);
+.scorecard .turn-label {
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 800;
 }
 
+.scorecard thead th.now,
 .scorecard td.now {
-  background: var(--yellow);
+  background: var(--turn);
+  color: var(--text);
 }
 
 .scorecard td.preview {
   color: var(--preview);
+  font-weight: 500;
 }
 
+/* 카테고리 이름 칸 = 카테고리 버튼. 이름 앞에 주사위 그림(원작). */
 .cat-button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   height: 100%;
-  min-height: var(--row);
-  padding: 0 6px;
+  min-height: 24px;
+  padding: 0 4px 0 5px;
   border: 0;
   background: none;
+  color: var(--text);
+  font-weight: 700;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .cat-button:disabled {
   cursor: default;
-  color: inherit;
 }
 
+.cat-icon {
+  flex: none;
+}
+
+.cat-icon-pip {
+  fill: var(--cell);
+}
+
+/* 소계·보너스 줄: 회색 띠에 흰 글자, 지금 차례 세로줄은 옅은 노랑. 누르지 않는 줄이라 낮게 둔다. */
 .scorecard tr.sub th,
 .scorecard tr.sub td {
   height: 14px;
-  font-size: 0.74em;
-  background: var(--band);
-  color: var(--fg);
-  padding: 0 6px;
+  padding: 0 4px;
+  background: var(--band-soft);
+  color: var(--on-band);
+  font-size: 11px;
+}
+
+.scorecard tr.sub td {
+  font-size: 12px;
 }
 
 .scorecard tr.sub td.now {
-  background: #6e6862;
+  background: var(--turn-soft);
+  color: var(--text);
 }
 
+@media (orientation: landscape) {
+  .scorecard tr.sub th,
+  .scorecard tr.sub td {
+    height: 14px;
+    font-size: 10px;
+    line-height: 1;
+  }
+}
+
+/* 총합 득점 줄: 진회색 띠, 지금 차례 세로줄은 노랑. */
 .scorecard tr.total th,
 .scorecard tr.total td {
-  height: 20px;
-  font-weight: 700;
-  padding: 0 6px;
+  height: 22px;
+  padding: 0 4px 0 6px;
+  background: var(--band);
+  color: var(--on-band);
+  box-shadow: none;
 }
 
-.scorecard tr.cat.selected th,
-.scorecard tr.cat.selected td {
-  background: var(--selected);
+.scorecard tr.total td {
+  padding: 0 3px;
 }
 
+/* 휴대폰 가로(높이 375px)에 15줄이 들어가도록 총합 득점 줄도 낮춘다(스펙 Further Notes). */
+@media (orientation: landscape) {
+  .scorecard tr.total th,
+  .scorecard tr.total td {
+    height: 19px;
+  }
+}
+
+.scorecard tr.total td.now {
+  background: var(--turn);
+  color: var(--text);
+}
+
+/* 고른 카테고리: 이름 칸은 주황, 지금 플레이어의 점수 칸은 빨간 주황 + 하늘색 괄호(원작). */
 .scorecard tr.cat.selected th {
-  box-shadow:
-    inset 4px 0 0 #e8731c,
-    inset 0 -1px 0 var(--rule);
+  background: var(--sel-name);
 }
 
-/* ---------- 성립 알림·보너스 알림·점수표 빛 (#13) ----------
+.scorecard tr.cat td.picked {
+  background: var(--sel-cell);
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--sel-ring);
+}
+
+/* 높이가 넉넉한 가로 화면(태블릿·데스크톱): 줄이 높아지는 만큼 글자와 머리줄도 키운다. */
+@media (orientation: landscape) and (min-height: 600px) {
+  .game {
+    grid-template-columns: minmax(312px, 36%) minmax(0, 1fr);
+  }
+
+  .scorecard col.name-col {
+    width: 118px;
+  }
+
+  .scorecard thead th {
+    height: 36px;
+  }
+
+  .scorecard thead th + th {
+    font-size: 11.5px;
+    letter-spacing: -0.02em;
+  }
+
+  .scorecard .turn-label {
+    font-size: 15px;
+  }
+
+  .cat-button {
+    gap: 6px;
+    font-size: 15px;
+  }
+
+  .scorecard tr.sub th,
+  .scorecard tr.sub td {
+    font-size: 13px;
+  }
+}
+
+/* ---------- 성립 알림·보너스 알림·점수표 빛 ----------
    판 위에 겹치지만 카메라 맞춤이 피할 자리가 아니라서 data-board-overlay 를 붙이지 않는다.
-   '동작 줄이기'면 크기 변화 없이 나타났다 사라진다. */
+   흰 글자 + 진한 외곽선(원작). '동작 줄이기'면 크기 변화 없이 나타났다 사라진다. */
 
 .notice {
   grid-area: stage;
@@ -442,15 +654,15 @@ button:focus-visible {
   margin-top: 44px;
   padding: 0 8px;
   max-width: 100%;
-  color: #fff;
+  color: var(--on-band);
   /* 휴대폰 세로 폭에서도 「L. 스트레이트」가 판 폭 안에 들어가게 줄인다. */
   font-size: clamp(26px, 9vw, 38px);
   font-weight: 800;
   line-height: 1.1;
   white-space: nowrap;
-  -webkit-text-stroke: 6px #2b2a27;
+  -webkit-text-stroke: 6px var(--text);
   paint-order: stroke fill;
-  text-shadow: 0 3px 8px rgb(0 0 0 / 45%);
+  text-shadow: 0 3px 0 rgb(0 0 0 / 35%);
   pointer-events: none;
 }
 
@@ -459,13 +671,13 @@ button:focus-visible {
 }
 
 .callout-text.yacht {
-  color: #f5c542;
+  color: var(--yacht);
 }
 
 .bonus-text {
   align-self: center;
   margin-top: 0;
-  color: #ff6fb1;
+  color: var(--bonus);
 }
 
 /* 길이는 글자마다 떠 있는 시간(src/ui/notices.tsx 의 BONUS_STEPS)을 style 로 덮어쓴다. */
@@ -496,25 +708,20 @@ button:focus-visible {
 
 /* 성립 알림 동안 지금 플레이어의 그 카테고리 칸(원작 주황, 요트는 금색). */
 .scorecard tr.cat td.callout {
-  background: #ff9a2e;
-  box-shadow:
-    inset 0 0 0 2px #fff,
-    0 0 10px #ff9a2e;
+  background: var(--callout-cell);
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--on-band);
   animation: cell-glow 0.45s ease-in-out infinite alternate;
 }
 
 .scorecard tr.cat td.callout.yacht {
-  background: #f5c542;
-  box-shadow:
-    inset 0 0 0 2px #fff,
-    0 0 12px #f5c542;
+  background: var(--yacht);
 }
 
 /* 보너스 알림 동안 방금 기록한 플레이어의 소계 칸(원작 분홍). */
 .scorecard tr.sub td.bonus {
-  background: #ff6fb1;
-  color: #fff;
-  font-weight: 700;
+  background: var(--bonus);
+  color: var(--text);
   animation: cell-glow 0.45s ease-in-out infinite alternate;
 }
 
@@ -523,7 +730,7 @@ button:focus-visible {
     filter: brightness(1);
   }
   to {
-    filter: brightness(1.18);
+    filter: brightness(1.15);
   }
 }
 
@@ -577,7 +784,7 @@ button:focus-visible {
   }
 }
 
-/* 차례 배너(src/ui/turn-banner.tsx). 판 가운데를 가로지르는 띠. 조작을 막지 않는다. */
+/* 차례 배너(src/ui/turn-banner.tsx). 판 가운데를 가로지르는 진회색 띠. 조작을 막지 않는다. */
 .turn-banner {
   grid-area: stage;
   align-self: center;
@@ -588,8 +795,9 @@ button:focus-visible {
   justify-content: center;
   gap: 8px;
   padding: 10px 12px;
-  background: rgb(64 64 64 / 92%);
-  color: #fff;
+  background: var(--band);
+  border-block: 2px solid var(--text);
+  color: var(--on-band);
   font-size: clamp(18px, 5vw, 26px);
   font-weight: 800;
   white-space: nowrap;
@@ -636,9 +844,10 @@ button:focus-visible {
   padding: 16px;
   text-align: center;
   font-size: 18px;
+  font-weight: 700;
 }
 
-/* ---------- 시작 화면·결과 화면 (최소판, 디자인은 #16) ---------- */
+/* ---------- 시작 화면·결과 화면 ---------- */
 
 /* 화면보다 길면(짧은 가로 화면에서 4인 입력, 화면 키보드) 이 영역만 세로로 스크롤한다. 게임 화면의
    body 스크롤 잠금은 그대로다. 남는 높이가 있으면 첫·끝 요소의 auto 여백으로 가운데에 모으고,
@@ -666,17 +875,25 @@ button:focus-visible {
   margin-bottom: auto;
 }
 
+/* 제목(「요트」·「결과」·「Winner!」): 크림색 글자 + 진한 외곽선(원작 알림과 같은 처리). */
 .start h1,
 .result h1 {
   margin: 0;
-  font-size: 2.5rem;
+  color: var(--cell);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  -webkit-text-stroke: 7px var(--text);
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 rgb(0 0 0 / 30%);
 }
 
 .start p,
 .result p,
 .result ul {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
 }
 
 .result ul {
@@ -685,8 +902,16 @@ button:focus-visible {
 }
 
 .result .new-best {
-  color: var(--yellow);
-  font-weight: 700;
+  padding: 4px 14px;
+  border: 2px solid var(--text);
+  border-radius: 999px;
+  background: var(--turn);
+}
+
+.result .total,
+.start .best,
+.result .best {
+  font-variant-numeric: tabular-nums;
 }
 
 .result-actions {
@@ -698,38 +923,37 @@ button:focus-visible {
 
 .start button,
 .result button {
-  min-width: 160px;
+  min-width: 180px;
   min-height: 48px;
-  padding: 0 20px;
-  border: 2px solid var(--fg);
-  border-radius: 12px;
-  background: transparent;
-  font-weight: 700;
-  cursor: pointer;
+  font-size: 18px;
 }
 
-.start button.primary,
-.result button.primary {
-  border-color: var(--yellow);
-  background: var(--yellow);
-  color: var(--ink);
-}
-
-/* 시작 화면의 이어 하기·새 게임 고르기(#10). */
+/* 시작 화면의 이어 하기·새 게임 고르기. */
 .resume {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* 시작 화면의 인원·이름 입력. */
+/* 시작 화면의 인원·이름 입력. 인원과 이름은 점수표와 같은 크림색 카드에 담는다. */
 .setup {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  width: min(100%, 320px);
+  gap: 14px;
+  width: min(100%, 340px);
+}
+
+.setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 2px solid var(--band);
+  border-radius: 2px;
+  background: var(--cell);
 }
 
 .setup .count {
@@ -744,6 +968,11 @@ button:focus-visible {
   width: 100%;
   margin-bottom: 8px;
   font-weight: 700;
+  text-align: left;
+}
+
+.setup .count label {
+  flex: 1;
 }
 
 .setup .count input {
@@ -754,22 +983,23 @@ button:focus-visible {
 .setup .count span {
   display: grid;
   place-items: center;
-  min-width: 56px;
   min-height: 40px;
-  border: 2px solid var(--fg);
+  border: 1.5px solid var(--band);
   border-radius: 8px;
-  font-weight: 700;
+  background: var(--cell);
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 16px;
   cursor: pointer;
 }
 
 .setup .count input:checked + span {
-  border-color: var(--yellow);
-  background: var(--yellow);
-  color: var(--ink);
+  background: var(--band);
+  color: var(--on-band);
 }
 
 .setup .count input:focus-visible + span {
-  outline: 3px solid var(--fg);
+  outline: 3px solid var(--sel-ring);
   outline-offset: 2px;
 }
 
@@ -790,9 +1020,10 @@ button:focus-visible {
 }
 
 .setup .names .player-dot {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin: 0;
+  border-color: var(--text);
 }
 
 .setup .names input {
@@ -800,12 +1031,22 @@ button:focus-visible {
   min-width: 0;
   min-height: 40px;
   padding: 0 12px;
-  border: 2px solid var(--rule);
+  border: 1.5px solid var(--band);
   border-radius: 8px;
-  background: var(--paper);
-  color: var(--ink);
-  font: inherit;
+  background: var(--on-band);
+  color: var(--text);
   font-size: 1rem;
+  font-weight: 700;
+}
+
+.setup .names input::placeholder {
+  color: var(--preview);
+  font-weight: 500;
+}
+
+.setup .names input:focus-visible {
+  outline: 3px solid var(--sel-ring);
+  outline-offset: 1px;
 }
 
 /* 승자 화면과 순위 표(대전 모드 결과). */
@@ -813,7 +1054,7 @@ button:focus-visible {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 16px 32px;
+  gap: 16px 24px;
 }
 
 .result .winners li {
@@ -821,83 +1062,57 @@ button:focus-visible {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  min-width: 140px;
+  padding: 16px 20px;
+  border: 2px solid var(--band);
+  border-radius: 2px;
+  background: var(--cell);
 }
 
 .result .winners .player-dot {
   width: 44px;
   height: 44px;
   border-width: 3px;
+  border-color: var(--text);
 }
 
 .winners .winner-name {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 800;
 }
 
 .winners .winner-total {
-  font-size: 1.25rem;
-}
-
-.result.winner h1 {
-  color: var(--yellow);
-}
-
-.ranks {
-  border-collapse: collapse;
-  min-width: min(100%, 320px);
-  background: var(--paper);
-  color: var(--ink);
-  border-radius: 8px;
-  overflow: hidden;
-  font-size: 1.1rem;
+  font-size: 1.125rem;
   font-variant-numeric: tabular-nums;
-}
-
-.ranks > * > tr > * {
-  padding: 8px 14px;
-  box-shadow: inset 0 -1px 0 var(--rule);
-}
-
-.ranks > thead > tr > * {
-  background: var(--band);
-  color: var(--fg);
-  font-size: 0.85rem;
-}
-
-.ranks > tbody > tr > .name {
-  text-align: left;
-}
-
-.ranks > tbody > .first > * {
-  background: var(--yellow);
-  font-weight: 700;
 }
 
 /* 밝은 표 바탕 위라 색 점 테두리는 진한 색이다. */
 .result .ranks .player-dot {
-  border-color: #2b2a27;
+  border-color: var(--text);
 }
 
-/* ---------- 플레이 방법 (최소판, 디자인은 #16) ---------- */
+/* ---------- 플레이 방법 ---------- */
 
 /* 점수표 머리의 "?" 버튼. 누르는 영역 24px 이상(스펙 「화면 배치」). */
-.scorecard thead th.turn {
-  padding-right: 0;
-  line-height: 24px;
-}
-
 .scorecard .help {
   float: right;
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 0;
+  border: 2px solid var(--on-band);
   border-radius: 50%;
-  background: var(--fg);
-  color: var(--ink);
-  font-weight: 700;
-  line-height: 24px;
+  background: none;
+  color: var(--on-band);
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 20px;
   cursor: pointer;
+}
+
+@media (orientation: portrait) {
+  .scorecard .help {
+    margin-top: 1px;
+  }
 }
 
 .scorecard .help:disabled {
@@ -909,10 +1124,10 @@ button:focus-visible {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100dvh - 32px);
   padding: 0;
-  border: 0;
-  border-radius: 12px;
-  background: var(--paper);
-  color: var(--ink);
+  border: 2px solid var(--band);
+  border-radius: 4px;
+  background: var(--cell);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -923,11 +1138,11 @@ button:focus-visible {
 }
 
 .how-to-play::backdrop {
-  background: rgb(0 0 0 / 60%);
+  background: rgb(0 0 0 / 55%);
 }
 
 .how-to-play :focus-visible {
-  outline: 3px solid var(--ink);
+  outline: 3px solid var(--sel-ring);
   outline-offset: 2px;
 }
 
@@ -936,45 +1151,44 @@ button:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 16px 4px;
+  padding: 8px 10px 8px 16px;
+  background: var(--band);
+  color: var(--on-band);
 }
 
 .how-to-play h2 {
   margin: 0;
   font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .how-to-play .close {
   min-height: 36px;
   padding: 0 14px;
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  background: none;
-  font-weight: 700;
-  cursor: pointer;
+  font-size: 14px;
+  box-shadow: none;
 }
 
 .how-to-play-tabs {
   display: flex;
-  gap: 4px;
-  padding: 0 16px;
-  border-bottom: 2px solid var(--rule);
+  gap: 6px;
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid var(--band);
 }
 
 .how-to-play-tabs [role="tab"] {
   flex: 1;
   min-height: 36px;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  background: none;
-  color: #5d5143;
-  font-weight: 700;
+  border: 2px solid var(--text);
+  border-radius: 999px;
+  background: var(--cell);
+  color: var(--text);
+  font-weight: 800;
   cursor: pointer;
 }
 
 .how-to-play-tabs [role="tab"][aria-selected="true"] {
-  border-bottom-color: var(--accent);
-  color: var(--ink);
+  background: var(--turn);
 }
 
 /* 내용이 화면보다 길면 이 영역만 스크롤한다. */
@@ -984,12 +1198,13 @@ button:focus-visible {
   overflow: auto;
   overscroll-behavior: contain;
   padding: 4px 16px 16px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 .how-to-play-body h3 {
   margin: 12px 0 2px;
   font-size: 1rem;
+  font-weight: 800;
 }
 
 .how-to-play-body p {
@@ -1004,7 +1219,7 @@ button:focus-visible {
 
 .how-to-play .rules li {
   padding: 8px 0;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--band);
 }
 
 .how-to-play .rules li.bonus {
@@ -1017,7 +1232,7 @@ button:focus-visible {
 
 .how-to-play .note {
   font-size: 0.875rem;
-  color: #5d5143;
+  color: var(--preview);
 }
 
 .how-to-play .examples {
@@ -1038,15 +1253,17 @@ button:focus-visible {
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 1.5px solid var(--ink);
+  border: 1.5px solid var(--text);
   border-radius: 5px;
-  background: #fff;
+  background: var(--on-band);
+  font-family: var(--font-num);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   line-height: 1;
 }
 
 .how-to-play .example .score {
   margin-left: 6px;
-  font-weight: 700;
+  font-family: var(--font-num);
+  font-weight: 800;
 }

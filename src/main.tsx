@@ -8,6 +8,7 @@ import { bestScoreValue } from "./store/best-score";
 import { createGameStore } from "./store/game-store";
 import { savedGameValue } from "./store/saved-game";
 import { browserStorage } from "./store/stored-value";
+import "./ui/tokens.css";
 import "./ui/app.css";
 
 const storage = browserStorage();
