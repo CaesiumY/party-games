@@ -37,6 +37,22 @@ const BOARDS = [
     reserveTop: 34,
     avoid: [{ left: 356, top: 617, right: 456, bottom: 645 }],
   },
+  {
+    // 0점 카테고리를 고르면 기록 버튼이 「0점으로 기록」으로 넓어지고, 판이 그 버튼을 피하느라 작아져
+    // 홀드 자리 열 간격이 약 23px 로 좁아진다(#44, yacht-mvp 실측).
+    name: "375×667 세로, 「0점으로 기록」",
+    width: 343,
+    height: 283,
+    reserveTop: 38,
+    avoid: [{ left: 10, top: 237, right: 232, bottom: 273 }],
+    /**
+     * 알려진 문제(#44 범위 밖): 홀드 자리 눈 아래(약 66px)부터 정렬 줄 눈 위(약 116px)까지 50px 인데,
+     * 엇갈린 두 단은 6 + 24 + 2 + 24 = 56px 가 든다. 그래서 아랫단 말풍선이 옆 열 정렬 줄 주사위의 눈
+     * 귀퉁이를 덮는다. 이 크기에서는 말풍선 자리만 바꿔서는 풀 수 없다(카메라 맞춤이 말풍선 자리를 함께
+     * 따지거나, 위쪽 표시 사이의 빈 자리를 쓰는 별도 작업). 고쳐지면 `it.fails` 가 실패해 알려 준다.
+     */
+    knownFaceCover: ["넷은 홀드 자리, 하나는 정렬 줄"],
+  },
 ];
 
 const slot = (id: number, column: number, row: DieSlot["row"]): DieSlot => ({
@@ -61,6 +77,7 @@ const CASES: { name: string; slots: DieSlot[] }[] = [
       slot(4, 4, "hold"),
     ],
   },
+  { name: "모두 홀드 자리", slots: [0, 1, 2, 3, 4].map((i) => slot(i, i, "hold")) },
 ];
 
 const overlaps = (a: BubbleBox, b: BubbleBox) =>
@@ -104,12 +121,29 @@ describe("홀드 말풍선 자리", () => {
 
   for (const board of BOARDS) {
     for (const c of CASES) {
-      it(`${board.name}, ${c.name}: 말풍선은 어느 주사위의 눈(윗면)도 가리지 않는다`, () => {
+      const test = board.knownFaceCover?.includes(c.name) ? it.fails : it;
+      test(`${board.name}, ${c.name}: 말풍선은 어느 주사위의 눈(윗면)도 가리지 않는다`, () => {
         const fit = fitCamera(board);
         const faces = c.slots.map((s) => topFace(fit, s));
 
         for (const bubble of layoutHoldBubbles(fit, c.slots, board.reserveTop)) {
           for (const face of faces) expect(overlaps(bubbleBox(bubble), face)).toBe(false);
+        }
+      });
+    }
+  }
+
+  for (const board of BOARDS) {
+    for (const c of CASES) {
+      it(`${board.name}, ${c.name}: 말풍선은 자기 주사위를 가리킨다(가로 가운데가 그 주사위 윗면 폭 안)`, () => {
+        const fit = fitCamera(board);
+
+        for (const bubble of layoutHoldBubbles(fit, c.slots, board.reserveTop)) {
+          const own = c.slots.find((s) => s.id === bubble.id);
+          if (!own) throw new Error(`주사위 ${bubble.id} 가 없다`);
+          const face = topFace(fit, own);
+          expect(bubble.x).toBeGreaterThanOrEqual(face.left);
+          expect(bubble.x).toBeLessThanOrEqual(face.right);
         }
       });
     }
