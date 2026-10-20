@@ -131,25 +131,32 @@ function positionsOf(line: string, phrase: string): number[] {
 }
 
 // 문서는 마크다운 해석기(mdast)로 읽는다. 맞춰 보는 덩어리는 문단·제목·표의 칸 하나씩이고
-// (목록·인용 안의 문단도 문단이다), HTML 블록은 보이는 글자만 본다. 코드 블록·링크 정의·맨 앞의
-// YAML 머리말은 보지 않는다. 문단 안의 인라인 HTML 태그는 건너뛰되 <br> 은 띄어쓰기로 본다.
+// (목록·인용 안의 문단도 문단이다). 코드 블록·링크 정의·맨 앞의 YAML 머리말은 보지 않는다.
+// HTML 은 스펙·ADR 에 쓰지 않으므로(findHtml 이 실패로 알림) 여기서는 건너뛰고, <br> 만 띄어쓰기로 본다.
 // 링크는 글자만 보고 주소는 보지 않는다. 인라인 코드의 글자는 본다(문장 속 이름도 용어를 지켜야 해서).
 type MdNode = {
   type: string;
   value?: string;
+  alt?: string | null;
   children?: MdNode[];
-  position?: { start: { offset?: number }; end: { offset?: number } };
+  position?: {
+    start: { offset?: number; line?: number; column?: number };
+    end: { offset?: number };
+  };
 };
 
 const PASSAGE = new Set(["paragraph", "heading", "tableCell"]);
-const SKIPPED = new Set(["code", "html", "definition", "image", "imageReference"]);
+const SKIPPED = new Set(["code", "html", "definition"]);
+// 그림(![글](주소), ![글][참조])은 대체 글(alt)만 본다. 주소와 제목은 보지 않는다.
+const IMAGE = new Set(["image", "imageReference"]);
 
 // 파일 맨 앞의 YAML 머리말(--- 로 열고 --- 나 ... 로 닫는 줄들)을 같은 길이의 공백으로 지운다.
 // 줄바꿈은 남기므로, 뒤 본문의 원문 위치(줄·칸)가 그대로다. 해석기에는 빈 줄로 보인다.
 function blankFrontmatter(source: string): string {
   const open = /^---[ \t]*\r?\n/.exec(source);
   if (open === null) return source;
-  const close = /^(?:---|\.\.\.)[ \t]*$/m.exec(source.slice(open[0].length));
+  // CRLF 문서도 닫는 줄에서 끝나도록 \r 을 허용한다(JS 의 여러 줄 모드 $ 는 \r 앞에서도 맞지만 드러내 둔다).
+  const close = /^(?:---|\.\.\.)[ \t]*\r?$/m.exec(source.slice(open[0].length));
   if (close === null) return source;
   const end = open[0].length + close.index + close[0].length;
   return source.slice(0, end).replace(/[^\r\n]/g, " ") + source.slice(end);
@@ -172,12 +179,6 @@ function passages(original: string): Passage[] {
   const source = blankFrontmatter(original);
   const result: Passage[] = [];
   const walk = (node: MdNode) => {
-    if (node.type === "html" && node.position !== undefined) {
-      result.push(
-        ...htmlPassages(source, node.position.start.offset ?? 0, node.position.end.offset),
-      );
-      return;
-    }
     if (SKIPPED.has(node.type)) return;
     if (PASSAGE.has(node.type)) {
       const passage: Passage = { text: "", origin: [] };
@@ -188,70 +189,6 @@ function passages(original: string): Passage[] {
     for (const child of node.children ?? []) walk(child);
   };
   walk(parse(source));
-  return result;
-}
-
-// HTML 블록에서 화면에 보이는 글자만 뽑는다. 태그와 속성, 주석, <script>·<style> 의 내용은 뺀다.
-// 블록 태그(<p>, <div>, <li> 같은 것)가 나오면 덩어리를 끊어, 다른 블록의 글끼리 잇지 않는다.
-// <br> 은 띄어쓰기로, 그 밖의 태그(<span>, <b> 같은 것)는 없는 것으로 본다.
-const HTML_MARKUP =
-  /<!--[\s\S]*?-->|<(script|style)\b[\s\S]*?<\/\1\s*>|<\/?([a-zA-Z][\w-]*)[^>]*>/gi;
-const HTML_BLOCK_TAGS = new Set(
-  "address article aside blockquote dd details div dl dt figcaption figure footer h1 h2 h3 h4 h5 h6 header hr li main nav ol p pre section summary table tbody td tfoot th thead tr ul".split(
-    " ",
-  ),
-);
-
-// HTML 블록 안의 문자 참조(이름 &nbsp;, 10진 &#32;, 16진 &#x20;). 해석기는 일반 문단의 참조만 풀어
-// 주므로, 블록 안의 것은 참조 하나를 해석기에 따로 넣어 푼다(새 라이브러리 없이 같은 규칙을 쓰려고).
-// 풀리지 않는 것(없는 이름)은 그대로 둔다.
-const CHARACTER_REFERENCE = /^&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{0,31});/;
-const decodedReferences = new Map<string, string | undefined>();
-
-function decodeReference(reference: string): string | undefined {
-  if (!decodedReferences.has(reference)) {
-    const paragraph = (fromMarkdown(reference) as MdNode).children?.[0];
-    const value = paragraph?.children?.[0]?.value;
-    decodedReferences.set(
-      reference,
-      value !== undefined && value !== reference ? value : undefined,
-    );
-  }
-  return decodedReferences.get(reference);
-}
-
-function htmlPassages(source: string, start: number, end = source.length): Passage[] {
-  const result: Passage[] = [];
-  let passage: Passage = { text: "", origin: [] };
-  const addText = (from: number, to: number) => {
-    for (let k = from; k < to; k++) {
-      const reference = CHARACTER_REFERENCE.exec(source.slice(k, to))?.[0];
-      const decoded = reference === undefined ? undefined : decodeReference(reference);
-      const chars = decoded ?? source[k] ?? "";
-      // 문자 참조(&nbsp; 같은 것)는 푼 글자를 모두 그 참조가 시작한 자리에 붙인다.
-      for (const char of chars) {
-        passage.text += /\s/.test(char) ? " " : char;
-        for (let u = 0; u < char.length; u++) passage.origin.push(k);
-      }
-      if (decoded !== undefined && reference !== undefined) k += reference.length - 1;
-    }
-  };
-  let cursor = start;
-  for (const m of source.slice(start, end).matchAll(HTML_MARKUP)) {
-    const at = start + m.index;
-    addText(cursor, at);
-    cursor = at + m[0].length;
-    const tag = m[2]?.toLowerCase();
-    if (tag !== undefined && HTML_BLOCK_TAGS.has(tag)) {
-      result.push(passage);
-      passage = { text: "", origin: [] };
-    } else if (tag === "br" || m[1] !== undefined || tag === undefined) {
-      passage.text += " ";
-      passage.origin.push(at);
-    }
-  }
-  addText(cursor, end);
-  result.push(passage);
   return result;
 }
 
@@ -267,24 +204,58 @@ function addInline(node: MdNode, passage: Passage, source: string): void {
     passage.origin.push(start);
     return;
   }
+  const end = node.position?.end.offset ?? source.length;
+  if (IMAGE.has(node.type)) {
+    // 대체 글은 원문의 ![ 다음 글자부터 맞춘다.
+    if (node.alt) addValue(node.alt, start + 2, end, passage, source);
+    return;
+  }
   if (node.value !== undefined) {
-    addValue(node.value, start, node.position?.end.offset ?? source.length, passage, source);
+    addValue(node.value, start, end, passage, source);
     return;
   }
   for (const child of node.children ?? []) addInline(child, passage, source);
 }
 
-// 글 조각의 글자를 원문에서 앞으로 찾아 가며 위치를 붙인다. 원문에는 조각 글에 없는 것(인용 표시 >,
-// 탈출 문자 \, 줄 앞 들여쓰기)이 끼어 있을 수 있어서다. 줄바꿈은 띄어쓰기로 바꿔, 줄을 넘는 구절도
-// 허용 목록과 맞춰 본다.
+// 원문의 문자 참조(&copy;, &#169;, &#xA9;). 해석기는 이것을 한 글자(드물게 &NotEqualTilde; 처럼
+// 두 글자)로 풀어 준다.
+const CHARACTER_REFERENCE = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{0,31});/y;
+
+// 해석기가 준 글 조각(value)의 글자마다 원문 위치를 붙인다. 그 노드의 원문 구간(start~end) 안에서만,
+// 글자와 원문을 나란히 짚어 가며 맞춘다. 원문에만 있는 것(인용 표시 >, 탈출 문자 \, 줄 앞 들여쓰기,
+// 인라인 코드의 `)은 건너뛰고, 문자 참조는 푼 글자를 모두 그 참조가 시작한 자리에 붙인다(참조 바로
+// 뒤에서 원문과 맞지 않는 글자는 그 참조가 풀린 둘째 글자로 본다).
+// 줄바꿈은 띄어쓰기로 바꿔, 줄을 넘는 구절도 허용 목록과 맞춰 본다.
 function addValue(value: string, start: number, end: number, passage: Passage, source: string) {
-  let cursor = start;
+  let k = start;
+  let reference: number | null = null;
   for (const char of value) {
-    const found = source.indexOf(char, cursor);
-    const at = found !== -1 && found < end ? found : cursor;
+    let at = end - 1;
+    while (k < end) {
+      if (source.startsWith(char, k)) {
+        at = k;
+        k += char.length;
+        reference = null;
+        break;
+      }
+      CHARACTER_REFERENCE.lastIndex = k;
+      const found = char !== "&" ? CHARACTER_REFERENCE.exec(source) : null;
+      if (found !== null) {
+        at = k;
+        reference = k;
+        k += found[0].length;
+        break;
+      }
+      // 문자 참조는 많아야 두 글자로 풀리므로, 참조 하나에 붙이는 둘째 글자는 하나뿐이다.
+      if (reference !== null) {
+        at = reference;
+        reference = null;
+        break;
+      }
+      k++;
+    }
     passage.text += char === "\n" ? " " : char;
-    for (let k = 0; k < char.length; k++) passage.origin.push(at + k);
-    cursor = at + char.length;
+    for (let u = 0; u < char.length; u++) passage.origin.push(Math.max(at, start) + u);
   }
 }
 
@@ -299,6 +270,33 @@ function locate(starts: number[], offset: number): { line: number; column: numbe
   let line = 0;
   while (line + 1 < starts.length && (starts[line + 1] ?? 0) <= offset) line++;
   return { line, column: offset - (starts[line] ?? 0) };
+}
+
+export type HtmlHit = { path: string; line: number; column: number; text: string };
+
+// 스펙·ADR 은 HTML 을 쓰지 않는다(<br> 만 허용). HTML 은 보이는 글자를 맞춰 보기가 어렵고(주석·속성·
+// 블록 경계), 마크다운으로 다 쓸 수 있어서다. 해석기가 HTML 로 읽은 곳(블록과 인라인 태그)의 시작 자리를
+// 알린다. 한 줄에 여러 태그(<span>…</span>)가 있으면 그 줄의 첫 자리 하나만 알린다.
+export function findHtml(docs: Doc[]): HtmlHit[] {
+  const hits: HtmlHit[] = [];
+  for (const doc of docs) {
+    const lines = doc.text.split(/\r?\n/);
+    const reported = new Set<number>();
+    const walk = (node: MdNode) => {
+      const start = node.position?.start;
+      if (node.type === "html" && !HTML_BREAK.test(node.value ?? "") && start?.line !== undefined) {
+        if (!reported.has(start.line)) {
+          reported.add(start.line);
+          const text = lines[start.line - 1] ?? "";
+          hits.push({ path: doc.path, line: start.line, column: start.column ?? 1, text });
+        }
+        return;
+      }
+      for (const child of node.children ?? []) walk(child);
+    };
+    walk(parse(blankFrontmatter(doc.text)));
+  }
+  return hits;
 }
 
 export function findAvoidedWords(input: {

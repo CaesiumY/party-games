@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { findAvoidedWords } from "./check.ts";
+import { findAvoidedWords, findHtml } from "./check.ts";
 
 const glossary = `# 요트
 
@@ -335,52 +335,56 @@ describe("findAvoidedWords", () => {
       ]);
     });
 
-    it("HTML 블록은 보이는 글자를 원래 위치로 맞춰 본다", () => {
-      expect(
-        check(
-          ["<div>대전은 파티 모드</div>", "", "<div>", "  <span>파티</span> 모드", "</div>"].join(
-            "\n",
-          ),
-        ),
-      ).toEqual([
-        [1, 10, "파티 모드"],
-        [4, 9, "파티 모드"],
-      ]);
-    });
+    it("문자 참조(&copy; 같은 것)가 있어도, 뒤에 같은 글자가 또 있어도 원래 줄·칸으로 보고한다", () => {
+      const hits = findAvoidedWords({
+        glossary: `**플레이어 (Player)**:\n게임에 참가한 사람.\n_Avoid_: 유저\n`,
+        docs: [{ path: "docs/specs/a.md", text: ["&copy; 유저", "©"].join("\n") }],
+        allowlist: [],
+      });
 
-    it("HTML 블록의 문자 참조(이름·10진·16진)를 풀어 일반 문단과 같게 맞춰 본다", () => {
-      expect(
-        check(
-          ["<p>파티&nbsp;모드</p>", "", "<p>파티&#32;모드</p>", "", "<p>파티&#x20;모드</p>"].join(
-            "\n",
-          ),
-        ),
-      ).toEqual([
-        [1, 4, "파티 모드"],
-        [3, 4, "파티 모드"],
-        [5, 4, "파티 모드"],
-      ]);
-    });
-
-    it("HTML 블록의 속성·주석·script·style 안은 보지 않고, 다른 블록 태그끼리는 잇지 않는다", () => {
-      expect(
-        check(
-          [
-            '<div title="파티 모드">',
-            "<!-- 파티 모드 -->",
-            "<script>const a = '파티 모드';</script>",
-            "<style>/* 파티 모드 */</style>",
-            "<p>파티</p><p>모드</p>",
-            "</div>",
-          ].join("\n"),
-        ),
-      ).toEqual([]);
+      expect(hits.map((hit) => [hit.line, hit.column, hit.word])).toEqual([[1, 8, "유저"]]);
     });
 
     it("맨 앞의 YAML 머리말은 보지 않고, 그 뒤 본문은 원래 줄 번호로 보고한다", () => {
       expect(
         check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\n")),
       ).toEqual([[5, 5, "파티 모드"]]);
+    });
+
+    it("CRLF 로 쓴 머리말도 닫는 줄에서 끝나, 머리말 안은 보지 않고 본문은 맞는 줄·칸으로 걸린다", () => {
+      expect(
+        check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\r\n")),
+      ).toEqual([[5, 5, "파티 모드"]]);
+    });
+
+    it("그림의 대체 글(alt)도 보고, 주소와 제목은 보지 않는다", () => {
+      expect(
+        check(
+          ['![파티 모드](board.png "파티 모드") 와 ![파티 모드][b]', "", "[b]: board.png"].join(
+            "\n",
+          ),
+        ),
+      ).toEqual([
+        [1, 3, "파티 모드"],
+        [1, 33, "파티 모드"],
+      ]);
+    });
+
+    it("두 글자로 풀리는 문자 참조(&NotEqualTilde;) 뒤의 말도 원래 줄·칸으로 보고한다", () => {
+      const hits = findAvoidedWords({
+        glossary: `**플레이어 (Player)**:\n게임에 참가한 사람.\n_Avoid_: 유저\n`,
+        docs: [
+          { path: "docs/specs/a.md", text: "&NotEqualTilde; 유저\n유저도 있다." },
+          { path: "docs/specs/b.md", text: "&copy;\\* 유저" },
+        ],
+        allowlist: [],
+      });
+
+      expect(hits.map((hit) => [hit.path, hit.line, hit.column, hit.word])).toEqual([
+        ["docs/specs/a.md", 1, 17, "유저"],
+        ["docs/specs/a.md", 2, 1, "유저"],
+        ["docs/specs/b.md", 1, 10, "유저"],
+      ]);
     });
   });
 
@@ -424,6 +428,40 @@ describe("findAvoidedWords", () => {
     it("두 개짜리 물결표 취소선 안의 글은 그대로 검사한다", () => {
       expect(check("~~1~6칸은 옛 이름~~이다.")).toEqual([[1, 3, "1~6칸"]]);
     });
+  });
+});
+
+describe("findHtml — 스펙·ADR 은 HTML 을 쓰지 않는다(<br> 만 허용)", () => {
+  const check = (text: string) =>
+    findHtml([{ path: "docs/specs/a.md", text }]).map((hit) => [hit.line, hit.column]);
+
+  it("HTML 블록·주석·인라인 태그·<pre><code> 가 있으면 그 시작 자리를 하나씩 알린다", () => {
+    expect(
+      check(
+        [
+          "<div>파티 모드</div>",
+          "",
+          "<!-- 메모 -->",
+          "",
+          "대전은 <span>파티</span> 모드다.",
+          "",
+          "<pre><code>파티 모드</code></pre>",
+        ].join("\n"),
+      ),
+    ).toEqual([
+      [1, 1],
+      [3, 1],
+      [5, 5],
+      [7, 1],
+    ]);
+  });
+
+  it("<br>·<br/>·<br /> 는 허용한다", () => {
+    expect(check("| 칸 |\n| --- |\n| 파티<br>모드<BR/>요트<br />끝 |")).toEqual([]);
+  });
+
+  it("마크다운의 HTML 이 아닌 꺾쇠(코드 안, 탈출 문자)는 HTML 이 아니다", () => {
+    expect(check("`<div>` 와 \\<span\\> 은 글자다.\n\n```\n<div>\n```")).toEqual([]);
   });
 });
 
