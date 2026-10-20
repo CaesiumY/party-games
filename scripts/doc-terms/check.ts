@@ -137,6 +137,7 @@ function positionsOf(line: string, phrase: string): number[] {
 type MdNode = {
   type: string;
   value?: string;
+  alt?: string | null;
   children?: MdNode[];
   position?: {
     start: { offset?: number; line?: number; column?: number };
@@ -145,14 +146,17 @@ type MdNode = {
 };
 
 const PASSAGE = new Set(["paragraph", "heading", "tableCell"]);
-const SKIPPED = new Set(["code", "html", "definition", "image", "imageReference"]);
+const SKIPPED = new Set(["code", "html", "definition"]);
+// 그림(![글](주소), ![글][참조])은 대체 글(alt)만 본다. 주소와 제목은 보지 않는다.
+const IMAGE = new Set(["image", "imageReference"]);
 
 // 파일 맨 앞의 YAML 머리말(--- 로 열고 --- 나 ... 로 닫는 줄들)을 같은 길이의 공백으로 지운다.
 // 줄바꿈은 남기므로, 뒤 본문의 원문 위치(줄·칸)가 그대로다. 해석기에는 빈 줄로 보인다.
 function blankFrontmatter(source: string): string {
   const open = /^---[ \t]*\r?\n/.exec(source);
   if (open === null) return source;
-  const close = /^(?:---|\.\.\.)[ \t]*$/m.exec(source.slice(open[0].length));
+  // CRLF 문서도 닫는 줄에서 끝나도록 \r 을 허용한다(JS 의 여러 줄 모드 $ 는 \r 앞에서도 맞지만 드러내 둔다).
+  const close = /^(?:---|\.\.\.)[ \t]*\r?$/m.exec(source.slice(open[0].length));
   if (close === null) return source;
   const end = open[0].length + close.index + close[0].length;
   return source.slice(0, end).replace(/[^\r\n]/g, " ") + source.slice(end);
@@ -200,35 +204,52 @@ function addInline(node: MdNode, passage: Passage, source: string): void {
     passage.origin.push(start);
     return;
   }
+  const end = node.position?.end.offset ?? source.length;
+  if (IMAGE.has(node.type)) {
+    // 대체 글은 원문의 ![ 다음 글자부터 맞춘다.
+    if (node.alt) addValue(node.alt, start + 2, end, passage, source);
+    return;
+  }
   if (node.value !== undefined) {
-    addValue(node.value, start, node.position?.end.offset ?? source.length, passage, source);
+    addValue(node.value, start, end, passage, source);
     return;
   }
   for (const child of node.children ?? []) addInline(child, passage, source);
 }
 
-// 원문의 문자 참조(&copy;, &#169;, &#xA9;). 해석기는 이것을 한 글자로 풀어 준다.
+// 원문의 문자 참조(&copy;, &#169;, &#xA9;). 해석기는 이것을 한 글자(드물게 &NotEqualTilde; 처럼
+// 두 글자)로 풀어 준다.
 const CHARACTER_REFERENCE = /&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z][a-zA-Z0-9]{0,31});/y;
 
 // 해석기가 준 글 조각(value)의 글자마다 원문 위치를 붙인다. 그 노드의 원문 구간(start~end) 안에서만,
 // 글자와 원문을 나란히 짚어 가며 맞춘다. 원문에만 있는 것(인용 표시 >, 탈출 문자 \, 줄 앞 들여쓰기,
-// 인라인 코드의 `)은 건너뛰고, 문자 참조는 푼 글자 하나를 그 참조가 시작한 자리에 붙인다.
+// 인라인 코드의 `)은 건너뛰고, 문자 참조는 푼 글자를 모두 그 참조가 시작한 자리에 붙인다(참조 바로
+// 뒤에서 원문과 맞지 않는 글자는 그 참조가 풀린 둘째 글자로 본다).
 // 줄바꿈은 띄어쓰기로 바꿔, 줄을 넘는 구절도 허용 목록과 맞춰 본다.
 function addValue(value: string, start: number, end: number, passage: Passage, source: string) {
   let k = start;
+  let reference: number | null = null;
   for (const char of value) {
     let at = end - 1;
     while (k < end) {
       if (source.startsWith(char, k)) {
         at = k;
         k += char.length;
+        reference = null;
         break;
       }
       CHARACTER_REFERENCE.lastIndex = k;
-      const reference = char !== "&" ? CHARACTER_REFERENCE.exec(source) : null;
-      if (reference !== null) {
+      const found = char !== "&" ? CHARACTER_REFERENCE.exec(source) : null;
+      if (found !== null) {
         at = k;
-        k += reference[0].length;
+        reference = k;
+        k += found[0].length;
+        break;
+      }
+      // 문자 참조는 많아야 두 글자로 풀리므로, 참조 하나에 붙이는 둘째 글자는 하나뿐이다.
+      if (reference !== null) {
+        at = reference;
+        reference = null;
         break;
       }
       k++;

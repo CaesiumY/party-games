@@ -350,6 +350,42 @@ describe("findAvoidedWords", () => {
         check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\n")),
       ).toEqual([[5, 5, "파티 모드"]]);
     });
+
+    it("CRLF 로 쓴 머리말도 닫는 줄에서 끝나, 머리말 안은 보지 않고 본문은 맞는 줄·칸으로 걸린다", () => {
+      expect(
+        check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\r\n")),
+      ).toEqual([[5, 5, "파티 모드"]]);
+    });
+
+    it("그림의 대체 글(alt)도 보고, 주소와 제목은 보지 않는다", () => {
+      expect(
+        check(
+          ['![파티 모드](board.png "파티 모드") 와 ![파티 모드][b]', "", "[b]: board.png"].join(
+            "\n",
+          ),
+        ),
+      ).toEqual([
+        [1, 3, "파티 모드"],
+        [1, 33, "파티 모드"],
+      ]);
+    });
+
+    it("두 글자로 풀리는 문자 참조(&NotEqualTilde;) 뒤의 말도 원래 줄·칸으로 보고한다", () => {
+      const hits = findAvoidedWords({
+        glossary: `**플레이어 (Player)**:\n게임에 참가한 사람.\n_Avoid_: 유저\n`,
+        docs: [
+          { path: "docs/specs/a.md", text: "&NotEqualTilde; 유저\n유저도 있다." },
+          { path: "docs/specs/b.md", text: "&copy;\\* 유저" },
+        ],
+        allowlist: [],
+      });
+
+      expect(hits.map((hit) => [hit.path, hit.line, hit.column, hit.word])).toEqual([
+        ["docs/specs/a.md", 1, 17, "유저"],
+        ["docs/specs/a.md", 2, 1, "유저"],
+        ["docs/specs/b.md", 1, 10, "유저"],
+      ]);
+    });
   });
 
   it("허용 구절은 어절 첫머리에서 시작할 때만 허용한다(뒤에 조사는 붙어도 된다)", () => {
