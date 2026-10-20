@@ -24,7 +24,7 @@ describe("findAvoidedWords", () => {
         line: 2,
         column: 6,
         word: "유저",
-        term: "플레이어",
+        terms: ["플레이어"],
         text: "주사위는 유저가 굴린다.",
       },
     ]);
@@ -72,7 +72,7 @@ describe("findAvoidedWords", () => {
       allowlist: [],
     });
 
-    expect(hits.map((hit) => [hit.word, hit.term])).toEqual([["칸", "열"]]);
+    expect(hits.map((hit) => [hit.word, hit.terms])).toEqual([["칸", ["열"]]]);
   });
 
   it("피할 말이 그 자체로 용어집의 표제어이면 검사하지 않는다", () => {
@@ -351,6 +351,39 @@ describe("findAvoidedWords", () => {
       ).toEqual([[5, 5, "파티 모드"]]);
     });
 
+    it("--- 사이가 YAML 모양이 아니면 머리말이 아니라 가로줄로 보고 그 안도 검사한다", () => {
+      expect(check(["---", "[링크](https://e.x) 파티 모드", "---"].join("\n"))).toEqual([
+        [2, 19, "파티 모드"],
+      ]);
+      expect(
+        check(
+          ["---", "# 메모", "title: 파티 모드", "tags:", "  - 요트", "- 하나", "", "---"].join(
+            "\n",
+          ),
+        ),
+      ).toEqual([]);
+    });
+
+    it("한글 키(제목: …)로 쓴 머리말도 머리말로 알아본다", () => {
+      expect(check(["---", "제목: 파티 모드", "---", "", "본문."].join("\n"))).toEqual([]);
+    });
+
+    it("여러 줄에 걸친 인라인 코드 안의 말도 줄바꿈 뒤 원래 줄·칸으로 보고한다", () => {
+      const hits = findAvoidedWords({
+        glossary: `**플레이어 (Player)**:\n게임에 참가한 사람.\n_Avoid_: 유저\n`,
+        docs: [
+          { path: "docs/specs/a.md", text: "`앞\n유저 뒤`" },
+          { path: "docs/specs/b.md", text: "`앞\r\n유저 뒤`" },
+        ],
+        allowlist: [],
+      });
+
+      expect(hits.map((hit) => [hit.path, hit.line, hit.column])).toEqual([
+        ["docs/specs/a.md", 2, 1],
+        ["docs/specs/b.md", 2, 1],
+      ]);
+    });
+
     it("CRLF 로 쓴 머리말도 닫는 줄에서 끝나, 머리말 안은 보지 않고 본문은 맞는 줄·칸으로 걸린다", () => {
       expect(
         check(["---", "title: 파티 모드", "---", "", "대전은 파티 모드다."].join("\r\n")),
@@ -475,15 +508,60 @@ describe("용어집 (GLOSSARY.md)", () => {
       allowlist: [],
     });
 
-    expect(hits.map((hit) => [hit.word, hit.term])).toEqual([
-      ["투즈", "윗칸"],
-      ["쓰리즈", "윗칸"],
-      ["3칸", "윗칸"],
+    expect(hits.map((hit) => [hit.word, hit.terms])).toEqual([
+      ["투즈", ["윗칸"]],
+      ["쓰리즈", ["윗칸"]],
+      ["3칸", ["윗칸"]],
     ]);
   });
 
   it("피할 말에 범위 표시(~)를 쓰지 않는다 — 검사기는 범위를 펼치지 않는다", () => {
     const avoidLines = glossary.split(/\r?\n/).filter((line) => line.startsWith("_Avoid_:"));
     expect(avoidLines.filter((line) => line.includes("~"))).toEqual([]);
+  });
+});
+
+describe("한 피할 말이 여러 용어에 걸릴 때", () => {
+  it("같은 자리는 1건으로 묶고 고칠 말을 모두 알려 준다", () => {
+    const hits = findAvoidedWords({
+      glossary: [
+        "**게임 (Game)**:",
+        "한 판.",
+        "_Avoid_: 매치, 라운드",
+        "",
+        "**턴 (Turn)**:",
+        "한 플레이어의 차례 단위.",
+        "_Avoid_: 라운드",
+      ].join("\n"),
+      docs: [{ path: "docs/specs/a.md", text: "세 라운드를 한다." }],
+      allowlist: [],
+    });
+
+    expect(hits.map((hit) => [hit.line, hit.column, hit.word, hit.terms])).toEqual([
+      [1, 3, "라운드", ["게임", "턴"]],
+    ]);
+  });
+
+  it("겹치는 걸림은 가장 긴 피할 말 하나만 알린다", () => {
+    const glossary = [
+      "**기여 주사위 (Contributing Dice)**:",
+      "점수에 보태는 주사위.",
+      "_Avoid_: 하이라이트 주사위, 유효 주사위",
+      "",
+      "**선택 (Selection)**:",
+      "골라 둔 상태.",
+      "_Avoid_: 포커스, 하이라이트",
+      "",
+      "**컵 (Cup)**:",
+      "주사위를 담는 그릇.",
+      "_Avoid_: 셰이커",
+    ].join("\n");
+    const check = (text: string) =>
+      findAvoidedWords({ glossary, docs: [{ path: "docs/specs/a.md", text }], allowlist: [] }).map(
+        (hit) => [hit.column, hit.word, hit.terms],
+      );
+
+    expect(check("하이라이트 주사위를 본다.")).toEqual([[1, "하이라이트 주사위", ["기여 주사위"]]]);
+    expect(check("하이라이트를 본다.")).toEqual([[1, "하이라이트", ["선택"]]]);
   });
 });

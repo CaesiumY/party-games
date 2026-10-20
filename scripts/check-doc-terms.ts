@@ -34,7 +34,7 @@ const excerpt = (text: string, column: number, length: number) =>
 for (const hit of hits) {
   const around = excerpt(hit.text, hit.column, hit.word.length);
   console.error(
-    `${hit.path}:${hit.line}:${hit.column}  '${hit.word}' → '${hit.term}'  …${around}…`,
+    `${hit.path}:${hit.line}:${hit.column}  '${hit.word}' → ${hit.terms.map((term) => `'${term}'`).join(" 또는 ")}  …${around}…`,
   );
 }
 for (const hit of htmlHits) {
