@@ -175,7 +175,7 @@ function blankFrontmatter(source: string): string {
 
 // YAML 모양의 줄: 빈 줄, # 주석, `키:` / `키: 값`, `- 항목`, 들여쓴 이어짐 줄. 키는 따옴표로 감싸도 된다.
 const YAML_LINE =
-  /^(?:\s*|\s*#.*|(?:[\w.-]+|"[^"]*"|'[^']*')[ \t]*:(?:[ \t].*)?|\s*-(?:[ \t].*)?|[ \t]+\S.*)\r?$/u;
+  /^(?:\s*|\s*#.*|(?:[\p{L}\p{N}_.-]+|"[^"]*"|'[^']*')[ \t]*:(?:[ \t].*)?|\s*-(?:[ \t].*)?|[ \t]+\S.*)\r?$/u;
 
 // 덩어리의 글과, 그 글의 각 글자가 원문의 몇 번째 글자였는지.
 type Passage = { text: string; origin: number[] };
@@ -314,6 +314,33 @@ export function findHtml(docs: Doc[]): HtmlHit[] {
   return hits;
 }
 
+// 덩어리 안에서 걸린 피할 말과 그 구간(at 부터 end 앞까지).
+type Match = { at: number; end: number; word: string; terms: string[] };
+
+// 피할 말이 끝나는 자리. 여러 어절로 된 말은 마지막 어절 안에서 끝난다(사이 띄어쓰기가 몇 칸이든).
+function matchEnd(tokens: Eojeol[], i: number, word: string, at: number): number {
+  const parts = word.split(" ");
+  const last = tokens[i + parts.length - 1];
+  if (parts.length === 1 || last === undefined) return at + word.length;
+  return last.start + (parts.at(-1)?.length ?? 0);
+}
+
+// 겹치는 걸림은 가장 긴 피할 말 하나만 남긴다. '하이라이트 주사위' 가 걸린 자리의 '하이라이트' 처럼
+// 더 긴 말의 구간 안에 든 짧은 말은 버린다. 허용 목록보다 먼저 하므로, 긴 말이 허용된 구절이어도
+// 그 안의 짧은 말이 따로 걸리지 않는다.
+function longestOnly(matches: Match[]): Match[] {
+  return matches.filter(
+    (m) =>
+      !matches.some(
+        (other) =>
+          other !== m &&
+          other.end - other.at > m.end - m.at &&
+          other.at <= m.at &&
+          m.end <= other.end,
+      ),
+  );
+}
+
 export function findAvoidedWords(input: {
   glossary: string;
   docs: Doc[];
@@ -326,23 +353,27 @@ export function findAvoidedWords(input: {
     const starts = lineStarts(doc.text);
     for (const passage of passages(doc.text)) {
       const tokens = eojeols(passage.text);
+      const found: Match[] = [];
       tokens.forEach((_, i) => {
         for (const { word, terms } of avoided) {
           for (const at of matchesAt(tokens, i, word)) {
-            const offset = passage.origin[at];
-            if (offset === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
-            const where = locate(starts, offset);
-            hits.push({
-              path: doc.path,
-              line: where.line + 1,
-              column: where.column + 1,
-              word,
-              terms,
-              text: lines[where.line] ?? "",
-            });
+            found.push({ at, end: matchEnd(tokens, i, word, at), word, terms });
           }
         }
       });
+      for (const { at, word, terms } of longestOnly(found)) {
+        const offset = passage.origin[at];
+        if (offset === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
+        const where = locate(starts, offset);
+        hits.push({
+          path: doc.path,
+          line: where.line + 1,
+          column: where.column + 1,
+          word,
+          terms,
+          text: lines[where.line] ?? "",
+        });
+      }
     }
   }
   return hits;

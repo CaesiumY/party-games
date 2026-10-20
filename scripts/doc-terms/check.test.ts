@@ -364,6 +364,10 @@ describe("findAvoidedWords", () => {
       ).toEqual([]);
     });
 
+    it("한글 키(제목: …)로 쓴 머리말도 머리말로 알아본다", () => {
+      expect(check(["---", "제목: 파티 모드", "---", "", "본문."].join("\n"))).toEqual([]);
+    });
+
     it("여러 줄에 걸친 인라인 코드 안의 말도 줄바꿈 뒤 원래 줄·칸으로 보고한다", () => {
       const hits = findAvoidedWords({
         glossary: `**플레이어 (Player)**:\n게임에 참가한 사람.\n_Avoid_: 유저\n`,
@@ -536,5 +540,28 @@ describe("한 피할 말이 여러 용어에 걸릴 때", () => {
     expect(hits.map((hit) => [hit.line, hit.column, hit.word, hit.terms])).toEqual([
       [1, 3, "라운드", ["게임", "턴"]],
     ]);
+  });
+
+  it("겹치는 걸림은 가장 긴 피할 말 하나만 알린다", () => {
+    const glossary = [
+      "**기여 주사위 (Contributing Dice)**:",
+      "점수에 보태는 주사위.",
+      "_Avoid_: 하이라이트 주사위, 유효 주사위",
+      "",
+      "**선택 (Selection)**:",
+      "골라 둔 상태.",
+      "_Avoid_: 포커스, 하이라이트",
+      "",
+      "**컵 (Cup)**:",
+      "주사위를 담는 그릇.",
+      "_Avoid_: 셰이커",
+    ].join("\n");
+    const check = (text: string) =>
+      findAvoidedWords({ glossary, docs: [{ path: "docs/specs/a.md", text }], allowlist: [] }).map(
+        (hit) => [hit.column, hit.word, hit.terms],
+      );
+
+    expect(check("하이라이트 주사위를 본다.")).toEqual([[1, "하이라이트 주사위", ["기여 주사위"]]]);
+    expect(check("하이라이트를 본다.")).toEqual([[1, "하이라이트", ["선택"]]]);
   });
 });
