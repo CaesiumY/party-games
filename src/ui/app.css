@@ -33,7 +33,7 @@ input {
 }
 
 button:focus-visible {
-  outline: 3px solid var(--sel-ring);
+  outline: 3px solid var(--text);
   outline-offset: 2px;
 }
 
@@ -1002,7 +1002,7 @@ button:focus-visible {
 }
 
 .setup .count input:focus-visible + span {
-  outline: 3px solid var(--sel-ring);
+  outline: 3px solid var(--text);
   outline-offset: 2px;
 }
 
@@ -1048,7 +1048,7 @@ button:focus-visible {
 }
 
 .setup .names input:focus-visible {
-  outline: 3px solid var(--sel-ring);
+  outline: 3px solid var(--text);
   outline-offset: 1px;
 }
 
@@ -1112,6 +1112,11 @@ button:focus-visible {
   cursor: pointer;
 }
 
+/* 진한 머리줄 위라 포커스 테두리는 흰색이다. */
+.scorecard .help:focus-visible {
+  outline-color: var(--on-band);
+}
+
 .scorecard .help:disabled {
   opacity: 0.45;
   cursor: default;
@@ -1139,7 +1144,7 @@ button:focus-visible {
 }
 
 .how-to-play :focus-visible {
-  outline: 3px solid var(--sel-ring);
+  outline: 3px solid var(--text);
   outline-offset: 2px;
 }
 

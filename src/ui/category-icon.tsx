@@ -37,7 +37,7 @@ const PIPS: Partial<Record<Category, readonly (readonly [number, number])[]>> = 
   ],
 };
 
-/** 아랫칸: 원작처럼 작은 네모 여러 개로 족보 모양을 그린다. 좌표는 px(12×12 안). */
+/** 아랫칸: 원작처럼 작은 네모 여러 개로 그 카테고리의 주사위 모양을 그린다. 좌표는 px(12×12 안). */
 const MARKS: Partial<Record<Category, readonly (readonly [number, number])[]>> = {
   choice: [
     [2, 2],
