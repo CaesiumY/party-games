@@ -325,8 +325,9 @@ button:focus-visible {
     margin: 0 0 10px 8px;
   }
 
-  /* 버튼 줄이 오른쪽 아래의 컵 쪽으로 넓어지면 카메라 맞춤이 판을 줄이므로 좁게 둔다. */
+  /* 버튼 줄이 오른쪽 아래의 컵 쪽으로 넓어지거나 높아지면 카메라 맞춤이 판을 줄이므로 작게 둔다(36px). */
   .actions button {
+    min-height: 36px;
     padding: 0 12px;
     font-size: 14px;
   }
@@ -451,7 +452,7 @@ button:focus-visible {
 
 .scorecard thead th {
   /* 플레이 방법 "?" 버튼의 누르는 영역(24px)과 색 점 + 이름 한 줄이 들어가는 높이. */
-  height: 25px;
+  height: 24px;
   padding: 0 2px;
   background: var(--band);
   color: var(--on-band);
@@ -550,6 +551,7 @@ button:focus-visible {
   background: var(--band-soft);
   color: var(--on-band);
   font-size: 11px;
+  line-height: 1;
 }
 
 .scorecard tr.sub td {
@@ -573,7 +575,8 @@ button:focus-visible {
 /* 총합 득점 줄: 진회색 띠, 지금 차례 세로줄은 노랑. */
 .scorecard tr.total th,
 .scorecard tr.total td {
-  height: 22px;
+  height: 21px;
+  line-height: 1;
   padding: 0 4px 0 6px;
   background: var(--band);
   color: var(--on-band);
@@ -1107,12 +1110,6 @@ button:focus-visible {
   font-size: 13px;
   line-height: 20px;
   cursor: pointer;
-}
-
-@media (orientation: portrait) {
-  .scorecard .help {
-    margin-top: 1px;
-  }
 }
 
 .scorecard .help:disabled {
