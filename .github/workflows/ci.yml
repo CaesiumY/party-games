@@ -37,3 +37,8 @@ jobs:
 
       - name: 문서 검사 (용어집의 피할 말)
         run: pnpm check:docs
+
+      # 운영 빌드에 E2E 테스트용 주사위 공급원이 빠졌는지 본다. 브라우저를 받지 않는다.
+      # E2E(Playwright)는 CI 에서 돌리지 않고 로컬에서 `pnpm e2e` 로 돌린다(#15 결정).
+      - name: 운영 빌드 검사 (테스트용 주사위 공급원 없음)
+        run: pnpm build && pnpm check:build

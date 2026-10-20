@@ -13,10 +13,12 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "check:docs": "node scripts/check-doc-terms.ts",
+    "check:build": "node scripts/check-build.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.63.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/react": "16.3.3",
     "@testing-library/user-event": "14.6.8",
