@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -12,7 +15,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "check": "biome check .",
-    "check:fix": "biome check --write ."
+    "check:fix": "biome check --write .",
+    "check:docs": "node scripts/check-doc-terms.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
@@ -32,7 +37,11 @@
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",
     "@vitejs/plugin-react": "6.1.2",
+    "husky": "9.1.7",
     "jsdom": "29.1.1",
+    "mdast-util-from-markdown": "2.1.0",
+    "mdast-util-gfm": "3.1.0",
+    "micromark-extension-gfm": "3.0.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.5"
