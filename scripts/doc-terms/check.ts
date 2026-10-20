@@ -11,17 +11,19 @@ export type Hit = {
   line: number;
   column: number;
   word: string;
-  term: string;
+  // 고칠 말(용어집의 표제어). 한 피할 말이 여러 용어의 피할 말이면(예: '라운드' → 게임·턴) 모두 든다.
+  terms: string[];
   text: string;
 };
 
-type Avoided = { word: string; term: string };
+type Avoided = { word: string; terms: string[] };
 
 const HEADWORD = /^\*\*(.+?) \(.+\)\*\*:/;
 const AVOID = /^_Avoid_:\s*(.*)$/;
 
+// 같은 피할 말은 하나로 묶어, 같은 자리가 용어마다 따로 세어지지 않게 한다.
 function readGlossary(glossary: string): Avoided[] {
-  const avoided: Avoided[] = [];
+  const avoided = new Map<string, string[]>();
   const headwords = new Set<string>();
   let term: string | null = null;
   for (const line of glossary.split(/\r?\n/)) {
@@ -33,13 +35,18 @@ function readGlossary(glossary: string): Avoided[] {
     const avoid = AVOID.exec(line);
     if (avoid?.[1] !== undefined && term !== null) {
       // "칸(카테고리를 뜻함)" 처럼 괄호 안은 풀이라 뺀다.
-      for (const word of avoid[1].replace(/\([^)]*\)/g, "").split(",")) {
-        avoided.push({ word: word.trim(), term });
+      for (const raw of avoid[1].replace(/\([^)]*\)/g, "").split(",")) {
+        const word = raw.trim();
+        const terms = avoided.get(word) ?? [];
+        if (!terms.includes(term)) terms.push(term);
+        avoided.set(word, terms);
       }
     }
   }
   // 피할 말이 다른 용어의 표제어이면(예: '기록') 그 말은 제 뜻으로 쓰이므로 검사하지 않는다.
-  return avoided.filter(({ word }) => !headwords.has(word));
+  return [...avoided]
+    .filter(([word]) => !headwords.has(word))
+    .map(([word, terms]) => ({ word, terms }));
 }
 
 // 어절은 띄어쓰기로 나눈 덩어리다. 그 안의 문장부호·따옴표·괄호·마크다운 기호(\p{P}\p{S})는
@@ -152,15 +159,23 @@ const IMAGE = new Set(["image", "imageReference"]);
 
 // 파일 맨 앞의 YAML 머리말(--- 로 열고 --- 나 ... 로 닫는 줄들)을 같은 길이의 공백으로 지운다.
 // 줄바꿈은 남기므로, 뒤 본문의 원문 위치(줄·칸)가 그대로다. 해석기에는 빈 줄로 보인다.
+// 사이의 줄이 모두 YAML 모양일 때만 머리말로 본다. 아니면 문서가 가로줄(---)로 시작한 것이라
+// 보통 마크다운으로 검사한다.
 function blankFrontmatter(source: string): string {
   const open = /^---[ \t]*\r?\n/.exec(source);
   if (open === null) return source;
   // CRLF 문서도 닫는 줄에서 끝나도록 \r 을 허용한다(JS 의 여러 줄 모드 $ 는 \r 앞에서도 맞지만 드러내 둔다).
   const close = /^(?:---|\.\.\.)[ \t]*\r?$/m.exec(source.slice(open[0].length));
   if (close === null) return source;
+  const body = source.slice(open[0].length, open[0].length + close.index);
+  if (!body.split(/\r?\n/).every((line) => YAML_LINE.test(line))) return source;
   const end = open[0].length + close.index + close[0].length;
   return source.slice(0, end).replace(/[^\r\n]/g, " ") + source.slice(end);
 }
+
+// YAML 모양의 줄: 빈 줄, # 주석, `키:` / `키: 값`, `- 항목`, 들여쓴 이어짐 줄. 키는 따옴표로 감싸도 된다.
+const YAML_LINE =
+  /^(?:\s*|\s*#.*|(?:[\w.-]+|"[^"]*"|'[^']*')[ \t]*:(?:[ \t].*)?|\s*-(?:[ \t].*)?|[ \t]+\S.*)\r?$/u;
 
 // 덩어리의 글과, 그 글의 각 글자가 원문의 몇 번째 글자였는지.
 type Passage = { text: string; origin: number[] };
@@ -312,7 +327,7 @@ export function findAvoidedWords(input: {
     for (const passage of passages(doc.text)) {
       const tokens = eojeols(passage.text);
       tokens.forEach((_, i) => {
-        for (const { word, term } of avoided) {
+        for (const { word, terms } of avoided) {
           for (const at of matchesAt(tokens, i, word)) {
             const offset = passage.origin[at];
             if (offset === undefined || allowed(input.allowlist, passage.text, word, at)) continue;
@@ -322,7 +337,7 @@ export function findAvoidedWords(input: {
               line: where.line + 1,
               column: where.column + 1,
               word,
-              term,
+              terms,
               text: lines[where.line] ?? "",
             });
           }
