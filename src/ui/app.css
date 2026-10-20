@@ -1181,6 +1181,9 @@ button:focus-visible {
   background: var(--cell);
   color: var(--text);
   font-weight: 800;
+  font-size: 14px;
+  padding: 0 6px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
