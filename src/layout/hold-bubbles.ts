@@ -6,6 +6,7 @@ import type { DieSlot, Row } from "./columns";
  * 홀드 말풍선의 화면 자리(스펙 「3D 장면」 홀드 말풍선). 3D 를 그리지 않는 계산이다.
  * 말풍선은 주사위 윗면 뒤쪽 모서리 위에 뜬다. 이웃 말풍선과 겹칠 만큼 열 간격이 좁으면
  * 홀수 열의 말풍선을 주사위 앞쪽 아래로 엇갈려 두고, 그래도 모자라면 글자를 줄인다(시안 v6).
+ * 가장 작은 글자로도 같은 단의 이웃과 닿으면 상자 여백을 줄인다.
  * 위쪽 표시 자리(남은 굴림·지금 차례)에 닿거나 먼저 놓은 홀드 자리의 말풍선과 겹치면
  * 그 줄의 말풍선은 모두 주사위 앞쪽 아래로 둔다.
  * 어느 쪽이든 윗면(눈)은 가리지 않는다.
@@ -19,6 +20,8 @@ export const BUBBLE = {
   height: 24,
   minWidth: 28,
   paddingX: 5,
+  /** 엇갈려도 한 줄 건너 이웃과 겹칠 만큼 좁을 때의 여백. 화면 CSS 의 실제 여백과 같다. */
+  tightPaddingX: 3,
   border: 2,
   /** 기준점과 상자 사이(꼬리 자리). */
   gap: 6,
@@ -52,10 +55,10 @@ export interface BubbleBox {
 }
 
 /** 글자 폭은 한글 한 자 = 글자 크기로 어림한다. 화면은 이 폭을 그대로 쓴다. */
-function bubbleWidth(label: string, fontSize: number): number {
+function bubbleWidth(label: string, fontSize: number, paddingX: number = BUBBLE.paddingX): number {
   return Math.max(
     BUBBLE.minWidth,
-    Math.ceil(label.length * fontSize + 2 * (BUBBLE.paddingX + BUBBLE.border)),
+    Math.ceil(label.length * fontSize + 2 * (paddingX + BUBBLE.border)),
   );
 }
 
@@ -132,7 +135,11 @@ function planRows(fit: CameraFit, topLimit: number): Record<Row, HoldBubble[]> {
           Math.min(BUBBLE.fontSize, Math.floor((BUBBLE.fontSize * (2 * gap - 6)) / widest)),
         )
       : BUBBLE.fontSize;
-    const width = bubbleWidth(label, fontSize);
+    // 엇갈린 같은 단의 말풍선은 두 열 건너 이웃이다. 가장 작은 글자로도 그 간격에 닿으면 여백을 줄인다
+    // (375×667 에서 「0점으로 기록」 버튼 때문에 판이 작아질 때, #44).
+    const roomy = bubbleWidth(label, fontSize);
+    const width =
+      stagger && roomy >= 2 * gap ? bubbleWidth(label, fontSize, BUBBLE.tightPaddingX) : roomy;
     // id 는 자리를 정한 뒤 layoutHoldBubbles 가 그 열의 주사위로 채운다.
     const place = (column: number, side: BubbleSide): HoldBubble => {
       const [p] = projectPoints(fit, [anchor(column, row, side === "above" ? "above" : "below")]);
