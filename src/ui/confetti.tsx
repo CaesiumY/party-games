@@ -1,8 +1,16 @@
 import { type CSSProperties, useEffect, useMemo } from "react";
 import { usePrefersReducedMotion } from "../a11y/use-reduced-motion";
 
-/** 색종이 색. 원작처럼 밝은 원색을 섞는다. */
-const COLORS = ["#fee267", "#ff7a3d", "#ff6fb1", "#39c3f2", "#1fa45b", "#8b4dff", "#ffffff"];
+/** 색종이 색. 원작처럼 밝은 원색을 섞는다. 값은 src/ui/tokens.css 의 토큰이다. */
+const COLORS = [
+  "var(--turn)",
+  "var(--sel-cell)",
+  "var(--bonus)",
+  "var(--sel-ring)",
+  "var(--player-2)",
+  "var(--player-3)",
+  "var(--on-band)",
+];
 
 export interface ConfettiProps {
   /** 색종이 조각 수. */

@@ -17,14 +17,20 @@ export function Actions({ overlayAttr }: { overlayAttr?: Record<string, string> 
     <div className="actions" {...overlayAttr}>
       <button
         type="button"
-        className="roll"
+        // 첫 굴림은 주 버튼(노랑), 다시 던지기는 보조 버튼(크림색). 이때는 기록이 주 버튼이다.
+        className={rolled ? "roll secondary" : "roll primary"}
         disabled={!can.canRoll}
         style={allUp ? { visibility: "hidden" } : undefined}
         onClick={() => roll()}
       >
         {rolled ? "다시 던지기" : "주사위 던지기"}
       </button>
-      <button type="button" className="record" disabled={!can.canRecord} onClick={() => record()}>
+      <button
+        type="button"
+        className="record primary"
+        disabled={!can.canRecord}
+        onClick={() => record()}
+      >
         {scratch ? "0점으로 기록" : "기록"}
       </button>
     </div>
