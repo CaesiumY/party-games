@@ -116,7 +116,8 @@ async function snapshot(page: Page) {
     turn: await scorecard(page).locator("th.turn span").textContent(),
     rollsLeft: await page.locator(".rolls-left").textContent(),
     nowPlayer: await scorecard(page).locator("thead th.now").textContent(),
-    sheet: await scorecard(page).locator("tbody").innerText(),
+    // 점수표 본문은 윗칸·초이스·아랫칸·총합 네 묶음이다.
+    sheet: (await scorecard(page).locator("tbody").allInnerTexts()).join("\n"),
     dice: await diceState(page),
   };
 }
