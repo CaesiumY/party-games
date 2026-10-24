@@ -2,14 +2,17 @@
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../app";
 import { scriptedDiceSource } from "../engine/dice-source";
 import type { DieValue } from "../engine/types";
 import { createGameStore } from "../store/game-store";
 import { useGame } from "../store/store-context";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 /**
  * 캔버스 없는 판 영역 대역. 순간 배치 연출처럼 굴림마다 멈춤과 정렬 끝을 곧바로 알리고,
@@ -56,6 +59,7 @@ describe("게임 화면", () => {
 
     const names = sheet()
       .getAllByRole("button")
+      .filter((b) => b.closest("tbody"))
       .map((b) => b.textContent);
     expect(names).toEqual([
       "에이스",
@@ -74,11 +78,12 @@ describe("게임 화면", () => {
     for (const label of ["소계", "보너스+35", "총합 득점", "턴 1/12"]) {
       expect(sheet().getByText(label)).toBeTruthy();
     }
+    // 머리 첫 칸에는 턴 표시와 플레이 방법 "?" 버튼이 함께 있다.
     expect(
       sheet()
         .getAllByRole("columnheader")
         .map((h) => h.textContent),
-    ).toEqual(["턴 1/12", "플레이어 1", "플레이어 2", "플레이어 3", "플레이어 4"]);
+    ).toEqual(["턴 1/12?", "플레이어 1", "플레이어 2", "플레이어 3", "플레이어 4"]);
   });
 
   it("주사위를 던지고 초이스를 골라 기록하면 다섯 눈의 합이 점수표에 적힌다", async () => {
@@ -191,7 +196,8 @@ describe("점수 미리보기와 기록", () => {
   });
 
   it("윗칸을 채우면 소계가 「n/63」으로 오르고, 63 이상이면 보너스+35 줄에 35가 붙어 총합 득점에 더해진다", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const upper = [
       ["에이스", 1],
       ["듀스", 2],
@@ -210,6 +216,10 @@ describe("점수 미리보기와 기록", () => {
         expect(rowOf("소계").getByText("50/63")).toBeTruthy();
         expect(rowOf("보너스+35").queryByText("35")).toBeNull();
       }
+      // 파이브로 소계가 63 을 넘으면 보너스 알림(약 2초)이 끝나야 다음 굴림을 할 수 있다.
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
     }
 
     expect(rowOf("소계").getByText("105/63")).toBeTruthy();
@@ -287,6 +297,179 @@ describe("보이지 않는 주사위 버튼", () => {
     await user.click(diceGroup().getAllByRole("button")[0] as HTMLElement);
 
     expect(store.getState().game.dice.some((d) => d.held)).toBe(false);
+  });
+
+  it("카테고리를 고르면 기여 주사위인지도 읽어 준다. 선택을 옮기면 바뀌고, 기록하면 사라진다", async () => {
+    const user = userEvent.setup();
+    renderGame([[1, 3, 1, 6, 2]]);
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    await user.click(diceGroup().getByRole("button", { name: "주사위 6" }));
+
+    await user.click(sheet().getByRole("button", { name: "에이스" }));
+    expect(readDice()).toBe(
+      "주사위 6↑ 주사위 1, 기여 주사위 주사위 1, 기여 주사위 주사위 2 주사위 3",
+    );
+
+    await user.click(sheet().getByRole("button", { name: "식스" }));
+    expect(readDice()).toBe("주사위 6, 기여 주사위↑ 주사위 1 주사위 1 주사위 2 주사위 3");
+
+    await user.click(screen.getByRole("button", { name: "기록" }));
+    expect(readDice()).not.toContain("기여");
+  });
+});
+
+describe("성립 알림", () => {
+  it("정렬 끝에 성립한 카테고리 이름이 뜨고, 그동안 점수표의 그 칸이 빛나다가 1~1.5초 뒤 사라진다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderGame([[2, 3, 4, 5, 1]]);
+
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+
+    expect(screen.getByRole("status").textContent).toBe("L. 스트레이트");
+    const cell = rowOf("L. 스트레이트").getAllByRole("cell")[0];
+    expect(cell?.classList.contains("callout")).toBe(true);
+    // 알림이 떠 있어도 조작할 수 있다.
+    expect(screen.getByRole("button", { name: "다시 던지기" })).toHaveProperty("disabled", false);
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(cell?.classList.contains("callout")).toBe(false);
+  });
+
+  it("이미 기록한 카테고리면 이름은 뜨지만 칸은 빛나지 않는다", async () => {
+    const user = userEvent.setup();
+    renderGame([
+      [4, 4, 4, 4, 4],
+      [5, 5, 5, 5, 5],
+    ]);
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    await user.click(sheet().getByRole("button", { name: "요트" }));
+    await user.click(screen.getByRole("button", { name: "기록" }));
+
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+
+    expect(screen.getByRole("status").textContent).toBe("요트");
+    const cell = rowOf("요트").getAllByRole("cell")[0];
+    expect(cell?.classList.contains("callout")).toBe(false);
+  });
+
+  it("요트면 색종이가 터진다. 다른 카테고리면 터지지 않는다", async () => {
+    const user = userEvent.setup();
+    const store = renderGame([[3, 3, 3, 3, 1], [3]]);
+
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    expect(screen.getByRole("status").textContent).toBe("포 다이스");
+    expect(screen.queryByTestId("confetti")).toBeNull();
+    act(() => {
+      for (const id of [0, 1, 2, 3] as const) store.getState().toggleHold(id);
+    });
+
+    await user.click(screen.getByRole("button", { name: "다시 던지기" }));
+    expect(screen.getByRole("status").textContent).toBe("요트");
+    expect(screen.getByTestId("confetti")).toBeTruthy();
+  });
+
+  it("'동작 줄이기'가 켜져 있으면 요트여도 색종이를 띄우지 않는다", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    try {
+      const user = userEvent.setup();
+      renderGame([[6, 6, 6, 6, 6]]);
+
+      await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+
+      expect(screen.getByRole("status").textContent).toBe("요트");
+      expect(screen.queryByTestId("confetti")).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("보너스 알림", () => {
+  it("소계가 처음 63 이상이 되면 「보너스!」→「+35」가 뜨고, 끝날 때까지 방금 기록한 플레이어의 차례로 보이며 굴릴 수 없다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const sixes = [6, 6, 6, 6, 6] as DieValue[];
+    const fives = [5, 5, 5, 5, 5] as DieValue[];
+    const ones = [1, 1, 1, 1, 1] as DieValue[];
+    renderGame([sixes, ones, fives, ones, [4, 4, 4, 4, 4]], ["플레이어 1", "플레이어 2"]);
+    const turn = async (name: string) => {
+      await user.click(screen.getByRole("button", { name: /던지기/ }));
+      await user.click(sheet().getByRole("button", { name }));
+      await user.click(screen.getByRole("button", { name: "기록" }));
+    };
+    const current = () => document.querySelector(".current-player")?.textContent;
+    await turn("식스");
+    await turn("에이스");
+    await turn("파이브");
+    await turn("초이스");
+    expect(current()).toBe("플레이어 1");
+
+    await turn("포");
+
+    expect(screen.getByRole("status").textContent).toBe("보너스!");
+    expect(current()).toBe("플레이어 1");
+    expect(rowOf("소계").getAllByRole("cell")[0]?.classList.contains("bonus")).toBe(true);
+    expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", true);
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByRole("status").textContent).toBe("+35");
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    // 알림이 끝나면 화면의 차례가 넘어가 차례 배너가 뜬다.
+    expect(screen.getByRole("status").textContent).toBe("다음은 플레이어 2 차례");
+    expect(current()).toBe("플레이어 2");
+    expect(rowOf("소계").getAllByRole("cell")[0]?.classList.contains("bonus")).toBe(false);
+    expect(screen.getByRole("button", { name: "주사위 던지기" })).toHaveProperty("disabled", false);
+  });
+
+  it("윗칸을 다 채웠는데 63 미만이면 「+0」만 뜨고, 알림 내내(약 2초) 한 번의 연출로 보인다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderGame(Array.from({ length: 6 }, () => [1, 2, 3, 4, 6] as DieValue[]));
+    for (const name of ["에이스", "듀스", "트레이", "포", "파이브", "식스"]) {
+      await user.click(screen.getByRole("button", { name: /던지기/ }));
+      await user.click(sheet().getByRole("button", { name }));
+      await user.click(screen.getByRole("button", { name: /기록/ }));
+    }
+
+    const text = screen.getByText("+0");
+    expect(screen.getByRole("status").textContent).toBe("+0");
+    // 나타났다 사라지는 연출 길이가 알림 길이와 같아야 끝나기 전에 사라지지 않는다.
+    expect(text.style.animationDuration).toBe("2000ms");
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByText("+0")).toBe(text);
+  });
+
+  it("「보너스!」와 「+35」는 각각 떠 있는 1초 동안의 연출로 보인다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderGame(Array.from({ length: 6 }, (_, i) => Array(5).fill(i + 1) as DieValue[]));
+    for (const name of ["에이스", "듀스", "트레이", "포", "파이브"]) {
+      await user.click(screen.getByRole("button", { name: /던지기/ }));
+      await user.click(sheet().getByRole("button", { name }));
+      await user.click(screen.getByRole("button", { name: /기록/ }));
+    }
+
+    expect(screen.getByText("보너스!").style.animationDuration).toBe("1000ms");
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText("+35").style.animationDuration).toBe("1000ms");
   });
 });
 

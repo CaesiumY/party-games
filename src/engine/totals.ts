@@ -18,6 +18,21 @@ export function upperBonus(player: PlayerState): number {
   return upperSubtotal(player) >= UPPER_BONUS_THRESHOLD ? UPPER_BONUS_POINTS : 0;
 }
 
+/** 보너스 알림의 문구. "+35" 는 윗칸 보너스를 받음, "+0" 은 윗칸을 다 채웠는데 못 받음. */
+export type BonusNotice = "+35" | "+0";
+
+/**
+ * 방금 기록으로 띄울 보너스 알림. 기록 전과 뒤의 같은 플레이어를 받는다.
+ * 소계가 처음 63 이상이 된 기록이면 "+35", 윗칸의 마지막 칸을 채운 기록인데 63 미만이면 "+0",
+ * 그 밖에는 null 이다.
+ */
+export function bonusNotice(before: PlayerState, after: PlayerState): BonusNotice | null {
+  if (upperBonus(before) === 0 && upperBonus(after) > 0) return "+35";
+  const filled = (p: PlayerState) => UPPER.every((category) => p.scores[category] !== undefined);
+  if (!filled(before) && filled(after) && upperBonus(after) === 0) return "+0";
+  return null;
+}
+
 /** 총합 득점: 기록한 모든 카테고리 점수와 윗칸 보너스의 합. */
 export function totalScore(player: PlayerState): number {
   const recorded = Object.values(player.scores).reduce<number>(

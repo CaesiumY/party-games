@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { type DiceSource, type RollRequest, scriptedDiceSource } from "./dice-source";
-import { gameMode, record, roll, rollsLeft, scorePreview, startGame, toggleHold } from "./game";
+import {
+  comboCallout,
+  contributingDice,
+  gameMode,
+  record,
+  roll,
+  rollsLeft,
+  scorePreview,
+  startGame,
+  toggleHold,
+} from "./game";
 import { totalScore, upperSubtotal } from "./totals";
 import {
   CATEGORIES,
@@ -188,6 +198,51 @@ describe("저장과 복원", () => {
     expect(continueFrom(restored)).toEqual(continueFrom(midGame));
     expect(continueFrom(restored).players.map((p) => p.scores.choice)).toEqual([20, 26]);
   });
+
+  it("홀드한 채 저장했다 복원한 게임을 끝까지 진행하면, 끊기지 않은 게임과 같은 결과다", () => {
+    // 굴림 요청만으로 눈이 정해지는 공급원이라, 끊긴 게임과 끊기지 않은 게임이 같은 눈을 받는다.
+    const source: DiceSource = ({ player, turn, rollNumber, count }) =>
+      Array.from(
+        { length: count },
+        (_, i) => (((player + turn * 3 + rollNumber + i) % 6) + 1) as DieValue,
+      );
+    /** 한 턴: 굴리고, 첫 주사위를 홀드하고, 다시 굴린 뒤 맨 위 빈 카테고리에 기록한다. */
+    const playTurn = (state: GameState) => {
+      const held = ok(toggleHold(ok(roll(state, source)), 0));
+      const rolled = ok(roll(held, source));
+      const scores = rolled.players[rolled.currentPlayer]?.scores ?? {};
+      const empty = CATEGORIES.find((category) => scores[category] === undefined);
+      if (!empty) throw new Error("빈 카테고리가 없다");
+      return ok(record(rolled, empty));
+    };
+    const playToEnd = (state: GameState) => {
+      let s = state;
+      while (!s.finished) s = playTurn(s);
+      return s;
+    };
+
+    // 7턴째 둘째 플레이어가 한 번 굴리고 홀드한 순간에 끊긴다.
+    let midGame = startGame(["가", "나"]);
+    for (let i = 0; i < 13; i++) midGame = playTurn(midGame);
+    midGame = ok(toggleHold(ok(roll(midGame, source)), 2));
+    expect(midGame).toMatchObject({ turn: 7, currentPlayer: 1, rollsUsed: 1 });
+
+    const restored: GameState = JSON.parse(JSON.stringify(midGame));
+    const finishFrom = (state: GameState) => {
+      const rolled = ok(roll(state, source));
+      const scores = rolled.players[rolled.currentPlayer]?.scores ?? {};
+      const empty = CATEGORIES.find((category) => scores[category] === undefined);
+      if (!empty) throw new Error("빈 카테고리가 없다");
+      return playToEnd(ok(record(rolled, empty)));
+    };
+
+    const uninterrupted = finishFrom(midGame);
+    expect(uninterrupted.finished).toBe(true);
+    expect(finishFrom(restored)).toEqual(uninterrupted);
+    expect(finishFrom(restored).players.map(totalScore)).toEqual(
+      uninterrupted.players.map(totalScore),
+    );
+  });
 });
 
 describe("주사위 정체성", () => {
@@ -321,6 +376,22 @@ describe("게임 끝", () => {
 
     expect(playTurns(almost, 1).finished).toBe(true);
   });
+
+  it("대전 모드는 기록하면 다음 플레이어 차례가 되고, 마지막 플레이어 뒤에 턴이 오르며, 끝나면 모두 12턴씩 했다", () => {
+    const start = startGame(["플레이어 1", "플레이어 2", "플레이어 3"]);
+    const seen = [1, 2, 3, 4].map((n) => playTurns(start, n));
+
+    expect(seen.map((s) => [s.currentPlayer, s.turn])).toEqual([
+      [1, 1],
+      [2, 1],
+      [0, 2],
+      [1, 2],
+    ]);
+
+    const done = playTurns(start, 36);
+    expect(done.finished).toBe(true);
+    expect(done.players.map((p) => Object.keys(p.scores).length)).toEqual([12, 12, 12]);
+  });
 });
 
 describe("모드", () => {
@@ -332,5 +403,47 @@ describe("모드", () => {
       "versus",
       "versus",
     ]);
+  });
+});
+
+describe("기여 주사위와 성립 알림", () => {
+  const rolled = (values: DieValue[]) =>
+    ok(roll(startGame(["플레이어 1"]), scriptedDiceSource([values])));
+
+  it("기여 주사위는 주사위 정체성(DieId)으로 알려 준다. 홀드해도 같은 주사위다", () => {
+    const held = ok(toggleHold(rolled([3, 1, 6, 1, 2]), 3));
+
+    expect(contributingDice(held, "aces")).toEqual([1, 3]);
+  });
+
+  it("성립 알림: 요트가 나오면 요트", () => {
+    expect(comboCallout(rolled([5, 5, 5, 5, 5]))).toBe("yacht");
+  });
+
+  it("성립 알림: 12345 는 S. 스트레이트도 성립하지만 L. 스트레이트만 띄운다", () => {
+    expect(comboCallout(rolled([3, 1, 5, 2, 4]))).toBe("lStraight");
+  });
+
+  it("성립 알림: 포 다이스·풀 하우스·S. 스트레이트는 각각 그 이름을 띄운다", () => {
+    expect(comboCallout(rolled([2, 2, 1, 2, 2]))).toBe("fourDice");
+    expect(comboCallout(rolled([1, 6, 1, 6, 1]))).toBe("fullHouse");
+    expect(comboCallout(rolled([1, 1, 2, 3, 4]))).toBe("sStraight");
+  });
+
+  it("성립 알림: 아랫칸 카테고리가 아무것도 성립하지 않으면 없다(초이스는 띄우지 않는다)", () => {
+    expect(comboCallout(rolled([1, 2, 3, 5, 6]))).toBeNull();
+    expect(comboCallout(rolled([6, 6, 6, 5, 4]))).toBeNull();
+  });
+
+  it("성립 알림: 이미 기록한 카테고리여도 띄운다", () => {
+    const source = scriptedDiceSource([
+      [4, 4, 4, 4, 4],
+      [3, 3, 3, 3, 3],
+    ]);
+    const turn2 = ok(
+      roll(ok(record(ok(roll(startGame(["플레이어 1"]), source)), "yacht")), source),
+    );
+
+    expect(comboCallout(turn2)).toBe("yacht");
   });
 });

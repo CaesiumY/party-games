@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { scriptedDiceSource } from "../engine/dice-source";
-import type { DieValue } from "../engine/types";
+import type { Category, DieValue } from "../engine/types";
 import { createGameStore } from "./game-store";
 
 function storeWith(rolls: DieValue[][], players = ["플레이어 1"]) {
@@ -244,6 +244,185 @@ describe("점수 미리보기가 보이는 때", () => {
   });
 });
 
+describe("성립 알림", () => {
+  it("정렬 끝에 성립한 카테고리가 정해지고, 멈춤만으로는 아직 뜨지 않는다", () => {
+    const store = storeWith([[6, 6, 6, 6, 6]]);
+    store.getState().roll();
+    const { rollId } = store.getState();
+
+    store.getState().presenterStopped(rollId);
+    expect(store.getState().callout).toBeNull();
+
+    store.getState().presenterLinedUp(rollId);
+    expect(store.getState().callout).toEqual({ rollId, category: "yacht" });
+  });
+
+  it("아무것도 성립하지 않으면 뜨지 않는다", () => {
+    const store = storeWith([[1, 2, 3, 5, 6]]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    expect(store.getState().callout).toBeNull();
+  });
+
+  it("알림이 떠 있어도 조작할 수 있고, 다시 굴리거나 기록하면 지워진다", () => {
+    const store = storeWith([
+      [2, 2, 2, 2, 1],
+      [2, 2, 2, 2, 2],
+    ]);
+    store.getState().roll();
+    finishPresentation(store);
+    expect(store.getState().callout?.category).toBe("fourDice");
+    expect(store.getState().permissions().canRoll).toBe(true);
+
+    store.getState().roll();
+    expect(store.getState().callout).toBeNull();
+
+    finishPresentation(store);
+    expect(store.getState().callout?.category).toBe("yacht");
+    store.getState().select("yacht");
+    store.getState().record();
+    expect(store.getState().callout).toBeNull();
+  });
+
+  it("알림 표시가 끝나면 그 굴림의 알림만 지운다", () => {
+    const store = storeWith([[3, 3, 3, 3, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+    const { rollId } = store.getState();
+
+    store.getState().calloutEnded(rollId - 1);
+    expect(store.getState().callout).not.toBeNull();
+    store.getState().calloutEnded(rollId);
+    expect(store.getState().callout).toBeNull();
+  });
+});
+
+/** 굴리고 연출을 끝낸 뒤 그 카테고리에 기록한다. */
+function playTurn(store: ReturnType<typeof storeWith>, category: Category) {
+  expect(store.getState().roll()).toEqual({ ok: true });
+  finishPresentation(store);
+  expect(store.getState().select(category)).toEqual({ ok: true });
+  expect(store.getState().record()).toEqual({ ok: true });
+}
+
+const UPPER: Category[] = ["aces", "deuces", "treys", "fours", "fives", "sixes"];
+
+describe("보너스 알림", () => {
+  it("윗칸의 마지막 칸을 채운 기록이 63 미만이면 +0 알림이 뜨고, 끝날 때까지 굴릴 수 없다", () => {
+    const store = storeWith(Array.from({ length: 7 }, () => [1, 2, 3, 4, 5]));
+    for (const category of UPPER.slice(0, 5)) playTurn(store, category);
+    expect(store.getState().bonusNotice).toBeNull();
+
+    playTurn(store, "sixes");
+
+    const notice = store.getState().bonusNotice;
+    expect(notice).toMatchObject({ player: 0, notice: "+0" });
+    expect(store.getState().permissions().canRoll).toBe(false);
+    expect(store.getState().roll()).toEqual({ ok: false, reason: "handing-off" });
+
+    if (notice) store.getState().bonusNoticeEnded(notice.id);
+    expect(store.getState().bonusNotice).toBeNull();
+    expect(store.getState().roll()).toEqual({ ok: true });
+  });
+
+  it("대전 모드: 알림이 끝날 때까지 방금 기록한 플레이어를 지금 차례로 보여 주고, 끝나면 다음 플레이어로 넘어간다", () => {
+    // 플레이어 1: 식스 30 → 파이브 25(소계 55) → 포 20(소계 75, 처음 63 이상이라 +35).
+    const store = storeWith(
+      [
+        [6, 6, 6, 6, 6],
+        [1, 1, 1, 1, 1],
+        [5, 5, 5, 5, 5],
+        [1, 1, 1, 1, 1],
+        [4, 4, 4, 4, 4],
+        [2, 2, 2, 2, 2],
+      ],
+      ["플레이어 1", "플레이어 2"],
+    );
+    playTurn(store, "sixes");
+    playTurn(store, "aces");
+    playTurn(store, "fives");
+    expect(store.getState().shownPlayer()).toBe(1);
+    playTurn(store, "choice");
+    expect(store.getState().bonusNotice).toBeNull();
+
+    playTurn(store, "fours");
+
+    const notice = store.getState().bonusNotice;
+    expect(notice).toMatchObject({ player: 0, notice: "+35" });
+    // 엔진은 이미 다음 차례지만 화면은 방금 기록한 플레이어 1 을 보여 준다.
+    expect(store.getState().game.currentPlayer).toBe(1);
+    expect(store.getState().shownPlayer()).toBe(0);
+    expect(store.getState().permissions().canRoll).toBe(false);
+
+    if (notice) store.getState().bonusNoticeEnded(notice.id);
+    expect(store.getState().shownPlayer()).toBe(1);
+    expect(store.getState().permissions().canRoll).toBe(true);
+  });
+
+  it("다른 알림 번호로 끝났다고 알리면 지우지 않는다", () => {
+    const store = storeWith(Array.from({ length: 6 }, () => [1, 1, 1, 1, 1]));
+    for (const category of UPPER) playTurn(store, category);
+    const notice = store.getState().bonusNotice;
+    if (!notice) throw new Error("알림이 없다");
+
+    store.getState().bonusNoticeEnded(notice.id + 1);
+
+    expect(store.getState().bonusNotice).toEqual(notice);
+  });
+});
+
+describe('플레이 방법 열기("?")', () => {
+  it("굴림 연출 중과 보너스 알림 중에는 막고, 그 밖에는 연다", () => {
+    const store = storeWith(Array.from({ length: 6 }, () => [1, 1, 1, 1, 1]));
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+
+    store.getState().roll();
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+    finishPresentation(store);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+    store.getState().select("aces");
+    store.getState().record();
+    for (const category of UPPER.slice(1)) playTurn(store, category);
+
+    expect(store.getState().bonusNotice).not.toBeNull();
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+  });
+});
+
+describe("성립 알림·보너스 알림과 이동 잠금", () => {
+  it("3번째 굴림의 정렬 끝에 성립 알림이 뜨고, 이어지는 자동 이동 중에는 「?」도 막힌다", () => {
+    const store = storeWith([
+      [2, 3, 4, 5, 1],
+      [2, 3, 4, 5, 1],
+      [2, 3, 4, 5, 6],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      store.getState().roll();
+      finishPresentation(store);
+    }
+
+    expect(store.getState().presentation.phase).toBe("auto-moving");
+    expect(store.getState().callout?.category).toBe("lStraight");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    for (const die of [0, 1, 2, 3, 4] as const) store.getState().presenterDieSettled(die);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+    expect(store.getState().callout?.category).toBe("lStraight");
+  });
+
+  it("홀드 이동 중에는 「?」를 막지 않는다", () => {
+    const store = storeWith([[1, 2, 3, 4, 6]]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    store.getState().toggleHold(0);
+
+    expect(store.getState().permissions().canRoll).toBe(false);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+});
+
 describe("홀드 이동 중 잠금", () => {
   it("주사위 A가 옮겨 가는 동안 B의 홀드는 받고, A의 홀드·굴림·기록은 거부한다(카테고리 선택은 된다)", () => {
     const store = storeWith([[5, 1, 4, 1, 3]]);
@@ -436,5 +615,55 @@ describe("'동작 줄이기'가 켜져 있으면 옮겨 가는 이동이 없다"
 
     expect(store.getState().presentation.phase).toBe("idle");
     expect(store.getState().permissions().canSelect("choice")).toBe(true);
+  });
+});
+
+describe('플레이 방법("?") 잠금', () => {
+  it("첫 굴림 전과 정렬 끝 뒤에는 열 수 있고, 굴림 버튼을 누른 때부터 정렬 끝까지는 열 수 없다", () => {
+    const store = storeWith([[1, 2, 3, 4, 5]]);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+
+    store.getState().roll();
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+    const { presentation } = store.getState();
+    if (presentation.phase !== "idle") store.getState().presenterStopped(presentation.rollId);
+    expect(store.getState().presentation.phase).toBe("stopped");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    const stopped = store.getState().presentation;
+    if (stopped.phase !== "idle") store.getState().presenterLinedUp(stopped.rollId);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+
+  it("3번째 굴림 뒤 다섯 개가 홀드 자리로 올라가는 동안 열 수 없고, 다 올라가면 열 수 있다", () => {
+    const store = storeWith([
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+      [1, 1, 2, 3, 4],
+    ]);
+    for (let i = 0; i < 3; i++) {
+      store.getState().roll();
+      expect(store.getState().permissions().canOpenHelp).toBe(false);
+      finishPresentation(store);
+    }
+
+    expect(store.getState().presentation.phase).toBe("auto-moving");
+    expect(store.getState().permissions().canOpenHelp).toBe(false);
+
+    for (const die of [0, 1, 2, 3, 4] as const) store.getState().presenterDieSettled(die);
+
+    expect(store.getState().presentation.phase).toBe("idle");
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
+  });
+
+  it("홀드·홀드 풀기로 주사위가 옮겨 가는 동안에는 막지 않는다", () => {
+    const store = storeWith([[5, 1, 4, 1, 3]]);
+    store.getState().roll();
+    finishPresentation(store);
+
+    store.getState().toggleHold(0);
+
+    expect(store.getState().movingDice).toEqual([0]);
+    expect(store.getState().permissions().canOpenHelp).toBe(true);
   });
 });
