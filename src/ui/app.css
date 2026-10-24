@@ -1206,6 +1206,9 @@ button:focus-visible {
   overscroll-behavior: contain;
   padding: 4px 16px 16px;
   line-height: 1.55;
+  /* 한글 낱말 가운데서 줄이 바뀌지 않게(「족/보」·「다/음」처럼 끊기던 것, #18). 띄어쓰기 자리에서만 바꾼다. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 .how-to-play-body h3 {
