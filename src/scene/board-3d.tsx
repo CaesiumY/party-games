@@ -37,7 +37,6 @@ export function Board3D() {
         aria-label="주사위 판"
         role="img"
       >
-        <color attach="background" args={["#1b120d"]} />
         {fit && <CameraRig fit={fit} />}
         <SceneLights />
         <BoardMesh />

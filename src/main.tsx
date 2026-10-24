@@ -10,6 +10,7 @@ import { bestScoreValue } from "./store/best-score";
 import { createGameStore } from "./store/game-store";
 import { savedGameValue } from "./store/saved-game";
 import { browserStorage } from "./store/stored-value";
+import "./ui/tokens.css";
 import "./ui/app.css";
 
 /** 운영은 암호학적 난수, 테스트용 빌드(`--mode e2e`)만 E2E 용 공급원. 운영 번들에는 E2E 쪽이 빠진다. */
