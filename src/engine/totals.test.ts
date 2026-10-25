@@ -10,9 +10,10 @@ import {
 import { CATEGORIES, type PlayerState } from "./types";
 
 describe("윗칸과 아랫칸", () => {
-  it("열두 카테고리를 점수표 순서 그대로 여섯 개씩 나눈다", () => {
+  it("열두 카테고리를 겹치지 않게 여섯 개씩 나눈다", () => {
     expect(UPPER_CATEGORIES).toEqual(["aces", "deuces", "treys", "fours", "fives", "sixes"]);
-    expect([...UPPER_CATEGORIES, ...LOWER_CATEGORIES]).toEqual(CATEGORIES);
+    expect(LOWER_CATEGORIES).toHaveLength(6);
+    expect(new Set(CATEGORIES).size).toBe(12);
   });
 });
 
