@@ -326,7 +326,7 @@ describe("성립 알림", () => {
 
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
 
-    expect(screen.getByRole("status").textContent).toBe("L. 스트레이트");
+    expect(screen.getByRole("status", { name: "L. 스트레이트" })).toBeTruthy();
     const cell = rowOf("L. 스트레이트").getAllByRole("cell")[0];
     expect(cell?.classList.contains("callout")).toBe(true);
     // 알림이 떠 있어도 조작할 수 있다.
@@ -351,7 +351,7 @@ describe("성립 알림", () => {
 
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
 
-    expect(screen.getByRole("status").textContent).toBe("요트");
+    expect(screen.getByRole("status", { name: "요트" })).toBeTruthy();
     const cell = rowOf("요트").getAllByRole("cell")[0];
     expect(cell?.classList.contains("callout")).toBe(false);
   });
@@ -361,14 +361,14 @@ describe("성립 알림", () => {
     const store = renderGame([[3, 3, 3, 3, 1], [3]]);
 
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
-    expect(screen.getByRole("status").textContent).toBe("포 다이스");
+    expect(screen.getByRole("status", { name: "포 다이스" })).toBeTruthy();
     expect(screen.queryByTestId("confetti")).toBeNull();
     act(() => {
       for (const id of [0, 1, 2, 3] as const) store.getState().toggleHold(id);
     });
 
     await user.click(screen.getByRole("button", { name: "다시 던지기" }));
-    expect(screen.getByRole("status").textContent).toBe("요트");
+    expect(screen.getByRole("status", { name: "요트" })).toBeTruthy();
     expect(screen.getByTestId("confetti")).toBeTruthy();
   });
 
@@ -384,11 +384,34 @@ describe("성립 알림", () => {
 
       await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
 
-      expect(screen.getByRole("status").textContent).toBe("요트");
+      expect(screen.getByRole("status", { name: "요트" })).toBeTruthy();
       expect(screen.queryByTestId("confetti")).toBeNull();
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("성립 알림의 글자", () => {
+  it("화면 낭독기에는 한국어 카테고리 이름만 들린다: 그림으로 보여 주는 요트도, 영문 글자로 보여 주는 풀 하우스도", async () => {
+    const user = userEvent.setup();
+    renderGame([
+      [3, 3, 3, 2, 2],
+      [6, 6, 6, 6, 6],
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+    const fullHouse = screen.getByRole("status", { name: "풀 하우스" });
+    // 영문 글자(FULL HOUSE)는 꾸밈이라 낭독에서 빠지고, 아래 한글 이름표가 읽힌다.
+    expect(fullHouse.querySelector("[aria-hidden='true']")?.textContent).toBe("FULL HOUSE");
+    expect(within(fullHouse).getByText("풀 하우스")).toBeTruthy();
+
+    await user.click(sheet().getByRole("button", { name: "풀 하우스" }));
+    await user.click(screen.getByRole("button", { name: "기록" }));
+    await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
+
+    const yacht = screen.getByRole("status", { name: "요트" });
+    expect(within(yacht).getByRole("img", { name: "요트" })).toBeTruthy();
   });
 });
 

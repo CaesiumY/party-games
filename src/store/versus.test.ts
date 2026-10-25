@@ -95,6 +95,33 @@ describe("차례 배너", () => {
     expect(store.getState().turnBanner).toMatchObject({ player: 1 });
   });
 
+  it("보너스 알림 동안 턴 표시와 남은 굴림은 방금 기록한 플레이어의 것이고, 알림이 끝나면 다음 턴으로 바뀐다", () => {
+    // 턴 1·2·3 의 눈은 모두 6·5·4. 두 사람 모두 식스 30 → 파이브 25 → 포 20(소계 75, +35).
+    // 두 번째 사람(나래)의 턴 3 기록이 보너스 알림을 띄우고, 엔진은 이미 턴 4 의 첫 사람으로 넘어간다.
+    const byTurn: DiceSource = ({ count, turn }) =>
+      Array.from({ length: count }, () => (7 - turn) as DieValue);
+    const store = versusStore(FOUR.slice(0, 2), byTurn);
+    for (const category of ["sixes", "sixes", "fives", "fives", "fours"] as const) {
+      playTurn(store, category);
+      endNotices(store);
+    }
+    playTurn(store, "fours");
+
+    expect(store.getState().bonusNotice).toMatchObject({ player: 1, notice: "+35" });
+    expect(store.getState().game.turn).toBe(4);
+    // 나래는 턴 3 에 한 번 굴리고 기록했다: 화면은 「턴 3/12」·「앞으로 2번」.
+    expect(store.getState().shownPlayer()).toBe(1);
+    expect(store.getState().shownTurn()).toBe(3);
+    expect(store.getState().shownRollsLeft()).toBe(2);
+
+    const notice = store.getState().bonusNotice;
+    if (notice) store.getState().bonusNoticeEnded(notice.id);
+
+    expect(store.getState().shownPlayer()).toBe(0);
+    expect(store.getState().shownTurn()).toBe(4);
+    expect(store.getState().shownRollsLeft()).toBe(3);
+  });
+
   it("연습 모드에는 차례 배너가 없다", () => {
     const store = versusStore(["플레이어 1"]);
     playTurn(store);

@@ -94,10 +94,10 @@ describe("대전 모드 시작", () => {
   it("인원을 고르고 이름을 넣어 시작하면 그 순서로 점수표 세로줄이 생긴다. 비운 이름은 「플레이어 n」이다", async () => {
     const { user } = openApp();
 
-    await start(user, ["가람", "나래", "", "라온"]);
+    await start(user, ["", "나래"]);
 
-    expect(headers()).toEqual(["가람", "나래", "플레이어 3", "라온"]);
-    expect(currentPlayer()).toBe("가람");
+    expect(headers()).toEqual(["플레이어 1", "나래"]);
+    expect(currentPlayer()).toBe("플레이어 1");
   });
 
   it("같은 이름을 두 번 넣으면 뒤의 것에 번호를 붙여 구분한다", async () => {
@@ -108,11 +108,12 @@ describe("대전 모드 시작", () => {
     expect(headers()).toEqual(["가람", "가람 2"]);
   });
 
-  it("인원 선택지는 1~4명이고, 1명이면 혼자 시작한다", async () => {
+  it("인원 선택지는 지금은 1~2명이고(3~4명은 닫아 둠), 1명이면 혼자 시작한다", async () => {
     const { user } = openApp();
-    expect(screen.getAllByRole("radio")).toHaveLength(4);
-    for (const n of [1, 2, 3, 4])
-      expect(screen.getByRole("radio", { name: `${n}명` })).toBeTruthy();
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    for (const n of [1, 2]) expect(screen.getByRole("radio", { name: `${n}명` })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "3명" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "플레이어 3 이름" })).toBeNull();
 
     await start(user, [""]);
 
@@ -146,9 +147,9 @@ describe("차례 넘기기", () => {
 
 describe("대전 모드 결과", () => {
   it("순위 표(동점이면 같은 순위) → 「다음」 → 승자 화면(공동 1등 모두), 「같은 멤버로 다시」는 같은 이름·순서로 다시 연다", async () => {
-    // 가람·다솜은 늘 6(총합 득점 170), 나래는 늘 5(150) → 가람·다솜 공동 1위, 나래 3위.
-    const { user, store } = openApp(facesByPlayer([6, 5, 6]));
-    await start(user, ["가람", "나래", "다솜"]);
+    // 두 사람 모두 늘 6(총합 득점 170) → 공동 1위. 3명 이상의 순위(1·1·3)는 엔진 테스트(ranking)가 본다.
+    const { user, store } = openApp(facesByPlayer([6, 6]));
+    await start(user, ["가람", "나래"]);
     await user.click(screen.getByRole("button", { name: "주사위 던지기" }));
     await user.click(sheet().getByRole("button", { name: "에이스" }));
     await user.click(screen.getByRole("button", { name: "0점으로 기록" }));
@@ -166,8 +167,7 @@ describe("대전 모드 결과", () => {
       );
     expect(rows).toEqual([
       ["1위", "가람", "170"],
-      ["1위", "다솜", "170"],
-      ["3위", "나래", "150"],
+      ["1위", "나래", "170"],
     ]);
     expect(screen.queryByRole("button", { name: "같은 멤버로 다시" })).toBeNull();
 
@@ -175,13 +175,12 @@ describe("대전 모드 결과", () => {
 
     const winner = within(screen.getByRole("main", { name: "Winner!" }));
     expect(winner.getByText("가람")).toBeTruthy();
-    expect(winner.getByText("다솜")).toBeTruthy();
-    expect(winner.queryByText("나래")).toBeNull();
+    expect(winner.getByText("나래")).toBeTruthy();
     expect(winner.getAllByText("총합 득점 170")).toHaveLength(2);
 
     await user.click(screen.getByRole("button", { name: "같은 멤버로 다시" }));
 
-    expect(headers()).toEqual(["가람", "나래", "다솜"]);
+    expect(headers()).toEqual(["가람", "나래"]);
     expect(sheet().getByText("턴 1/12")).toBeTruthy();
   });
 });

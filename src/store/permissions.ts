@@ -23,6 +23,10 @@ export interface HandOffNotice {
   id: number;
   /** 방금 기록한 플레이어의 순번. */
   player: number;
+  /** 그 플레이어가 기록한 턴 번호. 알림 동안 점수표 머리의 「턴 n/12」가 이것을 보여 준다. */
+  turn: number;
+  /** 그 플레이어가 기록할 때 남아 있던 굴림 횟수. 알림 동안 「앞으로 n번」이 이것을 보여 준다. */
+  rollsLeft: number;
   notice: BonusNotice;
 }
 
@@ -143,6 +147,19 @@ export function allDiceUp(s: Pick<JudgeInput, "game" | "presentation">): boolean
  */
 export function shownPlayer(s: Pick<JudgeInput, "game" | "bonusNotice">): number {
   return s.bonusNotice ? s.bonusNotice.player : s.game.currentPlayer;
+}
+
+/**
+ * 화면이 보여 줄 턴 번호(「턴 n/12」). 보너스 알림 동안은 방금 기록한 플레이어가 기록한 턴이고,
+ * 그 밖에는 엔진의 턴이다. 지금 차례 표시(`shownPlayer`)와 같은 때에 바뀐다.
+ */
+export function shownTurn(s: Pick<JudgeInput, "game" | "bonusNotice">): number {
+  return s.bonusNotice ? s.bonusNotice.turn : s.game.turn;
+}
+
+/** 화면이 보여 줄 남은 굴림 횟수(「앞으로 n번」). 보너스 알림 동안은 방금 기록한 플레이어가 기록할 때의 값이다. */
+export function shownRollsLeft(s: Pick<JudgeInput, "game" | "bonusNotice">): number {
+  return s.bonusNotice ? s.bonusNotice.rollsLeft : rollsLeft(s.game);
 }
 
 /** 점수 미리보기는 주사위가 멈추는 순간부터 보인다. 조작 잠금은 정렬 끝에 풀린다. */

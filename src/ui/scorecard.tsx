@@ -1,7 +1,13 @@
 import { scorePreview } from "../engine/game";
 import { totalScore, UPPER_BONUS_THRESHOLD, upperBonus, upperSubtotal } from "../engine/totals";
 import { CATEGORIES, type Category } from "../engine/types";
-import { useGame, usePermissions, usePreviewVisible, useShownPlayer } from "../store/store-context";
+import {
+  useGame,
+  usePermissions,
+  usePreviewVisible,
+  useShownPlayer,
+  useShownTurn,
+} from "../store/store-context";
 import { CategoryIcon } from "./category-icon";
 import { CATEGORY_NAMES } from "./category-names";
 import { HowToPlayButton } from "./how-to-play";
@@ -21,6 +27,8 @@ export function Scorecard() {
   const can = usePermissions();
   // 차례 강조는 화면의 지금 차례(보너스 알림 동안은 방금 기록한 플레이어)를 따른다.
   const now = useShownPlayer();
+  // 턴 표시도 같은 때에 넘어간다(보너스 알림 동안은 방금 기록한 턴).
+  const turn = useShownTurn();
   const callout = useGame((s) => s.callout?.category ?? null);
   const bonusPlayer = useGame((s) => s.bonusNotice?.player ?? null);
 
@@ -105,7 +113,7 @@ export function Scorecard() {
         <thead>
           <tr>
             <th scope="col" className="turn">
-              <span className="turn-label">턴 {Math.min(game.turn, 12)}/12</span>
+              <span className="turn-label">턴 {Math.min(turn, 12)}/12</span>
               <HowToPlayButton className="help" disabled={!can.canOpenHelp}>
                 ?
               </HowToPlayButton>

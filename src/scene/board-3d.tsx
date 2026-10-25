@@ -1,6 +1,7 @@
 import { Canvas, useThree } from "@react-three/fiber";
 import { type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PerspectiveCamera } from "three";
+import { calloutAnchor } from "../layout/callout";
 import { applyFit, type CameraFit, fitCamera, type Rect } from "../layout/camera-fit";
 import { useDiceSlots, useGame } from "../store/store-context";
 import { BoardMesh } from "./board-mesh";
@@ -27,6 +28,7 @@ export function Board3D() {
     () => (width && height ? fitCamera({ width, height, reserveTop, avoid }) : null),
     [width, height, reserveTop, avoid],
   );
+  useCalloutAnchor(ref, fit, reserveTop);
   return (
     <div className="board" ref={ref}>
       <Canvas
@@ -47,6 +49,31 @@ export function Board3D() {
       {fit && <HoldBubbles fit={fit} topLimit={reserveTop} />}
     </div>
   );
+}
+
+/**
+ * 성립 알림(src/ui/notices.tsx)은 판 영역과 같은 칸에 겹치는 형제 요소라서, 판이 실제로 그려진 자리를 모른다.
+ * 카메라 맞춤으로 투영한 자리(홀드 자리 줄 바로 아래의 펠트, src/layout/callout.ts)를 부모의 CSS 변수
+ * `--callout-x`·`--callout-y`(판 영역 왼쪽 위 기준 px)와 쓸 수 있는 높이 `--callout-max-h` 로 알려 준다.
+ */
+function useCalloutAnchor(
+  ref: RefObject<HTMLDivElement | null>,
+  fit: CameraFit | null,
+  reserveTop: number,
+) {
+  useLayoutEffect(() => {
+    const root = ref.current?.parentElement;
+    if (!root || !fit) return;
+    const { x, y, maxHeight } = calloutAnchor(fit, reserveTop);
+    root.style.setProperty("--callout-x", `${x}px`);
+    root.style.setProperty("--callout-y", `${y}px`);
+    root.style.setProperty("--callout-max-h", `${maxHeight}px`);
+    return () => {
+      root.style.removeProperty("--callout-x");
+      root.style.removeProperty("--callout-y");
+      root.style.removeProperty("--callout-max-h");
+    };
+  }, [ref, fit, reserveTop]);
 }
 
 /**

@@ -26,6 +26,8 @@ import {
   rollBlocker,
   selectBlocker,
   shownPlayer,
+  shownRollsLeft,
+  shownTurn,
   type TurnBanner,
 } from "./permissions";
 import type { SavedGame } from "./saved-game";
@@ -108,6 +110,10 @@ export interface GameStoreState {
   permissions(): Permissions;
   /** 화면이 지금 차례로 보여 줄 플레이어. 보너스 알림 동안은 방금 기록한 플레이어다. */
   shownPlayer(): number;
+  /** 화면이 보여 줄 턴 번호. 보너스 알림 동안은 방금 기록한 플레이어가 기록한 턴이다. */
+  shownTurn(): number;
+  /** 화면이 보여 줄 남은 굴림 횟수. 보너스 알림 동안은 방금 기록한 플레이어가 기록할 때의 값이다. */
+  shownRollsLeft(): number;
   previewVisible(): boolean;
   /** 주사위마다 놓이는 자리(DieId 순서). 3번째 굴림의 정렬이 끝나면 다섯 개 모두 홀드 자리다. */
   slots(): DieSlot[];
@@ -275,7 +281,15 @@ export function createGameStore({
         ...(outcome ? { best: outcome.best } : {}),
         callout: null,
         // 한 기록에는 굴림이 적어도 한 번 있으므로 지금 굴림 번호가 알림마다 다르다.
-        bonusNotice: notice ? { id: state.rollId, player, notice } : null,
+        bonusNotice: notice
+          ? {
+              id: state.rollId,
+              player,
+              turn: state.game.turn,
+              rollsLeft: rollsLeft(state.game),
+              notice,
+            }
+          : null,
         // 보너스 알림이 있으면 배너는 알림이 끝날 때 띄운다.
         turnBanner: notice ? null : bannerAfter(result.state, player, state.rollId),
       });
@@ -369,6 +383,8 @@ export function createGameStore({
 
     permissions: () => judge(get()),
     shownPlayer: () => shownPlayer(get()),
+    shownTurn: () => shownTurn(get()),
+    shownRollsLeft: () => shownRollsLeft(get()),
     previewVisible: () => previewVisible(get()),
     slots: () => diceSlots(get().game.dice, get().columns, { allUp: allDiceUp(get()) }),
     resultVisible: () => resultVisible(get()),

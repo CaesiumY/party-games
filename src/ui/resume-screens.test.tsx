@@ -110,7 +110,7 @@ describe("시작 화면의 이어 하기", () => {
     // 조작이 잠기지 않는다.
     expect(screen.getByRole("button", { name: "다시 던지기" })).toHaveProperty("disabled", false);
     // 성립 알림·색종이는 다시 띄우지 않는다.
-    expect(screen.queryByText("요트", { selector: ".callout-text" })).toBeNull();
+    expect(screen.queryByRole("status", { name: "요트" })).toBeNull();
     expect(screen.queryByTestId("confetti")).toBeNull();
   });
 

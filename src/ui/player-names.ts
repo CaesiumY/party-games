@@ -1,7 +1,15 @@
-/** 플레이어 수. 1명이면 연습 모드, 2~4명이면 대전 모드다. */
-export const PLAYER_COUNTS = [1, 2, 3, 4] as const;
+import { MAX_PLAYERS } from "../store/player-cap";
 
-/** 이름 입력의 최대 글자 수. 4인 점수표의 세로줄 머리에 들어가도록 짧게 둔다. */
+/**
+ * 시작 화면의 인원 선택지. 1명이면 연습 모드, 2명 이상이면 대전 모드다. 지금은 2명까지만 연다
+ * (`MAX_PLAYERS`, 2026-10-25 결정). 엔진은 4명까지 다룰 수 있다.
+ */
+export const PLAYER_COUNTS: readonly number[] = Array.from(
+  { length: MAX_PLAYERS },
+  (_, i) => i + 1,
+);
+
+/** 이름 입력의 최대 글자 수. 4인 점수표의 세로줄 머리에도 들어가도록 짧게 둔다(3~4명을 다시 열 때를 위해 그대로 둔다). */
 export const NAME_MAX_LENGTH = 8;
 
 /** 비워 둔 이름에 들어가는 기본 이름(스펙 「게임 시작」). */
