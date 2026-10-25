@@ -173,6 +173,33 @@ test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 새 2인 �
     );
   });
 
+  await test.step("휴대폰 가로(667×375)에서도 시작 화면이 스크롤 없이 한 화면에 들어온다(1명·2명)", async () => {
+    await page.setViewportSize({ width: 667, height: 375 });
+    for (const count of ["1명", "2명"]) {
+      await page.getByText(count, { exact: true }).click();
+      // 시작 화면은 넘치면 자기 영역만 스크롤하므로(main), 그 영역이 넘치지 않는지 본다.
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const main = document.querySelector("main");
+            return main ? main.scrollHeight <= main.clientHeight : false;
+          }),
+        )
+        .toBe(true);
+      await expectInsideViewport(
+        page,
+        page.getByRole("button", { name: count === "1명" ? "혼자 시작" : "대전 시작" }),
+        `${count} 시작 버튼`,
+      );
+      await expectInsideViewport(
+        page,
+        page.getByRole("button", { name: "플레이 방법" }),
+        "플레이 방법 버튼",
+      );
+    }
+    await page.setViewportSize({ width: 375, height: 667 });
+  });
+
   await test.step("시작 화면에서 플레이 방법의 세 탭을 차례로 보고 닫는다", async () => {
     await page.getByRole("button", { name: "플레이 방법" }).click();
     const dialog = helpDialog(page);

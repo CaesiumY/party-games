@@ -1085,6 +1085,54 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+/* 높이가 낮은 가로 화면(휴대폰 가로 667×375 등)에서는 시작 화면이 스크롤 없이 한 화면에 들어오도록
+   제목·여백·칸 높이를 줄인다(#18 결정). 버튼은 40px, 입력·인원 칸은 36px 로 누르는 영역 24px 을 넉넉히 넘는다.
+   태블릿·데스크톱 가로(높이 500px 넘음)와 세로 화면은 그대로다. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .start {
+    gap: 8px;
+    padding: 8px 16px;
+  }
+
+  .start h1 {
+    font-size: 32px;
+    -webkit-text-stroke-width: 6px;
+    text-shadow: 0 3px 0 rgb(0 0 0 / 30%);
+  }
+
+  .start p {
+    font-size: 1rem;
+  }
+
+  .start button {
+    min-height: 40px;
+    font-size: 16px;
+  }
+
+  .start .resume,
+  .setup {
+    gap: 8px;
+  }
+
+  .setup-card {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .setup .count legend {
+    margin-bottom: 4px;
+  }
+
+  .setup .count span,
+  .setup .names input {
+    min-height: 36px;
+  }
+
+  .setup .names {
+    gap: 6px;
+  }
+}
+
 /* 승자 화면과 순위 표(대전 모드 결과). */
 .winners {
   display: flex;
