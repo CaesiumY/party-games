@@ -37,6 +37,8 @@ export type BubbleSide = "above" | "below" | "below2";
 
 export interface HoldBubble {
   id: DieSlot["id"];
+  /** 그 주사위가 놓인 줄. 홀드 자리(hold)면 누를 때 홀드를 풀고, 정렬 줄(lineup)이면 홀드한다. */
+  row: Row;
   label: string;
   /** 기준점(px, 판 영역 왼쪽 위 기준). 상자는 이 점의 가로 가운데에 놓인다. */
   x: number;
@@ -143,7 +145,7 @@ function planRows(fit: CameraFit, topLimit: number): Record<Row, HoldBubble[]> {
     // id 는 자리를 정한 뒤 layoutHoldBubbles 가 그 열의 주사위로 채운다.
     const place = (column: number, side: BubbleSide): HoldBubble => {
       const [p] = projectPoints(fit, [anchor(column, row, side === "above" ? "above" : "below")]);
-      return { id: 0, label, x: p?.x ?? 0, y: p?.y ?? 0, side, fontSize, width };
+      return { id: 0, row, label, x: p?.x ?? 0, y: p?.y ?? 0, side, fontSize, width };
     };
     const odd = (column: number) => stagger && column % 2 === 1;
     const above = COLUMNS.map((c) => place(c, odd(c) ? "below" : "above"));

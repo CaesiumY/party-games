@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { CameraFit } from "../layout/camera-fit";
-import { BUBBLE_LABEL, layoutHoldBubbles } from "../layout/hold-bubbles";
+import { layoutHoldBubbles } from "../layout/hold-bubbles";
 import { useDiceSlots, useGame, usePermissions } from "../store/store-context";
 
 /**
@@ -31,7 +31,7 @@ export function HoldBubbles({ fit, topLimit }: { fit: CameraFit; topLimit: numbe
           type="button"
           tabIndex={-1}
           data-die={b.id}
-          className={`hold-bubble ${b.side}${b.label === BUBBLE_LABEL.hold ? " release" : ""}`}
+          className={`hold-bubble ${b.side}${b.row === "hold" ? " release" : ""}`}
           style={{ left: b.x, top: b.y, width: b.width, fontSize: b.fontSize }}
           onClick={() => toggleHold(b.id)}
         >
