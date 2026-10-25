@@ -681,8 +681,16 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 영문 글자 크기. 휴대폰 가로에서는 판 영역 폭이 좁아 화면 높이로도 줄인다. */
-  font-size: clamp(24px, min(9vw, 9vh), 38px);
+  /* 크기는 홀드 자리 주사위와 정렬 줄 주사위(또는 그 위 「킵」 말풍선) 사이 틈(--callout-max-h)에 맞춘다.
+     틈이 좁으면 이름표를 먼저 12px 까지 줄이고, 남은 높이를 영문 글자가 쓴다(#18 결정). 폭도 넘지 않게
+     화면 폭·높이로 한 번 더 묶는다. 변수가 없을 때(판이 아직 맞춰지기 전)는 큰 화면 값이다. */
+  --callout-tag: clamp(12px, calc(var(--callout-max-h, 68px) * 0.22), 14px);
+  font-size: clamp(
+    14px,
+    min(calc(var(--callout-max-h, 68px) - var(--callout-tag) * 1.2 - 1px), 9vw, 9vh),
+    38px
+  );
+  line-height: 1;
   -webkit-text-stroke: 0;
   text-shadow: none;
   animation: notice-pop 1.3s ease-out forwards;
@@ -693,7 +701,7 @@ button:focus-visible {
 .callout-en {
   font-family: var(--font-num);
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1;
   letter-spacing: 1px;
   transform: skewX(-9deg);
   color: transparent;
@@ -710,19 +718,20 @@ button:focus-visible {
 }
 
 .callout-ko {
-  margin-top: 2px;
-  padding: 1px 10px;
+  margin-top: 1px;
+  padding: 0 10px;
   border-radius: 999px;
   background: var(--text);
   color: var(--on-band);
-  font-size: 14px;
+  font-size: var(--callout-tag);
   font-weight: 800;
-  line-height: 1.4;
+  line-height: 1.2;
 }
 
-/* 요트는 글자 대신 그림(Codex CLI 이미지 생성 「YACHT!」). 판 영역 폭의 70%, 200~320px. */
+/* 요트는 글자 대신 그림(Codex CLI 이미지 생성 「YACHT!」, 560×154). 높이가 틈(--callout-max-h)에 들도록
+   폭을 정하고, 판 영역 폭의 70% 와 320px 을 넘지 않는다. */
 .callout-text.yacht {
-  width: clamp(200px, 70%, 320px);
+  width: min(320px, 70%, calc(var(--callout-max-h, 88px) * 560 / 154));
   padding: 0;
 }
 
