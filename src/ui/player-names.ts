@@ -27,7 +27,8 @@ function numbered(base: string, n: number): string {
  * 시작 화면의 입력을 게임의 플레이어 이름으로 바꾼다. 점수표·배너·순위에서 누구인지 구분해야 해서 이름이 겹치지 않게 한다.
  * - 앞뒤 공백을 지운다.
  * - 직접 넣은 이름끼리 겹치면 뒤의 것에 " 2", " 3" 을 붙이고, 그래서 최대 글자 수를 넘으면 앞부분을 잘라 맞춘다.
- * - 비운 칸은 자리 번호의 「플레이어 n」이다. 그 이름이 이미 쓰였으면 겹치지 않는 가장 작은 「플레이어 n」을 쓴다.
+ * - 비운 칸은 자리 번호의 「플레이어 n」이다(스펙 「게임 시작」 이야기 3). 그 이름을 이미 직접 넣은 사람이 있으면
+ *   번호는 그대로 두고 같은 규칙으로 뒤에 " 2" 를 붙인다(1번이 「플레이어 2」면 비운 2번은 「플레이어 2 2」).
  */
 export function playerNames(inputs: readonly string[]): string[] {
   const trimmed = inputs.map((input) => input.trim());
@@ -46,8 +47,10 @@ export function playerNames(inputs: readonly string[]): string[] {
   }
   return names.map((name, i) => {
     if (name !== null) return name;
-    let fallback = defaultName(i);
-    for (let n = 0; used.has(fallback); n++) fallback = defaultName(n);
+    // 번호를 바꾸지 않는다. 직접 넣은 이름과 겹치면 직접 넣은 이름끼리처럼 뒤에 번호를 붙인다.
+    const base = defaultName(i);
+    let fallback = base;
+    for (let n = 2; used.has(fallback); n++) fallback = numbered(base, n);
     used.add(fallback);
     return fallback;
   });
