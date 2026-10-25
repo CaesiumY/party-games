@@ -4,7 +4,15 @@ import { contributingDice } from "../engine/game";
 import type { DieId } from "../engine/types";
 import { type DieSlot, diceSlots } from "../layout/columns";
 import type { GameStore, GameStoreState } from "./game-store";
-import { allDiceUp, judge, type Permissions, previewVisible, shownPlayer } from "./permissions";
+import {
+  allDiceUp,
+  judge,
+  type Permissions,
+  previewVisible,
+  shownPlayer,
+  shownRollsLeft,
+  shownTurn,
+} from "./permissions";
 
 const StoreContext = createContext<GameStore | null>(null);
 
@@ -39,6 +47,16 @@ export function usePermissions(): Permissions {
  */
 export function useShownPlayer(): number {
   return useGame((s) => shownPlayer(s));
+}
+
+/** 화면이 보여 줄 턴 번호(「턴 n/12」). 보너스 알림 동안은 방금 기록한 플레이어가 기록한 턴이다. */
+export function useShownTurn(): number {
+  return useGame((s) => shownTurn(s));
+}
+
+/** 화면이 보여 줄 남은 굴림 횟수(「앞으로 n번」). 보너스 알림 동안은 방금 기록한 플레이어가 기록할 때의 값이다. */
+export function useShownRollsLeft(): number {
+  return useGame((s) => shownRollsLeft(s));
 }
 
 /** 선택한 카테고리의 기여 주사위(DieId). 선택이 없으면 빈 배열이다. 점수 계산과 같은 곳에서 나온다. */

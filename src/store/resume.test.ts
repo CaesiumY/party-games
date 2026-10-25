@@ -225,6 +225,35 @@ describe("이어 하기", () => {
     expect(bestScoreValue(storage).read()).toBe(120);
   });
 
+  it("지금 받는 인원(2명)보다 많은 3인 게임이 저장돼 있으면 읽을 수 없는 저장처럼 버리고 이어 하기를 띄우지 않는다", () => {
+    const storage = memoryStorage();
+    savedGameValue(storage).write({
+      game: {
+        players: ["가람", "나래", "다솜"].map((name) => ({ name, scores: {} })),
+        currentPlayer: 0,
+        turn: 1,
+        rollsUsed: 0,
+        dice: ([0, 1, 2, 3, 4] as const).map((id) => ({ id, value: 1 as const, held: false })),
+        finished: false,
+      },
+      columns: [0, 1, 2, 3, 4],
+    });
+
+    const store = openApp(storage);
+    expect(store.getState().resumable).toBeNull();
+    expect(storage.getItem("yacht.saved-game")).toBeNull();
+  });
+
+  it("2인 게임은 그대로 이어 할 수 있다", () => {
+    const storage = memoryStorage();
+    const before = openApp(storage);
+    before.getState().newGame(["가람", "나래"]);
+    playTurn(before);
+
+    const after = openApp(storage);
+    expect(after.getState().resumable?.game.players.map((p) => p.name)).toEqual(["가람", "나래"]);
+  });
+
   it("이어 하지 않고 새 게임을 시작하면 저장된 게임은 새 게임으로 바뀐다", () => {
     const storage = memoryStorage();
     const before = openApp(storage);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { BonusNotice } from "../engine/totals";
 import type { Category } from "../engine/types";
 import { useGame } from "../store/store-context";
+import { CALLOUT_EN, CALLOUT_YACHT_IMAGE } from "./callout-names";
 import { CATEGORY_NAMES } from "./category-names";
 import { Confetti } from "./confetti";
 
@@ -12,7 +13,8 @@ export const CALLOUT_MS = 1300;
 export const BONUS_STEP_MS = 1000;
 
 /**
- * 성립 알림(스펙 「굴림 연출」의 성립 알림). 굴림의 정렬 끝에 판 위쪽 가운데에 카테고리 이름을 크게 띄웠다가
+ * 성립 알림(스펙 「굴림 연출」의 성립 알림). 굴림의 정렬 끝에 판 위쪽 가운데에 카테고리 이름(영문 큰 글자와
+ * 한글 이름표, 요트는 그림)을 크게 띄웠다가
  * 줄이고, CALLOUT_MS 뒤 사라진다. 조작을 막지 않는다. 요트면 색종이도 터진다.
  * 판 위에 겹치지만 카메라 맞춤이 피할 자리가 아니라서 data-board-overlay 를 붙이지 않는다.
  */
@@ -34,9 +36,31 @@ function CalloutText({ rollId, category }: { rollId: number; category: Category 
     const timer = setTimeout(() => ended(rollId), CALLOUT_MS);
     return () => clearTimeout(timer);
   }, [rollId, ended]);
+  const name = CATEGORY_NAMES[category];
+  const english = CALLOUT_EN[category];
+  // 화면 낭독기에는 한국어 이름만: 요트는 그림의 대체 글, 나머지는 영문 글자를 빼고 아래 한글 이름표를 읽는다.
   return (
-    <div className={`notice callout-text${category === "yacht" ? " yacht" : ""}`} role="status">
-      {CATEGORY_NAMES[category]}
+    <div
+      className={`notice callout-text${english ? "" : " yacht"}`}
+      role="status"
+      aria-label={name}
+    >
+      {english ? (
+        <>
+          <span className="callout-en" aria-hidden="true">
+            {english}
+          </span>
+          <span className="callout-ko">{name}</span>
+        </>
+      ) : (
+        <img
+          className="callout-art"
+          src={CALLOUT_YACHT_IMAGE.src}
+          width={CALLOUT_YACHT_IMAGE.width}
+          height={CALLOUT_YACHT_IMAGE.height}
+          alt={name}
+        />
+      )}
     </div>
   );
 }

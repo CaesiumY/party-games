@@ -37,6 +37,60 @@ const BOARDS = [
     reserveTop: 34,
     avoid: [{ left: 356, top: 617, right: 456, bottom: 645 }],
   },
+  // 아래 넷은 #16 디자인(자체 글꼴, 36px 버튼) 뒤, 다섯 주사위를 모두 홀드하고 0점 카테고리를 골라
+  // 기록 버튼이 「0점으로 기록」일 때의 실측값이다(#44). 가로 배치의 버튼은 판 영역 밖이라 빠진다.
+  {
+    name: "375×667 세로, 「0점으로 기록」(#16 뒤)",
+    width: 343.1,
+    height: 284.6,
+    reserveTop: 36.8,
+    avoid: [{ left: 8, top: 238.6, right: 212.2, bottom: 274.6 }],
+  },
+  {
+    name: "667×375 가로, 「0점으로 기록」(#16 뒤)",
+    width: 311.1,
+    height: 317.1,
+    reserveTop: 32.8,
+    avoid: [{ left: 106.2, top: 285.1, right: 204.9, bottom: 311.1 }],
+  },
+  {
+    name: "1024×768 가로, 「0점으로 기록」(#16 뒤)",
+    width: 622.9,
+    height: 703.9,
+    reserveTop: 40,
+    avoid: [{ left: 262.1, top: 671.9, right: 360.8, bottom: 697.9 }],
+  },
+  {
+    name: "1280×720 가로, 「0점으로 기록」(#16 뒤)",
+    width: 786.7,
+    height: 658.8,
+    reserveTop: 38.5,
+    avoid: [{ left: 344, top: 626.8, right: 442.7, bottom: 652.8 }],
+  },
+  {
+    // #16 전(yacht-mvp)에는 「0점으로 기록」 버튼이 더 넓어 판이 작아졌고, 홀드 자리 열 간격이 약 23px 로
+    // 좁아져 말풍선끼리 겹쳤다(#44 재현 실측). 지금 디자인에서는 이만큼 좁아지지 않지만, 버튼이나 표시가
+    // 다시 넓어질 때를 지키려고 남긴다.
+    name: "375×667 세로, 판이 좁아진 「0점으로 기록」(#16 전)",
+    width: 343,
+    height: 283,
+    reserveTop: 38,
+    avoid: [{ left: 10, top: 237, right: 232, bottom: 273 }],
+    /**
+     * 알려진 문제(#44 범위 밖): 홀드 자리 눈 아래(약 66px)부터 정렬 줄 눈 위(약 116px)까지 50px 인데,
+     * 엇갈린 두 단은 6 + 24 + 2 + 24 = 56px 가 든다. 그래서 아랫단 말풍선이 옆 열 정렬 줄 주사위의 눈
+     * 귀퉁이를 덮는다. 이 크기에서는 말풍선 자리만 바꿔서는 풀 수 없다(카메라 맞춤이 말풍선 자리를 함께
+     * 따지거나, 위쪽 표시 사이의 빈 자리를 쓰는 별도 작업). 고쳐지면 `it.fails` 가 실패해 알려 준다.
+     *
+     * #18 화면 검수에서 다시 재 보았다. 375×667 에서 넷은 홀드 자리·하나는 정렬 줄(정렬 줄이 4열일 때와
+     * 1열일 때 둘 다)에 두고 「0점으로 기록」을 띄워도 판 영역 343.1×284.6, 위쪽 표시 아래 끝 36.8,
+     * 버튼 자리 8~212.2 × 238.6~274.6 으로 위 「#16 뒤」 실측과 같고 판이 작아지지 않았다. 아랫단
+     * 「되돌리기」의 아래 끝(134.1)이 정렬 줄 주사위 윗면(약 138)보다 위라 눈을 덮지 않았다. 나머지 세 크기도
+     * 재현되지 않았다. 지금 화면에서는 생기지 않는 문제라서 배치 구조(가·나)는 바꾸지 않고, 버튼이나 표시가
+     * 다시 넓어질 때를 알리는 표시로 `it.fails` 를 남긴다.
+     */
+    knownFaceCover: ["넷은 홀드 자리, 하나는 정렬 줄"],
+  },
 ];
 
 const slot = (id: number, column: number, row: DieSlot["row"]): DieSlot => ({
@@ -61,6 +115,7 @@ const CASES: { name: string; slots: DieSlot[] }[] = [
       slot(4, 4, "hold"),
     ],
   },
+  { name: "모두 홀드 자리", slots: [0, 1, 2, 3, 4].map((i) => slot(i, i, "hold")) },
 ];
 
 const overlaps = (a: BubbleBox, b: BubbleBox) =>
@@ -104,12 +159,29 @@ describe("홀드 말풍선 자리", () => {
 
   for (const board of BOARDS) {
     for (const c of CASES) {
-      it(`${board.name}, ${c.name}: 말풍선은 어느 주사위의 눈(윗면)도 가리지 않는다`, () => {
+      const test = board.knownFaceCover?.includes(c.name) ? it.fails : it;
+      test(`${board.name}, ${c.name}: 말풍선은 어느 주사위의 눈(윗면)도 가리지 않는다`, () => {
         const fit = fitCamera(board);
         const faces = c.slots.map((s) => topFace(fit, s));
 
         for (const bubble of layoutHoldBubbles(fit, c.slots, board.reserveTop)) {
           for (const face of faces) expect(overlaps(bubbleBox(bubble), face)).toBe(false);
+        }
+      });
+    }
+  }
+
+  for (const board of BOARDS) {
+    for (const c of CASES) {
+      it(`${board.name}, ${c.name}: 말풍선은 자기 주사위를 가리킨다(가로 가운데가 그 주사위 윗면 폭 안)`, () => {
+        const fit = fitCamera(board);
+
+        for (const bubble of layoutHoldBubbles(fit, c.slots, board.reserveTop)) {
+          const own = c.slots.find((s) => s.id === bubble.id);
+          if (!own) throw new Error(`주사위 ${bubble.id} 가 없다`);
+          const face = topFace(fit, own);
+          expect(bubble.x).toBeGreaterThanOrEqual(face.left);
+          expect(bubble.x).toBeLessThanOrEqual(face.right);
         }
       });
     }

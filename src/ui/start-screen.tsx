@@ -6,7 +6,7 @@ import { defaultName, NAME_MAX_LENGTH, PLAYER_COUNTS, playerNames } from "./play
 
 /**
  * 시작 화면. 이어 할 게임이 있으면 먼저 "이어 하기"와 "새 게임"을 고른다(스펙 「이어 하기」).
- * 새 게임은 인원(1~4명)을 고르고 이름을 넣어 시작한다. 1명이면 연습 모드, 2~4명이면 대전 모드다.
+ * 새 게임은 인원(지금은 1~2명, `MAX_PLAYERS`)을 고르고 이름을 넣어 시작한다. 1명이면 연습 모드, 2명이면 대전 모드다.
  * 아래에 "플레이 방법" 버튼이 있다.
  */
 export function StartScreen() {
@@ -18,7 +18,10 @@ export function StartScreen() {
 
   return (
     <main className="start" aria-labelledby="start-title">
-      <h1 id="start-title">요트</h1>
+      {/* 제목은 그림(Codex CLI 이미지 생성, 640×180). 대체 글이 접근 이름 「요트」가 된다. index.html 이 미리 받는다. */}
+      <h1 id="start-title" className="title-art">
+        <img src="/img/title-yacht.webp" width={640} height={180} alt="요트" />
+      </h1>
       {resumable && !choosingNew ? (
         <div className="resume">
           <p className="best">최고 점수 {best ?? "없음"}</p>
@@ -44,8 +47,9 @@ export function StartScreen() {
 function SetupForm({ best }: { best: number | null }) {
   const newGame = useGame((s) => s.newGame);
   const last = useGame((s) => s.game.players);
-  const [count, setCount] = useState(last.length);
-  // 네 칸을 다 들고 있어서, 인원을 줄였다 늘려도 넣은 이름이 남는다. 기본 이름은 빈칸으로 보인다.
+  // 지난 게임이 지금 받는 인원보다 많으면(3~4명을 닫기 전의 게임) 가장 큰 선택지로 맞춘다.
+  const [count, setCount] = useState(Math.min(last.length, PLAYER_COUNTS.length));
+  // 선택지 수만큼 칸을 다 들고 있어서, 인원을 줄였다 늘려도 넣은 이름이 남는다. 기본 이름은 빈칸으로 보인다.
   const [inputs, setInputs] = useState(() =>
     PLAYER_COUNTS.map((_, i) => {
       const name = last[i]?.name ?? "";
