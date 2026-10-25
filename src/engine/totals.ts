@@ -1,6 +1,24 @@
 import type { Category, PlayerState } from "./types";
 
-const UPPER: readonly Category[] = ["aces", "deuces", "treys", "fours", "fives", "sixes"];
+/** 윗칸: 1~6 눈 카테고리 여섯 개. 점수표 순서다. */
+export const UPPER_CATEGORIES: readonly Category[] = [
+  "aces",
+  "deuces",
+  "treys",
+  "fours",
+  "fives",
+  "sixes",
+];
+
+/** 아랫칸: 초이스부터 요트까지 여섯 개. 점수표 순서다. */
+export const LOWER_CATEGORIES: readonly Category[] = [
+  "choice",
+  "fourDice",
+  "fullHouse",
+  "sStraight",
+  "lStraight",
+  "yacht",
+];
 
 /** 윗칸 보너스를 받는 소계 기준. 점수표의 "47/63" 표시도 이 값을 쓴다. */
 export const UPPER_BONUS_THRESHOLD = 63;
@@ -10,7 +28,7 @@ export const UPPER_BONUS_POINTS = 35;
 
 /** 윗칸 여섯 카테고리 점수의 합. */
 export function upperSubtotal(player: PlayerState): number {
-  return UPPER.reduce((sum, category) => sum + (player.scores[category] ?? 0), 0);
+  return UPPER_CATEGORIES.reduce((sum, category) => sum + (player.scores[category] ?? 0), 0);
 }
 
 /** 윗칸 보너스: 소계가 63 이상이면 35, 아니면 0. 카테고리가 아니다. */
@@ -28,7 +46,8 @@ export type BonusNotice = "+35" | "+0";
  */
 export function bonusNotice(before: PlayerState, after: PlayerState): BonusNotice | null {
   if (upperBonus(before) === 0 && upperBonus(after) > 0) return "+35";
-  const filled = (p: PlayerState) => UPPER.every((category) => p.scores[category] !== undefined);
+  const filled = (p: PlayerState) =>
+    UPPER_CATEGORIES.every((category) => p.scores[category] !== undefined);
   if (!filled(before) && filled(after) && upperBonus(after) === 0) return "+0";
   return null;
 }

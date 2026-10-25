@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { bonusNotice, totalScore, upperBonus, upperSubtotal } from "./totals";
-import type { PlayerState } from "./types";
+import {
+  bonusNotice,
+  LOWER_CATEGORIES,
+  totalScore,
+  UPPER_CATEGORIES,
+  upperBonus,
+  upperSubtotal,
+} from "./totals";
+import { CATEGORIES, type PlayerState } from "./types";
+
+describe("윗칸과 아랫칸", () => {
+  it("열두 카테고리를 점수표 순서 그대로 여섯 개씩 나눈다", () => {
+    expect(UPPER_CATEGORIES).toEqual(["aces", "deuces", "treys", "fours", "fives", "sixes"]);
+    expect([...UPPER_CATEGORIES, ...LOWER_CATEGORIES]).toEqual(CATEGORIES);
+  });
+});
 
 describe("소계와 총합 득점", () => {
   it("아랫칸만 기록했으면 소계는 0이고 총합 득점은 기록한 점수의 합이다", () => {
