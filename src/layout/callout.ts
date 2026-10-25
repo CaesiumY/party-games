@@ -1,17 +1,14 @@
+import { DIE_IDS } from "../engine/types";
 import { BOARD, holdRowCorners, lineupCorners } from "./board";
 import { type CameraFit, projectPoints } from "./camera-fit";
-import { COLUMNS, type DieSlot } from "./columns";
+import type { DieSlot } from "./columns";
 import { bubbleBox, layoutHoldBubbles } from "./hold-bubbles";
 
 /** 홀드 자리 주사위의 아래 끝과 알림 윗변 사이, 알림 아랫변과 정렬 줄(또는 그 위 「킵」 말풍선) 사이(px). */
 const GAP = 4;
 
 /** 정렬 줄 다섯 칸 모두에 주사위가 있을 때. 「킵」 말풍선이 주사위 위에 뜨는지 보려고 쓴다. */
-const ALL_LINEUP: DieSlot[] = COLUMNS.map((i) => ({
-  id: i as DieSlot["id"],
-  column: i,
-  row: "lineup",
-}));
+const ALL_LINEUP: DieSlot[] = DIE_IDS.map((id, column) => ({ id, column, row: "lineup" }));
 
 export interface CalloutAnchor {
   /** 알림의 가로 가운데(px, 판 영역 왼쪽 위 기준). */

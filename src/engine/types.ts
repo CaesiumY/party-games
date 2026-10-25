@@ -18,13 +18,11 @@ export interface Die {
  * 식별자는 용어집의 한국어판 이름을 그대로 옮겼다(포 다이스 → fourDice, S. 스트레이트 → sStraight).
  * 화면 이름은 src/ui/category-names.ts 에 있다.
  */
-export const CATEGORIES = [
-  "aces",
-  "deuces",
-  "treys",
-  "fours",
-  "fives",
-  "sixes",
+/** 윗칸: 1~6 눈 카테고리 여섯 개. 점수표 순서다. */
+export const UPPER_CATEGORIES = ["aces", "deuces", "treys", "fours", "fives", "sixes"] as const;
+
+/** 아랫칸: 초이스부터 요트까지 여섯 개. 점수표 순서다. */
+export const LOWER_CATEGORIES = [
   "choice",
   "fourDice",
   "fullHouse",
@@ -32,6 +30,8 @@ export const CATEGORIES = [
   "lStraight",
   "yacht",
 ] as const;
+
+export const CATEGORIES = [...UPPER_CATEGORIES, ...LOWER_CATEGORIES] as const;
 
 export type Category = (typeof CATEGORIES)[number];
 

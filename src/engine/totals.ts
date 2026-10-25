@@ -1,24 +1,7 @@
-import type { Category, PlayerState } from "./types";
+import { type PlayerState, UPPER_CATEGORIES } from "./types";
 
-/** 윗칸: 1~6 눈 카테고리 여섯 개. 점수표 순서다. */
-export const UPPER_CATEGORIES: readonly Category[] = [
-  "aces",
-  "deuces",
-  "treys",
-  "fours",
-  "fives",
-  "sixes",
-];
-
-/** 아랫칸: 초이스부터 요트까지 여섯 개. 점수표 순서다. */
-export const LOWER_CATEGORIES: readonly Category[] = [
-  "choice",
-  "fourDice",
-  "fullHouse",
-  "sStraight",
-  "lStraight",
-  "yacht",
-];
+// 윗칸·아랫칸 목록은 카테고리 목록과 한 곳에서 만든다(./types).
+export { LOWER_CATEGORIES, UPPER_CATEGORIES } from "./types";
 
 /** 윗칸 보너스를 받는 소계 기준. 점수표의 "47/63" 표시도 이 값을 쓴다. */
 export const UPPER_BONUS_THRESHOLD = 63;

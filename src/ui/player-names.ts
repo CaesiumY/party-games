@@ -40,18 +40,19 @@ export function playerNames(inputs: readonly string[]): string[] {
       names.push(null);
       continue;
     }
-    let name = base;
-    for (let n = 2; used.has(name); n++) name = numbered(base, n);
-    used.add(name);
-    names.push(name);
+    names.push(claim(base, used));
   }
   return names.map((name, i) => {
     if (name !== null) return name;
     // 번호를 바꾸지 않는다. 직접 넣은 이름과 겹치면 직접 넣은 이름끼리처럼 뒤에 번호를 붙인다.
-    const base = defaultName(i);
-    let fallback = base;
-    for (let n = 2; used.has(fallback); n++) fallback = numbered(base, n);
-    used.add(fallback);
-    return fallback;
+    return claim(defaultName(i), used);
   });
+}
+
+/** 아직 아무도 쓰지 않은 이름을 잡는다. 겹치면 뒤에 " 2", " 3" … 을 붙인다. */
+function claim(base: string, used: Set<string>): string {
+  let name = base;
+  for (let n = 2; used.has(name); n++) name = numbered(base, n);
+  used.add(name);
+  return name;
 }
