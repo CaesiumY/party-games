@@ -1,6 +1,13 @@
 import { scorePreview } from "../engine/game";
-import { totalScore, UPPER_BONUS_THRESHOLD, upperBonus, upperSubtotal } from "../engine/totals";
-import { CATEGORIES, type Category } from "../engine/types";
+import {
+  LOWER_CATEGORIES,
+  totalScore,
+  UPPER_BONUS_THRESHOLD,
+  UPPER_CATEGORIES,
+  upperBonus,
+  upperSubtotal,
+} from "../engine/totals";
+import type { Category } from "../engine/types";
 import {
   useGame,
   usePermissions,
@@ -13,10 +20,9 @@ import { CATEGORY_NAMES } from "./category-names";
 import { HowToPlayButton } from "./how-to-play";
 import { PlayerDot } from "./player-dot";
 
-const UPPER = CATEGORIES.slice(0, 6);
 // 원작 점수표처럼 초이스는 아랫칸의 나머지와 틈을 두고 따로 묶는다.
-const CHOICE = CATEGORIES.slice(6, 7);
-const LOWER = CATEGORIES.slice(7);
+const CHOICE: readonly Category[] = ["choice"];
+const LOWER = LOWER_CATEGORIES.filter((category) => category !== "choice");
 
 /** 점수표: 표 하나, 카테고리마다 가로줄, 플레이어마다 세로줄(스펙 「화면 배치」). */
 export function Scorecard() {
@@ -127,7 +133,7 @@ export function Scorecard() {
           </tr>
         </thead>
         <tbody>
-          {UPPER.map(row)}
+          {UPPER_CATEGORIES.map(row)}
           {line(
             "sub",
             "소계",

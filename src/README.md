@@ -6,9 +6,9 @@
 |---|---|---|
 | `engine/` | 게임 엔진. 점수 규칙과 턴 진행. 순수 TypeScript | 엔진 안의 파일만 (`boundary.test.ts` 가 검사) |
 | `store/` | zustand 상태 저장소. 엔진을 화면에 잇고, **조작 가능 여부를 한 곳에서 판정**. 지금 보이는 화면(시작/게임)과 브라우저 저장도 여기 | engine, layout |
-| `layout/` | 화면 표현을 정하는 순수 계산. 열 규칙, 주사위 자리, 카메라 거리 맞춤 | engine 의 타입, three.js 의 수학(WebGL·DOM 없이) |
-| `scene/` | 3D 장면(React Three Fiber). 판, 주사위, **굴림 연출 입구** | store, layout |
-| `ui/` | 2D 화면. 시작 화면, 점수표, 버튼, 판 위 겹침 표시, 결과 화면, 플레이 방법, WebGL 미지원 안내 | store, engine 의 조회 함수 |
+| `layout/` | 화면 표현을 정하는 순수 계산. 열 규칙, 주사위 자리, 카메라 거리 맞춤 | engine 의 타입과 주사위 번호 목록(`DIE_IDS`), three.js 의 수학(WebGL·DOM 없이) |
+| `scene/` | 3D 장면(React Three Fiber). 판, 주사위, **굴림 연출 입구** | store, layout, `engine/types` 의 타입과 주사위 번호 목록(`DIE_IDS`) |
+| `ui/` | 2D 화면. 시작 화면, 점수표, 버튼, 판 위 겹침 표시, 결과 화면, 플레이 방법, WebGL 미지원 안내 | store, engine 의 조회 함수와 상수·타입, a11y(보이지 않는 주사위 버튼, '동작 줄이기' 감지) |
 | `a11y/` | 접근성. '동작 줄이기' 감지, 보이지 않는 주사위 버튼 | store, layout |
 
 `main.tsx` 는 시작점(주사위 공급원·저장소·브라우저 저장 항목을 만들고 설정을 잇는다), `app.tsx` 는 WebGL 유무와 저장소의 `screen` 으로 화면(시작 → 게임 → 결과)을 고른다.
@@ -39,7 +39,7 @@
 - **차례 배너**: 대전 모드에서 화면의 차례가 넘어가는 순간(기록 뒤, 보너스 알림이 있으면 `bonusNoticeEnded` 때) 저장소가 `turnBanner`(`{ id, player }`)를 들고, `ui/turn-banner.tsx` 가 「다음은 ○○ 차례」를 띄웠다가 `turnBannerEnded(id)` 로 지운다. 게임이 끝난 기록이나 연습 모드에는 없다. 조작은 막지 않고 "?"(`helpBlocker`)만 막는다.
 - **순위**: 엔진 `ranking(state)`(`engine/ranking.ts`) → `{ player, total, rank }[]`, 총합 득점 순서. 동점이면 같은 순위이고 다음 순위는 그 인원만큼 건너뛴다(1·1·3). 결과 화면(`ui/result-screen.tsx`)은 대전 모드면 순위 표 → 「다음」 → 승자 화면(공동 1등 모두, 색종이), 연습 모드면 최고 점수 비교다.
 - **인원 상한**: 시작 화면이 받는 인원은 `store/player-cap.ts` 의 `MAX_PLAYERS`(지금 2) 하나로 정한다. 시작 화면의 인원 선택지(`ui/player-names.ts` 의 `PLAYER_COUNTS`)와 이어 하기의 저장 읽기(`store/saved-game.ts`, 상한보다 많으면 읽을 수 없는 저장처럼 버림)가 이 값을 쓴다. 엔진·저장소·배치 계산은 4명까지 그대로라, 3~4명을 다시 열려면 이 한 줄만 바꾼다.
-- **플레이어 이름과 색**: 시작 화면이 인원(1~`MAX_PLAYERS`)과 이름을 받고 `playerNames(inputs)`(`ui/player-names.ts`: 앞뒤 공백 제거, 비면 자리 번호의 「플레이어 n」이고 그 이름이 이미 쓰였으면 겹치지 않는 가장 작은 「플레이어 n」, 직접 넣은 이름끼리 겹치면 뒤에 " 2")로 `newGame` 에 넘긴다. 이름은 8자까지이고(번호를 붙여 넘으면 앞부분을 자름), 8자 제한과 번호 붙이기는 스펙에 없는 이 앱의 결정이다(4인 점수표 머리 폭, 누구인지 구분). 플레이어 색은 저장하지 않고 자리 순번으로 정한다(`ui/player-dot.tsx` 의 `playerColor(i)` → `var(--player-n)`, `<PlayerDot player />`). 그래서 「같은 멤버로 다시」는 이름 순서만 지키면 색도 그대로다.
+- **플레이어 이름과 색**: 시작 화면이 인원(1~`MAX_PLAYERS`)과 이름을 받고 `playerNames(inputs)`(`ui/player-names.ts`: 앞뒤 공백 제거, 비면 자리 번호의 「플레이어 n」, 직접 넣은 이름끼리 겹치거나 비운 칸의 「플레이어 n」이 직접 넣은 이름과 겹치면 뒤에 " 2"(번호는 바꾸지 않는다))로 `newGame` 에 넘긴다. 이름은 8자까지이고(번호를 붙여 넘으면 앞부분을 자름), 8자 제한과 번호 붙이기는 스펙에 없는 이 앱의 결정이다(4인 점수표 머리 폭, 누구인지 구분). 플레이어 색은 저장하지 않고 자리 순번으로 정한다(`ui/player-dot.tsx` 의 `playerColor(i)` → `var(--player-n)`, `<PlayerDot player />`). 그래서 「같은 멤버로 다시」는 이름 순서만 지키면 색도 그대로다.
 
 ## 테스트
 

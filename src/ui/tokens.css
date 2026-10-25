@@ -73,6 +73,11 @@
   --page: #c9935a;
   --chip-bg: rgb(43 42 39 / 78%);
 
+  /* 그림자와 가림막(검정 반투명) */
+  --shadow: rgb(0 0 0 / 35%);
+  --shadow-soft: rgb(0 0 0 / 30%);
+  --scrim: rgb(0 0 0 / 55%);
+
   /* 글꼴: 둥근 고딕(원작). 서브셋에 없는 글자는 시스템 고딕으로 대신한다(DESIGN.md 「Typography」). */
   --font-ui: "Yacht Round", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-num:

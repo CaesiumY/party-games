@@ -1,6 +1,6 @@
 import { BOARD, columnX, type Vec3 } from "./board";
 import { type CameraFit, projectPoints } from "./camera-fit";
-import type { DieSlot, Row } from "./columns";
+import { COLUMNS, type DieSlot, type Row } from "./columns";
 
 /**
  * 홀드 말풍선의 화면 자리(스펙 「3D 장면」 홀드 말풍선). 3D 를 그리지 않는 계산이다.
@@ -37,6 +37,8 @@ export type BubbleSide = "above" | "below" | "below2";
 
 export interface HoldBubble {
   id: DieSlot["id"];
+  /** 그 주사위가 놓인 줄. 홀드 자리(hold)면 누를 때 홀드를 풀고, 정렬 줄(lineup)이면 홀드한다. */
+  row: Row;
   label: string;
   /** 기준점(px, 판 영역 왼쪽 위 기준). 상자는 이 점의 가로 가운데에 놓인다. */
   x: number;
@@ -90,7 +92,7 @@ function anchor(column: number, row: Row, side: "above" | "below"): Vec3 {
 function columnSpacing(fit: CameraFit, row: Row): number {
   const points = projectPoints(
     fit,
-    [0, 1, 2, 3, 4].map((c): Vec3 => [columnX(c), BOARD.die, rowZ(row)]),
+    COLUMNS.map((c): Vec3 => [columnX(c), BOARD.die, rowZ(row)]),
   );
   let gap = Number.POSITIVE_INFINITY;
   for (let i = 1; i < points.length; i += 1) {
@@ -143,12 +145,11 @@ function planRows(fit: CameraFit, topLimit: number): Record<Row, HoldBubble[]> {
     // id 는 자리를 정한 뒤 layoutHoldBubbles 가 그 열의 주사위로 채운다.
     const place = (column: number, side: BubbleSide): HoldBubble => {
       const [p] = projectPoints(fit, [anchor(column, row, side === "above" ? "above" : "below")]);
-      return { id: 0, label, x: p?.x ?? 0, y: p?.y ?? 0, side, fontSize, width };
+      return { id: 0, row, label, x: p?.x ?? 0, y: p?.y ?? 0, side, fontSize, width };
     };
     const odd = (column: number) => stagger && column % 2 === 1;
-    const columns = [0, 1, 2, 3, 4];
-    const above = columns.map((c) => place(c, odd(c) ? "below" : "above"));
-    const below = columns.map((c) => place(c, odd(c) ? "below2" : "below"));
+    const above = COLUMNS.map((c) => place(c, odd(c) ? "below" : "above"));
+    const below = COLUMNS.map((c) => place(c, odd(c) ? "below2" : "below"));
     const fits = (candidate: HoldBubble[]) =>
       candidate.every((b) => {
         const box = bubbleBox(b);
