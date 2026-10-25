@@ -64,6 +64,10 @@
   --callout-cell: #ff9a2e;
   --yacht: #f5c542;
   --bonus: #ff6fb1;
+  /* 성립 알림 영문 글자의 금빛(위 밝음 → 아래 진함, 시안 B「영문 아케이드」) */
+  --callout-gold-hi: #fffbe0;
+  --callout-gold: #f7cf4a;
+  --callout-gold-lo: #d98912;
 
   /* 앱 바탕(원작 나무 탁자)과 판 위 겹침 표시 */
   --page: #c9935a;

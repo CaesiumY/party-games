@@ -18,7 +18,10 @@ export function StartScreen() {
 
   return (
     <main className="start" aria-labelledby="start-title">
-      <h1 id="start-title">요트</h1>
+      {/* 제목은 그림(Codex CLI 이미지 생성, 640×180). 대체 글이 접근 이름 「요트」가 된다. index.html 이 미리 받는다. */}
+      <h1 id="start-title" className="title-art">
+        <img src="/img/title-yacht.webp" width={640} height={180} alt="요트" />
+      </h1>
       {resumable && !choosingNew ? (
         <div className="resume">
           <p className="best">최고 점수 {best ?? "없음"}</p>
