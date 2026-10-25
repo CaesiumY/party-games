@@ -8,11 +8,11 @@ import {
   type GameState,
   type PlayerState,
 } from "../engine/types";
+import { MAX_PLAYERS } from "./player-cap";
 import { createStoredValue, type KeyValueStorage, type StoredValue } from "./stored-value";
 
 /** 한 카테고리에 적힐 수 있는 가장 큰 점수(요트 50). */
 const MAX_POINTS = 50;
-const MAX_PLAYERS = 4;
 const TURNS = 12;
 
 /** 저장한 진행 중 게임. */
@@ -75,7 +75,10 @@ function parseDie(value: unknown, index: number): Die | null {
   return { id, value: value.value as DieValue, held: value.held };
 }
 
-/** 이어 할 수 있는 게임 상태인지 확인한다. 모양이 맞지 않거나 끝난 게임이면 null. */
+/**
+ * 이어 할 수 있는 게임 상태인지 확인한다. 모양이 맞지 않거나 끝난 게임, 지금 받는 인원(`MAX_PLAYERS`)보다
+ * 많은 게임이면 null.
+ */
 function parseGame(value: unknown): GameState | null {
   if (!isRecord(value) || value.finished !== false) return null;
   const { players, dice, currentPlayer, turn, rollsUsed } = value;

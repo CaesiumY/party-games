@@ -156,7 +156,7 @@ async function expectMinTarget(target: Locator, what: string) {
   expect(box?.height ?? 0, `${what} 높이`).toBeGreaterThanOrEqual(MIN_TARGET);
 }
 
-test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 4인 대전을 확인 크기 네 곳에서 한 턴씩", async ({
+test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 새 2인 대전을 확인 크기 네 곳에서 한 턴씩", async ({
   page,
 }) => {
   await test.step("테스트용 빌드와 WebGL·동작 줄이기가 켜져 있다", async () => {
@@ -361,20 +361,23 @@ test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 4인 대전
     await expect(page.getByRole("button", { name: "이어 하기" })).toHaveCount(0);
   });
 
-  await test.step("4인 대전을 새로 시작한다", async () => {
-    await page.getByText("4명", { exact: true }).click();
-    await page.getByRole("textbox", { name: "플레이어 3 이름" }).fill("다솔");
-    await page.getByRole("textbox", { name: "플레이어 4 이름" }).fill("라온");
+  await test.step("같은 두 사람으로 새 대전을 시작한다(인원은 지금 2명까지)", async () => {
+    // 인원 선택지는 1~2명뿐이다(MAX_PLAYERS, 2026-10-25 결정).
+    await expect(page.getByRole("radio")).toHaveCount(2);
+    await page.getByText("2명", { exact: true }).click();
     await page.getByRole("button", { name: "대전 시작" }).click();
     await expect(page.getByRole("img", { name: "주사위 판" })).toBeVisible();
-    await expect(scorecard(page).locator("thead th")).toHaveCount(5);
+    await expect(scorecard(page).locator("thead th")).toHaveCount(3);
   });
 
-  const fourNames = [PLAYERS[0], PLAYERS[1], "다솔", "라온"];
-  for (const [player, size] of CHECK_SIZES.entries()) {
+  // 확인 크기마다 한 턴: 두 사람이 번갈아 하므로 같은 사람의 두 번째 턴은 다른 카테고리에 기록한다.
+  const turnCategories = ["초이스", "초이스", "식스", "식스"] as const;
+  for (const [step, size] of CHECK_SIZES.entries()) {
+    const player = step % PLAYERS.length;
+    const category = turnCategories[step] ?? "초이스";
     await test.step(`${size.name} ${size.width}×${size.height}: 배치 확인 뒤 한 턴`, async () => {
       await page.setViewportSize({ width: size.width, height: size.height });
-      await expect(scorecard(page).locator("thead th.now")).toHaveText(fourNames[player] ?? "");
+      await expect(scorecard(page).locator("thead th.now")).toHaveText(PLAYERS[player] ?? "");
 
       // 조작 전에: 스크롤이 없고, 판 영역·점수표·버튼이 화면 안에 있고, 누르는 영역이 24px 이상.
       await expect
@@ -403,9 +406,9 @@ test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 4인 대전
       await bubble(page, leftmost.die).click();
       await expect(bubble(page, leftmost.die)).toHaveText("되돌리기");
       await expect(diceButtons(page).nth(0)).toHaveAttribute("aria-pressed", "true");
-      await categoryButton(page, "초이스").click();
+      await categoryButton(page, category).click();
       await recordButton(page).click();
-      await expect(scoreCell(page, "초이스", player)).not.toBeEmpty();
+      await expect(scoreCell(page, category, player)).not.toBeEmpty();
     });
   }
 });
