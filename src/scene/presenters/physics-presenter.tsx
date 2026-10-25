@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Group } from "three";
-import type { DieId } from "../../engine/types";
+import { DIE_IDS, type DieId } from "../../engine/types";
 import { CupShape } from "../cup-mesh";
 import { DieMesh } from "../die-mesh";
 import type { PresentedDie, RollPresenterProps } from "../roll-presenter";
@@ -17,8 +17,6 @@ import {
   type ShownPose,
   slotPose,
 } from "./physics/timeline";
-
-const IDS: readonly DieId[] = [0, 1, 2, 3, 4];
 
 /** 주사위가 지금 보이는 자리. 자리가 바뀌었는지 비교하는 데 쓴다. */
 interface ShownSlot {
@@ -41,7 +39,7 @@ type Shown = Map<DieId, { pose: ShownPose; visible: boolean; slot: ShownSlot }>;
 
 /** 주사위마다 지금 보이는 자세를 그 주사위의 그룹에 옮긴다. */
 function applyShown(groups: readonly (Group | null)[], shown: Shown) {
-  for (const id of IDS) {
+  for (const id of DIE_IDS) {
     const group = groups[id];
     const state = shown.get(id);
     if (!group || !state) continue;
@@ -227,7 +225,7 @@ export function PhysicsPresenter({
       <group ref={cup}>
         <CupShape />
       </group>
-      {IDS.map((id) => (
+      {DIE_IDS.map((id) => (
         <group
           key={id}
           ref={(g) => {
