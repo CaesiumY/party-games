@@ -1,10 +1,9 @@
-import { rollsLeft } from "../engine/game";
-import { useGame, useShownPlayer } from "../store/store-context";
+import { useGame, useShownPlayer, useShownRollsLeft } from "../store/store-context";
 import { PlayerDot } from "./player-dot";
 
-/** 남은 굴림 표시. 판 영역 오른쪽 위에 겹친다. */
+/** 남은 굴림 표시. 판 영역 오른쪽 위에 겹친다. 보너스 알림 동안은 방금 기록한 플레이어의 남은 굴림이다. */
 export function RollsLeft({ overlayAttr }: { overlayAttr: Record<string, string> }) {
-  const left = useGame((s) => rollsLeft(s.game));
+  const left = useShownRollsLeft();
   return (
     <div className="rolls-left" {...overlayAttr}>
       앞으로 {left}번
