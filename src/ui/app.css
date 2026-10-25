@@ -672,6 +672,12 @@ button:focus-visible {
 }
 
 .callout-text {
+  /* 판이 그려진 자리에 맞춰 홀드 자리 줄 바로 아래의 펠트 위, 판 가운데에 띄운다(#18 결정).
+     값은 src/scene/board-3d.tsx 가 카메라 맞춤으로 투영해 CSS 변수로 준다(src/layout/callout.ts). */
+  justify-self: start;
+  margin-top: var(--callout-y, 44px);
+  margin-left: var(--callout-x, 50%);
+  translate: -50% 0;
   animation: notice-pop 1.3s ease-out forwards;
 }
 
@@ -891,6 +897,31 @@ button:focus-visible {
   -webkit-text-stroke: 7px var(--text);
   paint-order: stroke fill;
   text-shadow: 0 4px 0 rgb(0 0 0 / 30%);
+}
+
+/* 「Winner!」은 라틴 글자의 뾰족한 모서리(W·!)에서 외곽선 꼭짓점이 튀어나온다(text-stroke 는 모서리를
+   둥글게 할 수 없다). 같은 굵기(바깥 3.5px)를 둥근 모서리로 그리려고 외곽선을 글자 그림자 16겹으로 대신하고,
+   아래 그림자는 그 외곽선까지 함께 지도록 filter 로 준다(#18 결정). */
+.result.winner h1 {
+  -webkit-text-stroke: 0;
+  text-shadow:
+    3.5px 0 0 var(--text),
+    3.23px 1.34px 0 var(--text),
+    2.47px 2.47px 0 var(--text),
+    1.34px 3.23px 0 var(--text),
+    0 3.5px 0 var(--text),
+    -1.34px 3.23px 0 var(--text),
+    -2.47px 2.47px 0 var(--text),
+    -3.23px 1.34px 0 var(--text),
+    -3.5px 0 0 var(--text),
+    -3.23px -1.34px 0 var(--text),
+    -2.47px -2.47px 0 var(--text),
+    -1.34px -3.23px 0 var(--text),
+    0 -3.5px 0 var(--text),
+    1.34px -3.23px 0 var(--text),
+    2.47px -2.47px 0 var(--text),
+    3.23px -1.34px 0 var(--text);
+  filter: drop-shadow(0 4px 0 rgb(0 0 0 / 30%));
 }
 
 .start p,
@@ -1126,6 +1157,9 @@ button:focus-visible {
 
 .how-to-play {
   width: min(560px, calc(100vw - 32px));
+  /* 높이를 고정해 탭을 바꿔도 탭 버튼이 움직이지 않게 한다. 가장 긴 족보 탭이 어느 확인 크기에서도
+     화면을 넘으므로 화면이 허락하는 최대 높이로 두고, 내용은 본문 안에서 스크롤한다. 짧은 탭은 아래가 빈다(#18 결정). */
+  height: calc(100dvh - 32px);
   max-height: calc(100dvh - 32px);
   padding: 0;
   border: 2px solid var(--band);
