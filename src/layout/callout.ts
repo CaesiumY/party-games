@@ -1,3 +1,4 @@
+import { DIE_IDS } from "../engine/types";
 import { BOARD, holdRowCorners, lineupCorners } from "./board";
 import { type CameraFit, projectPoints } from "./camera-fit";
 import type { DieSlot } from "./columns";
@@ -7,11 +8,7 @@ import { bubbleBox, layoutHoldBubbles } from "./hold-bubbles";
 const GAP = 4;
 
 /** 정렬 줄 다섯 칸 모두에 주사위가 있을 때. 「킵」 말풍선이 주사위 위에 뜨는지 보려고 쓴다. */
-const ALL_LINEUP: DieSlot[] = [0, 1, 2, 3, 4].map((i) => ({
-  id: i as DieSlot["id"],
-  column: i,
-  row: "lineup",
-}));
+const ALL_LINEUP: DieSlot[] = DIE_IDS.map((id, column) => ({ id, column, row: "lineup" }));
 
 export interface CalloutAnchor {
   /** 알림의 가로 가운데(px, 판 영역 왼쪽 위 기준). */

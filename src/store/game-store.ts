@@ -160,20 +160,28 @@ export function resultVisible(s: {
 }
 
 /**
- * 저장된 게임을 다시 열 때의 상태. 연출 진행 상태는 저장하지 않았으므로 연출이 끝난 상태로 연다:
- * 굴림 번호 0(연출 입구는 다시 굴리지 않고 저장한 열 그대로 자리에 놓는다).
+ * 판을 열 때(새 게임·이어 하기)의 화면 상태. 연출이 끝났고 선택·결과·옮겨 가는 주사위·알림·배너가 없다.
+ * 굴림 번호는 0이다. 연출 입구는 0을 "아직 굴리지 않음"으로 읽어, 다시 굴리지 않고 열 그대로 자리에 놓는다.
+ * 그래서 지난 판의 마지막 굴림이나 알림이 새로 연 판에 남지 않는다.
  */
-function restored({ game, columns }: SavedGame) {
+function openedBoard(game: GameState, columns: number[]) {
   return {
     game,
+    columns,
     presentation: { phase: "idle" } as const,
     rollId: 0,
     selection: null,
-    columns,
     outcome: null,
     movingDice: [] as readonly DieId[],
+    callout: null,
+    bonusNotice: null,
     turnBanner: null,
   };
+}
+
+/** 저장된 게임을 다시 열 때의 상태. 연출 진행 상태는 저장하지 않았으므로 연출이 끝난 상태로 연다. */
+function restored({ game, columns }: SavedGame) {
+  return openedBoard(game, columns);
 }
 
 /**
@@ -195,20 +203,8 @@ export function createGameStore({
   savedGame,
   muted: mutedSetting,
 }: GameStoreOptions) {
-  /**
-   * 한 판의 처음 상태. 굴림 번호도 0으로 돌린다. 연출 입구는 0을 "아직 굴리지 않음"으로 읽으므로,
-   * 새 판을 연 판 영역이 지난 판의 마지막 굴림을 다시 연출하지 않는다.
-   */
-  const fresh = (names: readonly string[]) => ({
-    game: startGame(names),
-    presentation: { phase: "idle" } as const,
-    rollId: 0,
-    selection: null,
-    columns: initialColumns(),
-    outcome: null,
-    movingDice: [] as readonly DieId[],
-    turnBanner: null,
-  });
+  /** 한 판의 처음 상태. */
+  const fresh = (names: readonly string[]) => openedBoard(startGame(names), initialColumns());
 
   /** 연습 모드 판이 끝났으면 최고 점수와 견주고, 넘었으면 저장한다. */
   const settle = (game: GameState, previous: number | null): PracticeOutcome | null => {
@@ -228,8 +224,6 @@ export function createGameStore({
     reducedMotion,
     screen: players ? "game" : "start",
     best: bestScore?.read() ?? null,
-    callout: null,
-    bonusNotice: null,
     resumable,
     muted: mutedSetting?.read() ?? false,
 
@@ -356,8 +350,7 @@ export function createGameStore({
     },
 
     newGame(names) {
-      // 지난 판의 알림이 새 판에 남지 않게 함께 지운다(굴림 번호가 0부터 다시 오른다).
-      set({ ...fresh(names), screen: "game", callout: null, bonusNotice: null, resumable: null });
+      set({ ...fresh(names), screen: "game", resumable: null });
     },
 
     restart() {
@@ -371,13 +364,7 @@ export function createGameStore({
     resume() {
       const { resumable } = get();
       if (!resumable) return;
-      set({
-        ...restored(resumable),
-        screen: "game",
-        callout: null,
-        bonusNotice: null,
-        resumable: null,
-      });
+      set({ ...restored(resumable), screen: "game", resumable: null });
     },
 
     calloutEnded(rollId) {

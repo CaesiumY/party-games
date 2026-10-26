@@ -16,9 +16,12 @@ export interface DieSlot {
   row: Row;
 }
 
+/** 다섯 열(0 = 왼쪽 … 4 = 오른쪽). 홀드 자리와 정렬 줄이 같은 열을 쓴다. */
+export const COLUMNS: readonly number[] = [0, 1, 2, 3, 4];
+
 /** 게임 시작 때의 열. 주사위 번호 순서. */
 export function initialColumns(): number[] {
-  return [0, 1, 2, 3, 4];
+  return [...COLUMNS];
 }
 
 const ascending = (a: Die, b: Die) => a.value - b.value || a.id - b.id;

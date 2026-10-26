@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { MeshStandardMaterial } from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { BOARD, columnX } from "../layout/board";
+import { COLUMNS } from "../layout/columns";
 import { canvasTexture, speckle } from "./textures";
 
 /** 빨간 펠트. 비스듬히 보이므로 이방성 필터를 조금 걸어 멀리서도 결이 뭉개지지 않게 한다. */
@@ -86,7 +87,7 @@ export function BoardMesh() {
           receiveShadow
         />
       ))}
-      {[0, 1, 2, 3, 4].map((column) => (
+      {COLUMNS.map((column) => (
         <mesh
           key={column}
           rotation={[-Math.PI / 2, 0, 0]}

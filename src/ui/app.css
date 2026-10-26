@@ -177,7 +177,7 @@ button:focus-visible {
   text-align: center;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 2px 4px rgb(0 0 0 / 35%);
+  box-shadow: 0 2px 4px var(--shadow);
   transform: translate(-50%, calc(-100% - 6px));
 }
 
@@ -722,7 +722,7 @@ button:focus-visible {
   white-space: nowrap;
   -webkit-text-stroke: 6px var(--text);
   paint-order: stroke fill;
-  text-shadow: 0 3px 0 rgb(0 0 0 / 35%);
+  text-shadow: 0 3px 0 var(--shadow);
   pointer-events: none;
 }
 
@@ -769,7 +769,7 @@ button:focus-visible {
   -webkit-background-clip: text;
   filter: drop-shadow(3px 0 0 var(--text)) drop-shadow(-3px 0 0 var(--text))
     drop-shadow(0 3px 0 var(--text)) drop-shadow(0 -3px 0 var(--text))
-    drop-shadow(0 5px 0 rgb(0 0 0 / 35%));
+    drop-shadow(0 5px 0 var(--shadow));
 }
 
 .callout-ko {
@@ -1007,7 +1007,7 @@ button:focus-visible {
   letter-spacing: 1px;
   -webkit-text-stroke: 7px var(--text);
   paint-order: stroke fill;
-  text-shadow: 0 4px 0 rgb(0 0 0 / 30%);
+  text-shadow: 0 4px 0 var(--shadow-soft);
 }
 
 /* 시작 화면 제목은 그림이다(「YACHT」와 주사위, #18 결정). 옛 글자 제목과 비슷한 높이로 둔다. */
@@ -1039,7 +1039,7 @@ button:focus-visible {
     1.34px -3.23px 0 var(--text),
     2.47px -2.47px 0 var(--text),
     3.23px -1.34px 0 var(--text);
-  filter: drop-shadow(0 4px 0 rgb(0 0 0 / 30%));
+  filter: drop-shadow(0 4px 0 var(--shadow-soft));
 }
 
 .start p,
@@ -1340,7 +1340,7 @@ button:focus-visible {
 }
 
 .how-to-play::backdrop {
-  background: rgb(0 0 0 / 55%);
+  background: var(--scrim);
 }
 
 .how-to-play :focus-visible {
