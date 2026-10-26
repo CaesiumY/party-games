@@ -218,7 +218,7 @@
 - **WebGL 미지원**: 시작할 때 감지해서 안내 문구만 보여 준다. 2D 대체 화면은 만들지 않는다.
 - **성능**: 중급 휴대폰에서 굴림 연출이 끊기지 않아야 한다. 자동 측정은 하지 않고 사람이 확인한다.
 - **기술 스택**: Vite, TypeScript, React, three.js(R3F), Rapier(`@dimforge/rapier3d-compat`, 굴림 연출 절), `zustand`. 패키지 매니저는 pnpm, 코드 검사·정렬은 Biome, 테스트는 Vitest와 Playwright. 버전은 각 도입 티켓에서 최신 안정판을 확인해 고정한다. 그 밖의 라이브러리는 도입 전에 사용자에게 제안하고 승인을 받는다.
-  - 승인받아 더한 것: `@react-three/drei`·`@testing-library/*`·`jsdom`·`husky`(2026-10-19, drei 는 뒤에 쓰지 않아 뺐다), `@playwright/test`(2026-10-20, E2E 는 로컬에서만 돌리고 CI 에는 넣지 않는다), 글꼴 서브셋 스크립트가 쓰는 Python `brotli`·`fontTools`(2026-10-20, 저장소 의존성은 아니다).
+  - 승인받아 더한 것: `@react-three/drei`·`@testing-library/*`·`jsdom`·`husky`(2026-10-19, drei 는 뒤에 쓰지 않아 뺐다), `@playwright/test`(2026-10-20, E2E 는 로컬에서만 돌리고 CI 에는 넣지 않는다), 글꼴 서브셋 스크립트가 쓰는 Python `brotli`·`fontTools`(2026-10-20, 저장소 의존성은 아니다). 문서 검사가 마크다운을 구조(문장·코드·링크·표·HTML)로 읽는 데 쓰는 `mdast-util-from-markdown`·`mdast-util-gfm`·`micromark-extension-gfm`(2026-10-27, 개발용 의존성이라 게임에는 들어가지 않는다).
 - **저장소 범위**: 요트 단독 앱으로 시작한다. 여러 게임을 고르는 로비 같은 구조는 만들지 않는다. 게임 엔진을 UI·3D와 분리해 두는 것으로 충분하다.
 - **시각 디자인**: 기능과 굴림 연출을 먼저 기본 도형과 무난한 색으로 만든다. 디자인은 그 뒤 세 단계로 진행한다.
   1. 2D UI 디자인 체계: `/design-consultation` 으로 `DESIGN.md` 를 만든다.
