@@ -20,6 +20,7 @@ const plan: RollPlan = {
       fix: new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI),
     },
   ],
+  collisions: [],
 };
 const fix = plan.tracks[0]?.fix as Quaternion;
 const step = 1 / 60;

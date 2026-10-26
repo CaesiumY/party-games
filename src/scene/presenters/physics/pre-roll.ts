@@ -31,10 +31,23 @@ export interface DieTrack {
   fix: Quaternion;
 }
 
+/**
+ * 주사위가 무언가(바닥·벽·다른 주사위·홀드 자리의 주사위)에 부딪힌 순간. 충돌음을 이 시점에 낸다.
+ * `step` 은 궤적의 프레임 번호(재생을 시작하고 `step * STEP_SECONDS` 초 뒤), `strength` 는 그 스텝에
+ * 중력으로는 설명되지 않게 바뀐 속도의 크기(초속, 판 단위)다.
+ */
+export interface Collision {
+  die: DieId;
+  step: number;
+  strength: number;
+}
+
 /** 미리 굴린 결과. 모든 궤적은 같은 스텝 수다. */
 export interface RollPlan {
   steps: number;
   tracks: DieTrack[];
+  /** 재생하는 구간 안의 부딪힘. 스텝 순서. */
+  collisions: Collision[];
 }
 
 export type RestProblem = "out" | "cup" | "stacked" | "edge";
@@ -53,6 +66,10 @@ const WALL_HALF_HEIGHT = 3;
 const STILL_STEPS = 20;
 const STILL_LINEAR = 0.02;
 const STILL_ANGULAR = 0.05;
+/** 한 스텝에 중력 말고 이만큼(초속) 넘게 속도가 바뀌면 부딪힌 것으로 본다. 구르며 바닥을 스치는 것은 빠진다. */
+const HIT_MIN_SPEED_CHANGE = 0.8;
+/** 한 번 부딪힘이 여러 스텝에 걸쳐 풀리므로, 같은 주사위는 이 스텝 수 안에 다시 세지 않는다. */
+const HIT_REPEAT_STEPS = 4;
 
 /**
  * 멈춘 자세가 정렬 전에 보여 주기에 알맞은지. 문제가 있으면 그 시드를 버리고 다시 굴린다.
@@ -109,11 +126,13 @@ function simulateOnce(rapier: Rapier, input: PreRollInput, seed: number): RollPl
     const bodies = input.rolling.map((_, i) => throwDie(rapier, world, random, i));
 
     const frames = bodies.map(() => [] as number[]);
+    const hits = collisionRecorder(input.rolling, bodies);
     let still = 0;
     let steps = 0;
     while (steps < maxSteps && still < STILL_STEPS) {
       world.step();
       steps++;
+      hits.afterStep(steps - 1);
       let moving = false;
       bodies.forEach((body, i) => {
         const t = body.translation();
@@ -146,13 +165,48 @@ function simulateOnce(rapier: Rapier, input: PreRollInput, seed: number): RollPl
         fix: faceFix(die.value, rest, Math.floor(random() * 4)),
       });
     }
-    return { steps: shownSteps, tracks };
+    return {
+      steps: shownSteps,
+      tracks,
+      collisions: hits.collisions.filter((c) => c.step < shownSteps),
+    };
   } finally {
     world.free();
   }
 }
 
 type World = InstanceType<Rapier["World"]>;
+type Body = ReturnType<World["createRigidBody"]>;
+
+/**
+ * 스텝마다 주사위의 속도 변화로 부딪힘을 찾는다. 떨어지는 동안의 속도 변화(중력)와 가만히 놓인 동안의
+ * 변화(0)는 빼고 남은 크기가 기준을 넘으면 부딪힘이다. 바닥·벽·주사위 어느 것에 부딪혔는지는 가리지 않는다.
+ */
+function collisionRecorder(dice: readonly RollingDie[], bodies: readonly Body[]) {
+  const collisions: Collision[] = [];
+  const before = bodies.map((body) => ({ ...body.linvel() }));
+  const lastHit = bodies.map(() => -Infinity);
+  const gravityStep = GRAVITY * STEP_SECONDS;
+  return {
+    collisions,
+    afterStep(step: number) {
+      bodies.forEach((body, i) => {
+        const v = body.linvel();
+        const prev = before[i];
+        const die = dice[i];
+        if (!prev || !die) return;
+        // 잠든(가만히 놓인) 주사위는 중력도 받지 않으므로 기대 변화가 0 이다.
+        const expectedY = body.isSleeping() ? 0 : gravityStep;
+        const change = Math.hypot(v.x - prev.x, v.y - prev.y - expectedY, v.z - prev.z);
+        if (change > HIT_MIN_SPEED_CHANGE && step - (lastHit[i] ?? 0) >= HIT_REPEAT_STEPS) {
+          collisions.push({ die: die.id, step, strength: change });
+          lastHit[i] = step;
+        }
+        before[i] = { x: v.x, y: v.y, z: v.z };
+      });
+    },
+  };
+}
 
 /** 바닥, 높은 벽 네 개, 홀드 자리의 주사위(고정 장애물). */
 function buildBoard(rapier: Rapier, world: World, heldColumns: readonly number[]) {

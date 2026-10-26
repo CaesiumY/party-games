@@ -52,6 +52,8 @@ export interface GameStoreState {
   columns: number[];
   /** 기기의 '동작 줄이기' 설정. 켜져 있으면 순간 배치 연출만 쓴다. */
   reducedMotion: boolean;
+  /** 음소거. 이 기기의 설정이라 새 게임을 열어도 그대로다. */
+  muted: boolean;
   screen: Screen;
   /** 이 기기의 최고 점수. 아직 없으면 null. */
   best: number | null;
@@ -92,6 +94,8 @@ export interface GameStoreState {
   /** 연출 입구가 알리는, 주사위 하나가 굴림이 아닌 자리 바뀜(홀드·홀드 풀기 등)을 다 옮겼음. */
   presenterDieSettled(die: DieId): void;
   setReducedMotion(on: boolean): void;
+  /** 음소거 버튼. 끄고 켜고, 저장 항목이 있으면 바로 저장한다. */
+  toggleMuted(): void;
   /** 이 플레이어들로 첫 턴부터 새 게임을 열고 게임 화면으로 간다. */
   newGame(players: readonly string[]): void;
   /** 「같은 멤버로 다시」: 같은 플레이어로 새 게임. */
@@ -139,6 +143,8 @@ export interface GameStoreOptions {
    * `players` 없이 열 때 읽어서, 있으면 시작 화면에서 이어 할 수 있다. 없으면 읽지도 쓰지도 않는다.
    */
   savedGame?: StoredValue<SavedGame>;
+  /** 이 기기의 음소거 저장 항목. 없으면 이번 방문 동안만 기억한다. */
+  muted?: StoredValue<boolean>;
 }
 
 /**
@@ -195,6 +201,7 @@ export function createGameStore({
   reducedMotion = false,
   bestScore,
   savedGame,
+  muted: mutedSetting,
 }: GameStoreOptions) {
   /** 한 판의 처음 상태. */
   const fresh = (names: readonly string[]) => openedBoard(startGame(names), initialColumns());
@@ -218,6 +225,7 @@ export function createGameStore({
     screen: players ? "game" : "start",
     best: bestScore?.read() ?? null,
     resumable,
+    muted: mutedSetting?.read() ?? false,
 
     roll() {
       const blocker = rollBlocker(get());
@@ -333,6 +341,12 @@ export function createGameStore({
         movingDice: [],
         presentation: presentation.phase === "auto-moving" ? { phase: "idle" } : presentation,
       });
+    },
+
+    toggleMuted() {
+      const muted = !get().muted;
+      set({ muted });
+      mutedSetting?.write(muted);
     },
 
     newGame(names) {

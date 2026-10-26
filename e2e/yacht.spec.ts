@@ -50,6 +50,44 @@ const rollButton = (page: Page) =>
 const recordButton = (page: Page) => page.getByRole("button", { name: /^(0점으로 )?기록$/ });
 const diceButtons = (page: Page) => page.getByRole("group", { name: "주사위" }).getByRole("button");
 const helpDialog = (page: Page) => page.getByRole("dialog", { name: "플레이 방법" });
+const muteButton = (page: Page) => page.getByRole("button", { name: "음소거" });
+
+/** 두 상자가 겹치는지(px, 맞닿기만 하면 겹치지 않음). */
+function boxesOverlap(
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number },
+): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+
+/**
+ * 음소거 버튼이 「앞으로 n번」 칩·홀드 말풍선·성립 알림과 겹치지 않고, 눌러서 끄고 켤 수 있는지.
+ * 덮인 버튼은 Playwright 가 누르지 못해 실패한다. 끝나면 처음처럼 소리가 켜진 상태로 돌려 둔다.
+ */
+async function expectMuteButtonClear(page: Page) {
+  const mute = await muteButton(page).boundingBox();
+  if (!mute) throw new Error("음소거 버튼이 없다");
+  const others = [
+    { what: "「앞으로 n번」", boxes: [await page.locator(".rolls-left").boundingBox()] },
+    { what: "홀드 말풍선", boxes: await bubbleBoxes(page) },
+    {
+      what: "성립 알림",
+      boxes: await page
+        .locator(".callout-text")
+        .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON())),
+    },
+  ];
+  for (const { what, boxes } of others) {
+    for (const box of boxes) {
+      if (box)
+        expect(boxesOverlap(mute, box), `음소거 버튼이 ${what} 와 겹치지 않는다`).toBe(false);
+    }
+  }
+  await muteButton(page).click();
+  await expect(muteButton(page)).toHaveAttribute("aria-pressed", "true");
+  await muteButton(page).click();
+  await expect(muteButton(page)).toHaveAttribute("aria-pressed", "false");
+}
 
 /** 그 카테고리 줄에서 그 플레이어 세로줄의 칸. */
 const scoreCell = (page: Page, category: string, player: number) =>
@@ -424,10 +462,13 @@ test("2인 대전 한 판(새로고침 뒤 이어 하기 포함) 뒤 새 2인 �
       }
       await expectMinTarget(rollButton(page), "굴림 버튼");
       await expectMinTarget(recordButton(page), "기록 버튼");
+      await expectInsideViewport(page, muteButton(page), "음소거 버튼");
+      await expectMinTarget(muteButton(page), "음소거 버튼");
 
       // 굴림 → 보이는 홀드 말풍선 탭 → 카테고리 탭 → 기록. 덮인 대상은 Playwright 가 누르지 못해 실패한다.
       await rollButton(page).click();
       await expect(page.locator(".hold-bubble")).toHaveCount(5);
+      await expectMuteButtonClear(page);
       const [leftmost] = await bubbleBoxes(page);
       if (!leftmost) throw new Error("말풍선이 없다");
       await bubble(page, leftmost.die).click();
