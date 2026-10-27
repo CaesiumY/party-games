@@ -20,8 +20,12 @@ function useCupMaterials() {
         roughness: 0.7,
         side: DoubleSide,
       }),
-      // 안쪽 바닥은 판과 같은 빨간 펠트 안감, 바깥 바닥은 짙은 가죽.
-      lining: new MeshStandardMaterial({ color: "#7a0c19", roughness: 1, side: FrontSide }),
+      // 안쪽 바닥은 벽과 같은 가죽 결을 조금 더 어둡게(빨간 펠트면 바닥이 뚫려 판이 비쳐 보였다), 바깥 바닥은 짙은 가죽.
+      lining: new MeshStandardMaterial({
+        map: canvasTexture(256, (ctx, size) => speckle(ctx, size, "#3a2014", 0.3, 9000)),
+        roughness: 0.75,
+        side: FrontSide,
+      }),
       sole: new MeshStandardMaterial({ color: "#2a160c", roughness: 0.8, side: BackSide }),
       rim: new MeshStandardMaterial({ color: "#b08850", roughness: 0.35, metalness: 0.4 }),
     };
@@ -30,7 +34,7 @@ function useCupMaterials() {
 }
 
 /**
- * 컵 모양(카지노 펠트 룩): 금속빛 테두리를 두른 가죽 컵, 안쪽 바닥은 빨간 펠트 안감.
+ * 컵 모양(카지노 펠트 룩): 금속빛 테두리를 두른 가죽 컵, 안쪽 바닥은 어두운 가죽 안감.
  * 원점은 바닥 원의 가운데라, 이 원점을 짚고 기울이면 된다.
  * 놓을 자리와 자세는 그리는 쪽(굴림 연출 구현)이 정한다. 바닥은 막아 두어 누웠을 때 속이 비쳐 보이지 않게 한다.
  */
