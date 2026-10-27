@@ -1,0 +1,92 @@
+/*
+ * 디자인 토큰(루트 DESIGN.md 「Color」·「Typography」). 2D UI 의 색·글꼴은 이 파일 한 곳에만 둔다.
+ * 점수 글자 대비는 src/ui/tokens.test.ts 가 이 값을 읽어 잰다(스펙 「플레이어 색과 차례 강조」).
+ */
+
+/*
+ * 글꼴(자체 호스팅, OFL — public/fonts/OFL.txt). 쓰는 글자만 남긴 서브셋이고 scripts/fonts/subset.py 로 다시 만든다.
+ * 「Yacht Round」는 나눔스퀘어라운드 B·EB 를 줄인 수정본이다. OFL 의 예약 글꼴 이름 때문에 이름을 바꿨다.
+ * 한글은 화면 문구와 KS X 1001 상용 한글 2,350자, 숫자 글꼴은 기본 라틴(숫자·기호)만 담았다.
+ */
+@font-face {
+  font-family: "Yacht Round";
+  src: url("/fonts/yacht-round-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Yacht Round";
+  src: url("/fonts/yacht-round-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  src: url("/fonts/mplus-rounded-1c-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007E;
+}
+
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  src: url("/fonts/mplus-rounded-1c-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007E;
+}
+
+:root {
+  /* 원작 점수표 세 색: 크림색 칸, 진회색 띠, 노란 차례 줄 */
+  --cell: #fffbef;
+  --band: #404040;
+  --band-soft: #737373;
+  --on-band: #ffffff;
+  --turn: #fee267;
+  --turn-soft: #e9d272;
+
+  /* 글자 */
+  --text: #2b2a27;
+  --preview: #5e594f;
+
+  /* 고른 카테고리(원작 주황 + 하늘색 괄호) */
+  --sel-name: #ff9a2e;
+  --sel-cell: #ff7a3d;
+  --sel-ring: #39c3f2;
+
+  /* 성립 알림·보너스 알림 빛 */
+  --callout-cell: #ff9a2e;
+  --yacht: #f5c542;
+  --bonus: #ff6fb1;
+  /* 성립 알림 영문 글자의 금빛(위 밝음 → 아래 진함, 시안 B「영문 아케이드」) */
+  --callout-gold-hi: #fffbe0;
+  --callout-gold: #f7cf4a;
+  --callout-gold-lo: #d98912;
+
+  /* 앱 바탕(원작 나무 탁자)과 판 위 겹침 표시 */
+  --page: #c9935a;
+  --chip-bg: rgb(43 42 39 / 78%);
+
+  /* 그림자와 가림막(검정 반투명) */
+  --shadow: rgb(0 0 0 / 35%);
+  --shadow-soft: rgb(0 0 0 / 30%);
+  --scrim: rgb(0 0 0 / 55%);
+
+  /* 글꼴: 둥근 고딕(원작). 서브셋에 없는 글자는 시스템 고딕으로 대신한다(DESIGN.md 「Typography」). */
+  --font-ui: "Yacht Round", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num:
+    "M PLUS Rounded 1c", "Yacht Round", "Apple SD Gothic Neo", "Malgun Gothic", system-ui,
+    sans-serif;
+
+  /* 플레이어 색(노랑·주황 계열 없음, 언제나 이름과 함께) */
+  --player-1: #2f6bff;
+  --player-2: #1fa45b;
+  --player-3: #8b4dff;
+  --player-4: #e5383b;
+}
